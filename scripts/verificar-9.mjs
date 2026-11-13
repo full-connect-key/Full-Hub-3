@@ -291,7 +291,7 @@ const NA_BARRA = [
     // `funcao: "Atendimento"` no gerador), e é por isso que ela TEM
     // Solicitações. O par dela é a Redatora logo abaixo.
     tela: "08-painel-colaborador",
-    tem: ["Início", "Minhas Tasks", "Comodatos", "Solicitações", "Notas Fiscais", "Day Off", "Acervo", "Portais de Clientes"],
+    tem: ["Início", "Minhas Tasks", "Comodatos", "Solicitações", "Notas Fiscais", "Day Off", "Acervo", "Portal do Cliente"],
     naoTem: ["Social Media", "Campanhas", "Gestão de Tasks", "Financeiro", "Full Days", "Full Academy"],
     porque:
       "o colaborador vê a Principal e mais nada; as duas áreas que saíram entram por Minhas Tasks, e os Portais entraram na Principal por decisão do usuário",
@@ -310,7 +310,7 @@ const NA_BARRA = [
     // E os dois itens que ela TEM existem para a checagem não passar por uma
     // barra que parou de desenhar qualquer coisa.
     tela: "30b-minhas-tasks-vazia",
-    tem: ["Início", "Minhas Tasks", "Portais de Clientes"],
+    tem: ["Início", "Minhas Tasks", "Portal do Cliente"],
     naoTem: ["Solicitações"],
     porque:
       "a Redatora é colaboradora como a de cima e não é do Atendimento: a leitura dos pedidos é `is_atendimento()` desde a 0110",
@@ -327,15 +327,19 @@ const NA_BARRA = [
     // não a palavra, porque a palavra continuava no HTML depois de a porta
     // deixar de abrir.
     tela: "05-painel-socio",
-    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Gestão de Pessoas", "Portais de Clientes", "Financeiro", "Day Off", "Acervo"],
-    naoTem: ["Social Media", "Campanhas", "Full Days", "Full Academy", "Feedback"],
-    antesDaGestao: ["Portais de Clientes"],
+    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Gestão de Pessoas", "Portal do Cliente", "Financeiro", "Day Off", "Acervo"],
+    // "Portais de Clientes" ESTA NA AUSENCIA de proposito: o item trocou de
+    // nome por decisao do usuario, e e esta linha que impede o nome antigo de
+    // voltar -- a mao dupla que o rename do Day Off e do Acervo ja usa, lendo
+    // o TEXTO RENDERIZADO da barra, onde comentario nao conta.
+    naoTem: ["Social Media", "Campanhas", "Full Days", "Full Academy", "Feedback", "Portais de Clientes"],
+    antesDaGestao: ["Portal do Cliente"],
     porque:
       "nem o sócio tem as duas na barra — o item saiu do menu, não do alcance de quem o abria; e o Feedback saiu com eles",
   },
   {
     tela: "09-painel-desenvolvedor",
-    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Métricas", "Portais de Clientes", "Day Off", "Acervo"],
+    tem: ["Minhas Tasks", "Comodatos", "Gestão de Tasks", "Métricas", "Portal do Cliente", "Day Off", "Acervo"],
     naoTem: ["Social Media", "Campanhas", "Financeiro", "Full Days", "Full Academy", "Feedback"],
     porque:
       "o desenvolvedor é gestão para o resto do sistema e não para o Financeiro, e as duas áreas saíram para todo mundo",

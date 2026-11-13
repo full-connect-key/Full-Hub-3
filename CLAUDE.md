@@ -10226,7 +10226,7 @@ novo o trigger recusa o insert sem ela, então os quatro nascem classificados, e
 quem mostra o estado "sem classificação" em imagem é o stub do protótipo — onde
 ele é o estado que a produção tem agora, numa linha anterior à migration.
 
-### Portais de Clientes
+### Portal do Cliente
 
 A gestão abre `/portal/{slug}` e vê a tela que aquele cliente vê. **Não é login
 como cliente:** a sessão continua sendo a da pessoa da agência, com o
@@ -10258,6 +10258,53 @@ o movimento é o contrário, e por isso a conta se inverte: a grade está
 um item, na direção oposta à daquele sprint — *"para diminuir a quantidade de
 itens na aba lateral"*. É o preço de a grade continuar existindo em algum
 lugar.
+
+##### E ELE SE CHAMA "PORTAL DO CLIENTE", com o logo da conta
+
+Decisão do usuário: *"quero que na visualização de portais de cliente, você
+mude o nome para portal do cliente e do lado no ícone do lado do nome troque
+para a foto do logo da conta"*.
+
+**O PLURAL DESCREVIA A GRADE E NÃO O DESTINO.** O item leva a UM portal por
+clique, e "Portais de Clientes" é o nome da lista de portas e não o da coisa
+que se abre — o mesmo descompasso que fez "Aprovações & Conteúdo" virar
+"Campanhas". A rota segue `/painel/portais`, que é a decisão de `dias_uteis` e
+de `/painel/full-days`: renomear o que está em uso é mexer em muito lugar sem
+nada em troca, e ninguém que usa o sistema vê a rota.
+
+**O LOGO JÁ EXISTIA, e o que faltava era o ENDEREÇO.** `clients.logo_url`
+nasceu na 0002; ele mora no bucket PRIVADO `campanhas-arquivos`, e caminho de
+bucket num `src` é o navegador pedindo ao próprio site e levando 404 — o bug
+que `ImagemAssinada` existe para não deixar voltar. Quem assina é
+`assinarArquivos`, **numa ida só para a lista inteira**, que é a forma de
+`contasComFoto()` em Gestão de Tasks.
+
+**E a assinatura mora DENTRO da leitura**, ao contrário de lá: aquela função
+serve três abas e duas não desenham foto nenhuma, então a ida ao Storage é
+separada; esta tem um chamador só, e ele desenha o logo. Um par de funções,
+uma com foto e outra sem, seria duas respostas para "quais são os portais"
+esperando divergir.
+
+**O CÍRCULO APARECE MESMO SEM LOGO, com as INICIAIS da empresa** — a decisão
+do seletor de clientes: numa grade de cartões, metade com marca e metade sem
+deixa a margem esquerda irregular, e é por ela que o olho desce a lista. E é
+`UserAvatar` e não um `Avatar` montado à mão, porque é ele que carrega o
+`object-cover` do `AvatarImage`: uma segunda forma de desenhar o círculo é
+onde o conserto da foto achatada se perde.
+
+**Medido de MÃO DUPLA no `check:sprint9`**, que é o que protege a troca: "Portal
+do Cliente" de pé na barra dos três perfis, e **"Portais de Clientes" fora** —
+só a metade da presença passaria num rename que deixasse o nome antigo num
+segundo lugar.
+
+**E "Portais de Clientes" NÃO entrou na lista de nomes mortos do
+`check:cores`**, pela razão que "Descanso" já escreveu: a pasta, a rota e o
+nome do arquivo do protótipo continuam dizendo `portais`, e uma entrada ali
+reprovaria o vocabulário do próprio projeto.
+
+***E o acesso de todos JÁ ERA*** — a 0133 pôs a rota em `EQUIPE` por decisão
+dele, na mesma frase que a moveu para a Principal. O pedido repete o que o
+produto faz, e isto fica escrito em vez de contado como entrega.
 
 **O RÓTULO NÃO É "CLIENTES", e a escolha é o que impede o furo.** "Clientes"
 já é o nome de uma aba — a de Gestão de Pessoas —, e ela leva ao CADASTRO:
@@ -14840,7 +14887,7 @@ para achar as próprias entregas.
 **ERAM NOVE, e o nono era a grade de PORTAIS** — decisão do usuário: *"tire a
 lista de clientes da aba inicial, e crie uma aba na lateral, com a lista dos
 clientes"*. Ela virou um item da barra, e o que está escrito sobre a mudança
-está em "Portais de Clientes", acima.
+está em "Portal do Cliente", acima.
 
 **E ela era a única seção desta tela que CRESCIA com a carteira da agência.**
 Os outros blocos da gestão são de exceção — o "clientes com trabalho parado"

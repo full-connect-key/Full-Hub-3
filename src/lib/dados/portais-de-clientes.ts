@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ouFalha } from "./consulta";
+import { assinarArquivos, enderecoDaArte } from "./conteudo";
 
 import { cache } from "react";
 
@@ -20,24 +21,64 @@ import type { Client } from "@/lib/supabase/database.types";
  * Por isso a visualização é só leitura, e por isso ela deixa rastro.
  */
 
-/** As empresas ativas, para a grade da tela inicial. */
+/** Uma empresa na grade do Portal do Cliente. */
+export type PortalDeCliente = {
+  id: string;
+  nome_empresa: string;
+  slug: string;
+  /** O logo da conta, já assinado — nulo quando ela não subiu nenhum. */
+  fotoAssinada: string | null;
+};
+
+/**
+ * As empresas ativas, com o LOGO de cada uma.
+ *
+ * **O logo é o pedido do usuário** — *"no ícone do lado do nome troque para a
+ * foto do logo da conta"* — e a coluna já existia: `clients.logo_url` nasceu
+ * na 0002. O que falta é o ENDEREÇO: ele mora no bucket PRIVADO
+ * `campanhas-arquivos`, e caminho de bucket num `src` é o navegador pedindo ao
+ * próprio site e levando 404 — o bug que `ImagemAssinada` existe para não
+ * deixar voltar. Quem assina é `assinarArquivos`, **numa ida só para a lista
+ * inteira**, que é a forma de `contasComFoto()` em Gestão de Tasks.
+ *
+ * **E a assinatura mora AQUI e não numa segunda função ao lado**, ao contrário
+ * de lá: esta leitura tem um chamador só — a grade —, e ela desenha o logo. Um
+ * par de funções, uma com foto e outra sem, seria duas respostas para "quais
+ * são os portais" esperando divergir.
+ */
 export const listarPortaisDeClientes = cache(
-  async (): Promise<{ id: string; nome_empresa: string; slug: string }[]> => {
+  async (): Promise<PortalDeCliente[]> => {
     const supabase = await criarClienteServidor();
 
     const data = ouFalha(
       "os clientes com portal",
       await supabase
         .from("clients")
-        .select("id, nome_empresa, slug")
+        .select("id, nome_empresa, slug, logo_url")
         .eq("ativo", true)
         .order("nome_empresa"),
     );
 
-    return data.filter(
-      (c): c is { id: string; nome_empresa: string; slug: string } =>
-        Boolean(c.slug),
+    const comSlug = data.filter(
+      (c): c is {
+        id: string;
+        nome_empresa: string;
+        slug: string;
+        logo_url: string | null;
+      } => Boolean(c.slug),
     );
+
+    const assinadas = await assinarArquivos(
+      "campanhas-arquivos",
+      comSlug.map((c) => c.logo_url),
+    );
+
+    return comSlug.map((c) => ({
+      id: c.id,
+      nome_empresa: c.nome_empresa,
+      slug: c.slug,
+      fotoAssinada: enderecoDaArte(c.logo_url, assinadas),
+    }));
   },
 );
 

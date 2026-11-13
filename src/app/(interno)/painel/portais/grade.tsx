@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, ExternalLink, Search } from "lucide-react";
+import { ExternalLink, Search } from "lucide-react";
 
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { PortalDeCliente } from "@/lib/dados/portais-de-clientes";
 
 /** Acima disto, procurar é mais rápido que percorrer a grade com os olhos. */
 const LIMITE_PARA_BUSCA = 8;
@@ -44,7 +46,7 @@ const LIMITE_PARA_BUSCA = 8;
 export function PortaisDeClientes({
   clientes,
 }: {
-  clientes: { id: string; nome_empresa: string; slug: string }[];
+  clientes: PortalDeCliente[];
 }) {
   const [busca, setBusca] = useState("");
 
@@ -89,12 +91,32 @@ export function PortaisDeClientes({
               key={cliente.id}
               className="bg-surface-card rounded-card shadow-cartao flex items-center gap-3 border p-4"
             >
-              <span
-                aria-hidden
-                className="bg-accent text-accent-foreground flex size-10 shrink-0 items-center justify-center rounded-lg"
-              >
-                <Building2 className="size-5" />
-              </span>
+              {/* O LOGO DA CONTA no lugar do ícone genérico, por decisão do
+                  usuário: *"no ícone do lado do nome troque para a foto do
+                  logo da conta"*. O endereço vem assinado de quem monta a tela
+                  — `clients.logo_url` é um caminho do bucket PRIVADO
+                  `campanhas-arquivos`, e pô-lo cru num `src` é o navegador
+                  pedindo ao próprio site e levando 404.
+
+                  **O CÍRCULO APARECE MESMO SEM LOGO, com as INICIAIS da
+                  empresa**, que é a decisão do seletor de clientes de Gestão
+                  de Tasks: numa grade de cartões, metade com marca e metade
+                  sem deixaria a margem esquerda irregular — e é por ela que o
+                  olho desce a lista. "MV" é um signo de verdade.
+
+                  **E é `UserAvatar` e não um `Avatar` montado à mão**, porque
+                  é este componente que carrega o `object-cover` do
+                  `AvatarImage`: uma segunda forma de desenhar o círculo é onde
+                  o conserto da foto achatada se perde. `tooltip={false}`
+                  porque o nome está escrito ao lado — um `TooltipTrigger`
+                  seria uma parada de Tab para ler o que já está à vista. */}
+              <UserAvatar
+                name={cliente.nome_empresa}
+                src={cliente.fotoAssinada}
+                size="lg"
+                tooltip={false}
+                className="shrink-0"
+              />
 
               <span className="flex min-w-0 flex-col leading-tight">
                 <span className="text-text-primary truncate text-sm font-medium">

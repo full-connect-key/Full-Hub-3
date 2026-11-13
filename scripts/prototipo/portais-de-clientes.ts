@@ -5,15 +5,32 @@ import type { Client } from "@/lib/supabase/database.types";
 
 import { APROVADOR_DO_CLIENTE, CLIENTES_EXEMPLO } from "./dados-exemplo";
 
-export async function listarPortaisDeClientes(): Promise<
-  { id: string; nome_empresa: string; slug: string }[]
-> {
+/**
+ * O LOGO VEM DO EXEMPLO e nao de um valor fixo aqui.
+ *
+ * `CLIENTES_EXEMPLO` tem logo em UMA das tres contas, de proposito (a licao da
+ * duplicata do Cronograma): com as tres preenchidas a imagem provaria que o
+ * circulo aparece, e nao que ele ESCOLHE entre a foto e as iniciais. Lendo a
+ * coluna, a grade sai com os dois estados lado a lado.
+ *
+ * E o caminho ja e um endereco (`/exemplos/...`), entao nao ha o que assinar:
+ * `enderecoDaArte` do produto deixa passar o que comeca com `/` e com `http`.
+ */
+export type PortalDeCliente = {
+  id: string;
+  nome_empresa: string;
+  slug: string;
+  fotoAssinada: string | null;
+};
+
+export async function listarPortaisDeClientes(): Promise<PortalDeCliente[]> {
   return (CLIENTES_EXEMPLO as unknown as Client[])
     .filter((cliente) => cliente.ativo)
     .map((cliente) => ({
       id: cliente.id,
       nome_empresa: cliente.nome_empresa,
       slug: cliente.slug ?? gerarSlug(cliente.nome_empresa),
+      fotoAssinada: cliente.logo_url ?? null,
     }));
 }
 

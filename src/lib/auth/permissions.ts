@@ -373,7 +373,7 @@ export const MENU: MenuItem[] = [
     // mentir por omissão. **Quem LÊ o rastro continua sendo `is_gestor()`** —
     // a trilha de quem andou vendo o portal de quem é sobre as outras pessoas,
     // e essa metade é de gestão.
-    label: "Portais de Clientes",
+    label: "Portal do Cliente",
     href: "/painel/portais",
     icon: Building2,
     roles: EQUIPE,

@@ -6,7 +6,7 @@ import { listarPortaisDeClientes } from "@/lib/dados/portais-de-clientes";
 
 import { PortaisDeClientes } from "./grade";
 
-export const metadata: Metadata = { title: "Portais de Clientes" };
+export const metadata: Metadata = { title: "Portal do Cliente" };
 
 const ROTA = "/painel/portais";
 
@@ -75,7 +75,7 @@ export default async function PaginaDePortaisDeClientes() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Portais de Clientes"
+        title="Portal do Cliente"
         subtitulo={
           clientes.length === 1
             ? "1 cliente ativo"
