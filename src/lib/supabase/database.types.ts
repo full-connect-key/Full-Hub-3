@@ -331,6 +331,33 @@ export type CampoDoRoteiro = {
   ajuda?: string;
 };
 
+/**
+ * Uma linha da composição: deste tipo, tantos, neste formato e nesta medida.
+ *
+ * `formato` e `dimensoes` entraram na 0125 e são TEXTO, pela razão de
+ * `posts.formato` (0032): o vocabulário muda a cada temporada de produto das
+ * plataformas, e metade do que a agência combina é proporção ou nome de papel.
+ *
+ * **Eles são do TIPO e não da peça**, e é por isso que moram ao lado da
+ * quantidade: "dez estáticos em 1080x1350" é uma linha, não dez.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA MORA AQUI DESDE A 0138, e é a razão de `CampoDoRoteiro` morar aqui:**
+ * ela passou a ser a forma de uma COLUNA `jsonb` — `client_requests.composicao`
+ * —, e a forma de um jsonb mora ao lado da tabela que o guarda.
+ *
+ * `lib/dominio/campanhas.ts` a reexporta, então todo importador antigo
+ * continua valendo. O que ela NÃO é: a forma de `campaign_composicao` (0122),
+ * que é tabela normalizada porque é consultada item a item.
+ * ---------------------------------------------------------------------------
+ */
+export type LinhaDaComposicao = {
+  tipo: DeliverableTipo;
+  quantidade: number;
+  formato: string;
+  dimensoes: string;
+};
+
 export type NotificationTipo =
   | "task"
   | "aprovacao"
@@ -1152,6 +1179,37 @@ export interface Database {
            * contá-la numa frente onde ela não está.
            */
           vertente_id: string | null;
+          /**
+           * O PERÍODO que o cliente quer para a campanha (0138).
+           *
+           * Os dois são opcionais e só a tela da frente Campanha os pergunta.
+           * Eles **não** são `data_desejada`: aquela é quando ele gostaria de
+           * receber um pedido solto, e uma campanha tem período — a mesma
+           * coluna para as duas seria a segunda verdade, e a que divergiria é
+           * a do pedido de campanha, que é o que o briefing lê.
+           *
+           * O `check client_requests_periodo_da_campanha` cobra a ordem
+           * quando as duas existem; o ramo 5 de
+           * `client_requests_classificacao` cobra a frente Campanha.
+           */
+          campanha_inicio: string | null;
+          campanha_fim: string | null;
+          /**
+           * Quantos materiais de cada tipo o cliente pediu (0138).
+           *
+           * A forma é `LinhaDaComposicao[]` —
+           * `[{tipo, quantidade, formato, dimensoes}]` —, que é a mesma que o
+           * formulário de abrir campanha já tem em mãos: uma forma própria
+           * aqui obrigaria um de-para entre a tela do cliente e a da agência,
+           * e o de-para é onde a quantidade de um tipo se perde.
+           *
+           * **`jsonb` aqui e tabela normalizada em `campaign_composicao`**
+           * (0122), pelo critério de `post_versions.arquivos` respondido duas
+           * vezes: aquela é consultada item a item pelo `full outer join` de
+           * `composicao_da_campanha()`; esta é escrita de uma vez e lida
+           * inteira, e ninguém agrega por tipo entre pedidos.
+           */
+          composicao: LinhaDaComposicao[] | null;
           status: SolicitacaoStatus;
           motivo_recusa: string | null;
           decidida_em: string | null;
@@ -1184,6 +1242,16 @@ export interface Database {
            */
           frente?: SolicitacaoFrente | null;
           vertente_id?: string | null;
+          /**
+           * O PERÍODO E A COMPOSIÇÃO da campanha pedida (0138).
+           *
+           * Os três só viajam na frente Campanha, e o ramo 5 do gatilho é
+           * quem recusa o contrário — então o `?` aqui não afrouxa nada: ele
+           * diz que o pedido comum não os manda.
+           */
+          campanha_inicio?: string | null;
+          campanha_fim?: string | null;
+          composicao?: LinhaDaComposicao[] | null;
         };
         Update: {
           /** Só `is_atendimento()` — a policy de UPDATE não aceita o cliente. */
@@ -2453,6 +2521,22 @@ export interface Database {
           workflow_snapshot?: Json | null;
           link_entrega?: string | null;
           social_paralelo?: boolean;
+          /**
+           * O VÍNCULO COM O PEDIDO DO CLIENTE, escrito depois (0138).
+           *
+           * Ele está no `Insert` desde a 0068 — `converterEmDemanda` grava o
+           * rascunho com ele —, e entrou no `Update` por causa da campanha: a
+           * assinatura de `abrir_campanha()` não muda (0061, 0120, 0122,
+           * 0125), então a demanda nasce sem o vínculo e ele é uma segunda
+           * escrita.
+           *
+           * **É `request_id` e não um id qualquer:** o índice único
+           * `tasks (request_id) where request_id is not null` (0068) é quem
+           * garante que um pedido vira uma demanda só, e é por este `update`
+           * que o ramo novo de `tasks_espelha_no_pedido` move o pedido para
+           * "em produção".
+           */
+          request_id?: string | null;
         };
         Relationships: [];
       };

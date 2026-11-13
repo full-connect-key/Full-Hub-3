@@ -17,8 +17,8 @@ import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import {
   FRENTES_DA_SOLICITACAO,
   ROTULOS_DE_FRENTE,
+  briefingDoPedido,
   camposDoRoteiro,
-  respostasParaLer,
 } from "@/lib/dominio/solicitacoes";
 import type { SolicitacaoFrente } from "@/lib/supabase/database.types";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -231,77 +231,6 @@ export async function apagarSolicitacao(id: string): Promise<Resultado> {
     revalidarOsDoisLados();
     return sucesso("Pedido apagado.");
   });
-}
-
-/**
- * O briefing da demanda, montado a partir do pedido.
- *
- * **Ele repete o que o cliente escreveu, e não um resumo.** O Atendimento vai
- * editar isto na tela de detalhe; o que não pode acontecer é ele abrir a
- * demanda e ter que voltar ao pedido para copiar as respostas uma a uma — que
- * é exatamente o trabalho manual que este sprint elimina.
- *
- * **A data desejada entra no TEXTO e não em `data_fim`**, e é a regra do
- * sprint escrita em código: `data_desejada` é o que o cliente gostaria,
- * `tasks.data_fim` é o que a agência assume. Copiar uma na outra transformaria
- * um desejo em compromisso sem ninguém ter concordado.
- */
-function briefingDoPedido(
-  pedido: {
-    descricao: string | null;
-    respostas: Record<string, string>;
-    data_desejada: string | null;
-    empresa: string | null;
-    frente: SolicitacaoFrente | null;
-  },
-  campos: ReturnType<typeof camposDoRoteiro>,
-): string {
-  const linhas: string[] = ["Pedido aberto pelo cliente no Portal.", ""];
-
-  // ---------------------------------------------------------------------
-  // A CLASSIFICAÇÃO ENTRA NO TEXTO, E NÃO NUMA COLUNA DE `tasks` (0124).
-  //
-  // A tentação é espelhar a frente na demanda para `producao_do_periodo()`
-  // agrupar por ela, e duas razões a desfazem: a demanda JÁ sabe a frente
-  // dela pela ESTRUTURA — um mês de social tem `social_do_mes`, uma campanha
-  // é apontada por `campaigns.task_id` —, e uma coluna ao lado seria a
-  // segunda verdade sobre o mesmo fato, que divergiria na primeira demanda
-  // convertida à mão que não é nem uma nem outra. É "atraso não é coluna"
-  // pela enésima vez.
-  //
-  // O que ela faz aqui é dizer ao Atendimento qual caminho de produção o
-  // cliente pediu — que é a decisão seguinte dele, na mesma tela: abrir o mês
-  // de social ou a campanha.
-  //
-  // **A VERTENTE NÃO ENTRA NO TEXTO**, e é o contrário: ela virou COLUNA da
-  // demanda, e a tela de task desenha o campo dela desde a 0118. Escrevê-la
-  // aqui também seria a segunda verdade sobre o mesmo fato — e a do texto é a
-  // que envelhece, porque ninguém reescreve o briefing no dia em que alguém
-  // troca a vertente da demanda.
-  // ---------------------------------------------------------------------
-  if (pedido.frente) {
-    linhas.push(
-      `O cliente classificou como: ${ROTULOS_DE_FRENTE[pedido.frente]}.`,
-      "",
-    );
-  }
-
-  if (pedido.descricao?.trim()) {
-    linhas.push(pedido.descricao.trim(), "");
-  }
-
-  for (const r of respostasParaLer(campos, pedido.respostas)) {
-    linhas.push(`${r.rotulo}: ${r.valor}`);
-  }
-
-  if (pedido.data_desejada) {
-    linhas.push(
-      "",
-      `O cliente gostaria para ${pedido.data_desejada}. É o desejo dele, não o prazo combinado — o prazo é o que a agência assumir aqui.`,
-    );
-  }
-
-  return linhas.join("\n").trim();
 }
 
 /**

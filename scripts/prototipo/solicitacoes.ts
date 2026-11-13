@@ -159,6 +159,9 @@ const PEDIDOS: PedidoNaLista[] = [
     vertente_id: "ee000000-0000-0000-0000-000000000002",
     vertente: "Lojas Próprias",
     campanha: "Wave Outubro Rosa",
+    campanha_inicio: null,
+    campanha_fim: null,
+    composicao: null,
     status: "nova",
     motivo_recusa: null,
     decidida_em: null,
@@ -174,7 +177,11 @@ const PEDIDOS: PedidoNaLista[] = [
   },
   {
     id: "e0000000-0000-0000-0000-000000000002",
-    client_id: "b0000000-0000-0000-0000-000000000001",
+    // O `client_id` DA LISTA DE CLIENTES, e nao um uuid qualquer: a abertura
+    // de campanha pre-preenche o seletor de Cliente com ele, e um id que
+    // `clientesAtivos()` nao conhece deixa o campo EM BRANCO -- a imagem
+    // mostraria o prefill nao preenchendo justamente o primeiro campo.
+    client_id: "c0000000-0000-0000-0000-00000000000a",
     request_type_id: TIPOS[1].id,
     criado_por: JOANA.id,
     titulo: "Lâmina A5 para a feira",
@@ -186,6 +193,22 @@ const PEDIDOS: PedidoNaLista[] = [
     vertente_id: null,
     vertente: null,
     campanha: null,
+    // O PEDIDO DE CAMPANHA COM PERIODO E LISTA DE MATERIAIS (0138), e ele e o
+    // UNICO dos seis: com os tres de campanha preenchidos, a imagem provaria
+    // que o bloco aparece e nao que ele sabe FALTAR -- que e o estado da
+    // maioria dos pedidos. E este e o que a `94` abre e o que carrega o botao
+    // "Abrir a campanha", porque ele e `campanha`, sem demanda e nao recusado.
+    //
+    // AS DATAS SAO CALCULADAS e nunca literais, que e a licao dos meses da
+    // nota fiscal: um periodo escrito em 2027 para de ser futuro sozinho, e a
+    // imagem sai igual sem nada reclamar.
+    campanha_inicio: daquiA(20),
+    campanha_fim: daquiA(50),
+    composicao: [
+      { tipo: "banner", quantidade: 2, formato: "Banner de lona", dimensoes: "200 × 100 cm" },
+      { tipo: "estatico", quantidade: 6, formato: "Feed", dimensoes: "1080 × 1350" },
+      { tipo: "outro", quantidade: 1, formato: "Lâmina A5", dimensoes: "14,8 × 21 cm" },
+    ],
     status: "em_analise",
     motivo_recusa: null,
     decidida_em: null,
@@ -213,6 +236,9 @@ const PEDIDOS: PedidoNaLista[] = [
     vertente_id: null,
     vertente: null,
     campanha: "Wave Outubro Rosa",
+    campanha_inicio: null,
+    campanha_fim: null,
+    composicao: null,
     status: "em_andamento",
     motivo_recusa: null,
     decidida_em: null,
@@ -245,6 +271,9 @@ const PEDIDOS: PedidoNaLista[] = [
     vertente_id: null,
     vertente: null,
     campanha: null,
+    campanha_inicio: null,
+    campanha_fim: null,
+    composicao: null,
     status: "recusada",
     motivo_recusa:
       "A arte do ano passado usa o logo antigo. Vale refazer com a marca nova — abrimos outro pedido?",
@@ -280,6 +309,9 @@ const PEDIDOS: PedidoNaLista[] = [
     vertente_id: "ee000000-0000-0000-0000-000000000001",
     vertente: "Institucional",
     campanha: null,
+    campanha_inicio: null,
+    campanha_fim: null,
+    composicao: null,
     status: "concluida",
     motivo_recusa: null,
     decidida_em: diasAtras(3),
@@ -310,6 +342,9 @@ const PEDIDOS: PedidoNaLista[] = [
     vertente_id: null,
     vertente: null,
     campanha: null,
+    campanha_inicio: null,
+    campanha_fim: null,
+    composicao: null,
     status: "concluida",
     motivo_recusa: null,
     decidida_em: diasAtras(8),

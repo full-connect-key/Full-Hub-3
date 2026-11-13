@@ -6,6 +6,10 @@ import { Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { EditorRico } from "@/components/shared/editor-rico";
+import {
+  EditorDaComposicao,
+  totalDaComposicao,
+} from "@/components/shared/editor-da-composicao";
 import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +87,32 @@ const SEM_DONO = "__sem_dono__";
 const SEM_TIPO = "__sem_tipo__";
 const SEM_VERTENTE = "__sem_vertente__";
 
+/**
+ * O texto do pedido em parágrafos do TipTap.
+ *
+ * **Local e não em `lib/dominio/`**, porque tem UM chamador: um conversor
+ * compartilhado com um dono é o que alguém reaproveita três sprints depois
+ * achando que ele decide alguma coisa.
+ *
+ * As linhas vazias são descartadas — `briefingDoPedido()` as usa para separar
+ * blocos, e um parágrafo vazio no TipTap é um parágrafo de verdade, que a
+ * pessoa teria de apagar à mão antes de escrever.
+ */
+function docDeTexto(texto: string | null | undefined): JSONContent | null {
+  const linhas = (texto ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (linhas.length === 0) return null;
+  return {
+    type: "doc",
+    content: linhas.map((linha) => ({
+      type: "paragraph",
+      content: [{ type: "text", text: linha }],
+    })),
+  };
+}
+
 function chave() {
   return Math.random().toString(36).slice(2);
 }
@@ -103,6 +133,7 @@ export function FormularioDeCampanha({
   workflows,
   pessoas,
   vertentes,
+  pedido,
 }: {
   clientes: { id: string; nome: string }[];
   templates: TemplateDeCampanha[];
@@ -127,6 +158,37 @@ export function FormularioDeCampanha({
    * a razão de a Biblioteca só desenhar os chips quando há uma empresa só.
    */
   vertentes: Record<string, { id: string; nome: string }[]>;
+  /**
+   * O PEDIDO QUE O CLIENTE MANDOU, quando esta tela abriu a partir de um
+   * (0138).
+   *
+   * Decisão do usuário: *"pode deixar o cliente com a mesma visualização de
+   * abrir campanha que o atendimento, para que ele envie para gente para
+   * **editarmos** e abrirmos a task"*. O "editarmos" é esta prop: o que ele
+   * escreveu entra nos campos, e o Atendimento ajusta antes de gravar.
+   *
+   * **O QUE ELE NÃO TRAZ SÃO AS QUATRO DECISÕES DA AGÊNCIA** — o estado, a
+   * pasta de entrega, quem faz cada peça e a árvore. São exatamente as que o
+   * pedido não tem como trazer, e é por isso que esta tela existe no caminho
+   * em vez de uma ação que criasse a campanha direto do pedido.
+   */
+  pedido?: {
+    id: string;
+    clienteId: string;
+    nome: string;
+    vertenteId: string | null;
+    inicio: string | null;
+    fim: string | null;
+    /**
+     * O briefing do pedido em TEXTO, e não em JSON do TipTap.
+     *
+     * Ele é montado por `briefingDoPedido()` — a mesma função que
+     * `converterEmDemanda` usa —, então as duas rotas de conversão dizem a
+     * mesma coisa sobre o mesmo pedido. A tela o transforma em parágrafos.
+     */
+    briefingTexto: string | null;
+    composicao: LinhaDaComposicao[];
+  };
 }) {
   const router = useRouter();
   const [salvando, salvar] = useTransition();
@@ -135,11 +197,14 @@ export function FormularioDeCampanha({
   // "Criar campanha" em "Salvando…" enquanto a pessoa só escolheu um modelo.
   const [montando, montar] = useTransition();
 
-  const [clienteId, setClienteId] = useState("");
-  const [vertenteId, setVertenteId] = useState(SEM_VERTENTE);
-  const [nome, setNome] = useState("");
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
+  // OS CINCO NASCEM DO PEDIDO quando esta tela abriu a partir de um (0138).
+  const [clienteId, setClienteId] = useState(pedido?.clienteId ?? "");
+  const [vertenteId, setVertenteId] = useState(
+    pedido?.vertenteId ?? SEM_VERTENTE,
+  );
+  const [nome, setNome] = useState(pedido?.nome ?? "");
+  const [dataInicio, setDataInicio] = useState(pedido?.inicio ?? "");
+  const [dataFim, setDataFim] = useState(pedido?.fim ?? "");
   const [templateId, setTemplateId] = useState(SEM_MODELO);
   // ATIVA por padrão, e não "planejamento" como o banco.
   //
@@ -160,7 +225,9 @@ export function FormularioDeCampanha({
    * caixa com o mesmo papel em `campaigns` era o lugar onde as duas versões
    * divergiam.
    */
-  const [briefing, setBriefing] = useState<JSONContent | null>(null);
+  const [briefing, setBriefing] = useState<JSONContent | null>(
+    docDeTexto(pedido?.briefingTexto),
+  );
   const [arvore, setArvore] = useState<NoEmEdicao[]>([]);
   /**
    * A COMPOSIÇÃO: deste tipo, tantos.
@@ -170,7 +237,9 @@ export function FormularioDeCampanha({
    * atalho que gera a árvore: "story, 15" em vez de quinze linhas digitadas
    * uma a uma, que era o único caminho até agora.
    */
-  const [composicao, setComposicao] = useState<LinhaDaComposicao[]>([]);
+  const [composicao, setComposicao] = useState<LinhaDaComposicao[]>(
+    pedido?.composicao ?? [],
+  );
 
   /**
    * TROCAR DE CLIENTE LIMPA A FRENTE, e isso é obrigatório.
@@ -328,6 +397,11 @@ export function FormularioDeCampanha({
     salvar(async () => {
       const resultado = await chamarAcao(() =>
         criarCampanha({
+          // O VÍNCULO COM O PEDIDO, e é ele que faz o cliente saber que a
+          // campanha nasceu: `tasks_espelha_no_pedido` move o pedido para "em
+          // produção" quando a demanda publicada ganha um `request_id`, que é
+          // o ramo que a 0138 acrescentou.
+          pedidoId: pedido?.id,
           clienteId,
           nome,
           dataInicio,
@@ -395,7 +469,7 @@ export function FormularioDeCampanha({
   }
 
   const frentesDaConta = clienteId ? (vertentes[clienteId] ?? []) : [];
-  const totalDaComposicao = composicao.reduce((s, l) => s + l.quantidade, 0);
+  const total = totalDaComposicao(composicao);
 
   // A DESCRIÇÃO VEM DA ORIGEM ESCOLHIDA, qualquer das duas. Procurar só em
   // `templates` deixaria a linha de ajuda em branco para todo workflow.
@@ -580,196 +654,28 @@ export function FormularioDeCampanha({
           está no contrato com o cliente — e só depois quem faz cada uma e
           para quando. Invertido, a pessoa distribuiria responsáveis numa
           lista que ainda vai ser refeita. */}
-      <SecaoDoFormulario
+      {/* A SEÇÃO É COMPARTILHADA COM O PEDIDO DE CAMPANHA DO CLIENTE (0138).
+          O que fica aqui é o RODAPÉ, que é o que esta tela faz com a lista:
+          montar a árvore. O cliente não monta nada — a árvore é a distribuição
+          de trabalho da agência. */}
+      <EditorDaComposicao
         numero={4}
-        titulo="Quantos materiais de cada tipo"
-        acao={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const livre = TIPOS_DE_MATERIAL.find(
-                (t) => !composicao.some((l) => l.tipo === t),
-              );
-              if (!livre) return;
-              setComposicao((atual) => [
-                ...atual,
-                { tipo: livre, quantidade: 1, formato: "", dimensoes: "" },
-              ]);
-            }}
-            disabled={composicao.length >= TIPOS_DE_MATERIAL.length}
-          >
-            <Plus aria-hidden className="size-4" />
-            Tipo
-          </Button>
-        }
-      >
-        <p className="text-text-muted text-sm">
-          Diga quantos de cada tipo a campanha entrega e o Full Hub monta a
-          lista — dez estáticos viram um grupo “Estáticos” com dez peças
-          dentro. Dá para montar a lista à mão embaixo, também.
-        </p>
-
-        {composicao.length === 0 ? (
-          <p className="text-text-muted rounded-xl border border-dashed p-4 text-sm">
-            Nenhum tipo ainda. Acrescente um acima — ou pule esta parte e monte
-            os entregáveis um a um.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {composicao.map((linha, i) => (
-              <li
-                key={linha.tipo}
-                className="bg-surface-card flex flex-wrap items-center gap-2 rounded-xl border p-2"
-              >
-                <Select
-                  value={linha.tipo}
-                  onValueChange={(v) =>
-                    setComposicao((atual) =>
-                      atual.map((l, j) =>
-                        j === i ? { ...l, tipo: v as DeliverableTipo } : l,
-                      ),
-                    )
-                  }
-                >
-                  <SelectTrigger
-                    aria-label={`Tipo do material ${i + 1}`}
-                    className="w-48"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIPOS_DE_MATERIAL.map((t) => (
-                      <SelectItem
-                        key={t}
-                        value={t}
-                        // O TIPO JÁ ESCOLHIDO SAI DA LISTA dos outros, porque
-                        // a composição é por tipo: duas linhas de "estático"
-                        // seriam dois planos para o mesmo material, e o
-                        // `primary key (campaign_id, tipo)` do banco guarda
-                        // só o último.
-                        disabled={
-                          t !== linha.tipo &&
-                          composicao.some((l) => l.tipo === t)
-                        }
-                      >
-                        {ROTULO_DO_TIPO[t]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Input
-                  type="number"
-                  min={0}
-                  max={200}
-                  value={linha.quantidade}
-                  onChange={(e) =>
-                    setComposicao((atual) =>
-                      atual.map((l, j) =>
-                        j === i
-                          ? {
-                              ...l,
-                              // ZERO É ACEITO, que é o pedido em quantas
-                              // palavras. Ele quer dizer "este tipo não entra
-                              // nesta campanha", e a árvore simplesmente não
-                              // ganha a linha — `arvoreDaComposicao()` filtra.
-                              quantidade: Math.max(
-                                0,
-                                Math.min(200, Number(e.target.value) || 0),
-                              ),
-                            }
-                          : l,
-                      ),
-                    )
-                  }
-                  aria-label={`Quantidade de ${ROTULO_DO_TIPO[linha.tipo]}`}
-                  className="w-24"
-                />
-
-                <span className="text-text-muted text-sm">
-                  {linha.quantidade === 0
-                    ? "não entra"
-                    : linha.quantidade === 1
-                      ? "uma peça"
-                      : `${linha.quantidade} peças`}
-                </span>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="ms-auto"
-                  onClick={() =>
-                    setComposicao((atual) => atual.filter((_, j) => j !== i))
-                  }
-                  aria-label={`Remover ${ROTULO_DO_TIPO[linha.tipo]}`}
-                >
-                  <X aria-hidden className="size-4" />
-                </Button>
-
-                {/* O FORMATO E A MEDIDA SÃO DO TIPO (0125), e é por isso que
-                    moram nesta linha: "dez estáticos em 1080x1350" é uma
-                    linha, não dez.
-
-                    Eles vêm na SEGUNDA linha e não ao lado da quantidade
-                    porque em 375px os cinco controles juntos não cabem — e o
-                    que cederia largura seria justamente o campo de texto. */}
-                <div className="flex w-full flex-wrap gap-2">
-                  <Input
-                    list={`formatos-${linha.tipo}`}
-                    value={linha.formato}
-                    onChange={(e) =>
-                      setComposicao((atual) =>
-                        atual.map((l, j) =>
-                          j === i ? { ...l, formato: e.target.value } : l,
-                        ),
-                      )
-                    }
-                    placeholder="Formato (feed, story, A5…)"
-                    aria-label={`Formato de ${ROTULO_DO_TIPO[linha.tipo]}`}
-                    className="min-w-40 flex-1"
-                  />
-                  {/* `datalist` e não `Select`: a lista é SUGESTÃO e o campo
-                      aceita qualquer coisa — o vocabulário de formato muda a
-                      cada temporada de produto das plataformas (0032). */}
-                  <datalist id={`formatos-${linha.tipo}`}>
-                    {FORMATOS_SUGERIDOS.map((f) => (
-                      <option key={f} value={f} />
-                    ))}
-                  </datalist>
-
-                  <Input
-                    value={linha.dimensoes}
-                    onChange={(e) =>
-                      setComposicao((atual) =>
-                        atual.map((l, j) =>
-                          j === i ? { ...l, dimensoes: e.target.value } : l,
-                        ),
-                      )
-                    }
-                    placeholder="Medida (1080x1350, A4, 9:16…)"
-                    aria-label={`Medida de ${ROTULO_DO_TIPO[linha.tipo]}`}
-                    className="min-w-40 flex-1"
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {composicao.length > 0 ? (
+        valor={composicao}
+        onChange={setComposicao}
+        explicacao="Diga quantos de cada tipo a campanha entrega e o Full Hub monta a lista — dez estáticos viram um grupo “Estáticos” com dez peças dentro. Dá para montar a lista à mão embaixo, também."
+        rodape={
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="outline" onClick={gerarDaComposicao}>
               Montar a lista
             </Button>
             <p className="text-text-muted text-sm">
-              {totalDaComposicao === 0
+              {total === 0
                 ? "Todas as quantidades estão em zero."
-                : `${totalDaComposicao} peça(s) no total.`}
+                : `${total} peça(s) no total.`}
             </p>
           </div>
-        ) : null}
-      </SecaoDoFormulario>
+        }
+      />
 
       <SecaoDoFormulario
         numero={5}

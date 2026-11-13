@@ -1,3 +1,8 @@
+import {
+  ROTULO_DO_TIPO,
+  SINGULAR_DO_TIPO,
+  composicaoDoPedido,
+} from "@/lib/dominio/campanhas";
 import type {
   CampoDoRoteiro,
   ClientRequest,
@@ -417,6 +422,138 @@ export function camposDoRoteiro(bruto: unknown): CampoDoRoteiro[] {
       typeof (c as CampoDoRoteiro).chave === "string" &&
       typeof (c as CampoDoRoteiro).rotulo === "string",
   );
+}
+
+/**
+ * O briefing da demanda, montado a partir do pedido.
+ *
+ * **Ele repete o que o cliente escreveu, e não um resumo.** O Atendimento vai
+ * editar isto na tela de detalhe; o que não pode acontecer é ele abrir a
+ * demanda e ter que voltar ao pedido para copiar as respostas uma a uma — que
+ * é exatamente o trabalho manual que este sprint elimina.
+ *
+ * **A data desejada entra no TEXTO e não em `data_fim`**, e é a regra do
+ * sprint escrita em código: `data_desejada` é o que o cliente gostaria,
+ * `tasks.data_fim` é o que a agência assume. Copiar uma na outra transformaria
+ * um desejo em compromisso sem ninguém ter concordado.
+ */
+/**
+ * `2026-12-03` vira `03/12/2026`, para o briefing ser lido por gente.
+ *
+ * **É um `split` e não `date-fns`**, de propósito: a coluna é `date`, e
+ * `parseISO` a devolve à meia-noite LOCAL — num servidor em UTC, uma data que
+ * o cliente escreveu como 3 de dezembro sai como 2 de dezembro para quem lê
+ * em São Paulo. É "o hoje é o DA AGÊNCIA" visto de outro ângulo: aqui não há
+ * fuso nenhum a resolver, há três números a trocar de ordem.
+ *
+ * Vazio devolve vazio, e quem chama decide o que escrever no lugar.
+ */
+function emDiaMes(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const [ano, mes, dia] = iso.slice(0, 10).split("-");
+  return ano && mes && dia ? `${dia}/${mes}/${ano}` : iso;
+}
+
+export function briefingDoPedido(
+  pedido: {
+    descricao: string | null;
+    respostas: Record<string, string>;
+    data_desejada: string | null;
+    empresa: string | null;
+    frente: SolicitacaoFrente | null;
+    campanha_inicio?: string | null;
+    campanha_fim?: string | null;
+    composicao?: unknown;
+  },
+  campos: ReturnType<typeof camposDoRoteiro>,
+): string {
+  const linhas: string[] = ["Pedido aberto pelo cliente no Portal.", ""];
+
+  // ---------------------------------------------------------------------
+  // A CLASSIFICAÇÃO ENTRA NO TEXTO, E NÃO NUMA COLUNA DE `tasks` (0124).
+  //
+  // A tentação é espelhar a frente na demanda para `producao_do_periodo()`
+  // agrupar por ela, e duas razões a desfazem: a demanda JÁ sabe a frente
+  // dela pela ESTRUTURA — um mês de social tem `social_do_mes`, uma campanha
+  // é apontada por `campaigns.task_id` —, e uma coluna ao lado seria a
+  // segunda verdade sobre o mesmo fato, que divergiria na primeira demanda
+  // convertida à mão que não é nem uma nem outra. É "atraso não é coluna"
+  // pela enésima vez.
+  //
+  // O que ela faz aqui é dizer ao Atendimento qual caminho de produção o
+  // cliente pediu — que é a decisão seguinte dele, na mesma tela: abrir o mês
+  // de social ou a campanha.
+  //
+  // **A VERTENTE NÃO ENTRA NO TEXTO**, e é o contrário: ela virou COLUNA da
+  // demanda, e a tela de task desenha o campo dela desde a 0118. Escrevê-la
+  // aqui também seria a segunda verdade sobre o mesmo fato — e a do texto é a
+  // que envelhece, porque ninguém reescreve o briefing no dia em que alguém
+  // troca a vertente da demanda.
+  // ---------------------------------------------------------------------
+  if (pedido.frente) {
+    linhas.push(
+      `O cliente classificou como: ${ROTULOS_DE_FRENTE[pedido.frente]}.`,
+      "",
+    );
+  }
+
+  if (pedido.descricao?.trim()) {
+    linhas.push(pedido.descricao.trim(), "");
+  }
+
+  for (const r of respostasParaLer(campos, pedido.respostas)) {
+    linhas.push(`${r.rotulo}: ${r.valor}`);
+  }
+
+  // ---------------------------------------------------------------------
+  // O PERÍODO E A COMPOSIÇÃO DA CAMPANHA ENTRAM NO TEXTO (0138).
+  //
+  // Eles só existem no pedido de frente Campanha, e este caminho é o do
+  // Atendimento decidindo que aquilo é uma DEMANDA e não uma campanha — o que
+  // acontece: "dez estáticos" às vezes é uma demanda com dez etapas. Aí o que
+  // o cliente escreveu precisa chegar ao briefing, porque a tela de task não
+  // tem campo para nenhum dos dois.
+  //
+  // **Quando ele decide abrir a CAMPANHA, estas linhas não são lidas**: lá os
+  // dois vão para os campos do formulário de abertura, que é o caminho que
+  // esta migration abriu. Duas rotas, a mesma informação, e nenhuma das duas
+  // a perde.
+  //
+  // E O PERÍODO NÃO VAI PARA `tasks.data_inicio`/`data_fim`, pela regra do
+  // parágrafo acima aplicada a duas datas em vez de uma: aquelas colunas são
+  // DERIVADAS das etapas desde a 0028, e o próximo recálculo desfaria o que
+  // fosse escrito ali.
+  // ---------------------------------------------------------------------
+  if (pedido.campanha_inicio || pedido.campanha_fim) {
+    linhas.push(
+      "",
+      `O cliente pediu a campanha de ${emDiaMes(pedido.campanha_inicio) || "(sem início)"} a ${emDiaMes(pedido.campanha_fim) || "(sem encerramento)"}.`,
+    );
+  }
+
+  const materiais = composicaoDoPedido(pedido.composicao);
+  if (materiais.length > 0) {
+    linhas.push("", "Os materiais que ele pediu:");
+    for (const m of materiais) {
+      const medida = [m.formato, m.dimensoes].filter(Boolean).join(" · ");
+      // O SINGULAR QUANDO É UMA PEÇA SÓ: `SINGULAR_DO_TIPO` existe desde a
+      // 0122 justamente porque o plural tirado por regra erra "Carrosséis" e
+      // "Stories", e "1 Outros" no briefing que o Atendimento lê é o mesmo
+      // erro de português que aquele mapa foi escrito para não cometer.
+      const rotulo =
+        m.quantidade === 1 ? SINGULAR_DO_TIPO[m.tipo] : ROTULO_DO_TIPO[m.tipo];
+      linhas.push(`- ${m.quantidade} ${rotulo}${medida ? ` (${medida})` : ""}`);
+    }
+  }
+
+  if (pedido.data_desejada) {
+    linhas.push(
+      "",
+      `O cliente gostaria para ${emDiaMes(pedido.data_desejada)}. É o desejo dele, não o prazo combinado — o prazo é o que a agência assumir aqui.`,
+    );
+  }
+
+  return linhas.join("\n").trim();
 }
 
 /** As respostas que faltam, pelo rótulo — para a frase dizer QUAIS. */

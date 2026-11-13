@@ -19,6 +19,7 @@ import {
 } from "@/app/(cliente)/portal/_actions/solicitacoes";
 import { subirAnexoDoPedido } from "@/app/(cliente)/portal/(meu)/solicitacoes/subir-anexo";
 import { CartaoDeItem } from "@/components/portal/cartao-de-item";
+import { CampanhaDoPedido } from "@/components/shared/campanha-do-pedido";
 import { PageHeader } from "@/components/shared/page-header";
 import { SeloDaSolicitacao } from "@/components/shared/selo-da-solicitacao";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -242,6 +243,16 @@ export function DetalheDoPedido({
           )}
         </section>
       ) : null}
+
+      {/* O QUE ELE PEDIU, de volta para ele: um pedido de campanha carrega um
+          período e uma lista de materiais, e sem o bloco quem enviou doze
+          estáticos não tem como reler o que enviou. É o mesmo componente do
+          detalhe do lado da agência. */}
+      <CampanhaDoPedido
+        inicio={pedido.campanha_inicio}
+        fim={pedido.campanha_fim}
+        composicao={pedido.composicao}
+      />
 
       {pedido.descricao ? (
         <p className="text-text-secondary text-sm whitespace-pre-wrap">

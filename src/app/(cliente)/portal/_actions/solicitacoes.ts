@@ -7,6 +7,7 @@ import { exigirSessaoNaAcao } from "@/lib/acoes/guardas";
 import { exigirCotaDeComentario } from "@/lib/acoes/limite";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
+import { TIPOS_DE_MATERIAL } from "@/lib/dominio/campanhas";
 import { FRENTES_DA_SOLICITACAO } from "@/lib/dominio/solicitacoes";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
@@ -92,6 +93,62 @@ const esquemaDoPedido = z.object({
    * conferência escrita aqui só alcançaria o que passou por esta tela.
    */
   vertente_id: z.string().uuid("Escolha uma vertente da lista.").optional().nullable(),
+  /**
+   * O PERÍODO E A COMPOSIÇÃO DA CAMPANHA PEDIDA (0138).
+   *
+   * Decisão do usuário: *"pode deixar o cliente com a mesma visualização de
+   * abrir campanha que o atendimento, para que ele envie para gente para
+   * editarmos e abrirmos a task"*.
+   *
+   * **Os três só viajam na frente Campanha**, e quem recusa o contrário é o
+   * ramo 5 de `client_requests_classificacao` — uma conferência escrita aqui
+   * só alcançaria o que passou por esta tela, que é a razão de sempre.
+   *
+   * **A ordem do período é conferida nos dois lados:** o `refine` escreve a
+   * frase antes do clique, e o `check client_requests_periodo_da_campanha` é
+   * quem vale. Período invertido é quase sempre um número trocado.
+   */
+  campanha_inicio: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v), {
+      message: "Data inválida.",
+    })
+    .optional()
+    .nullable(),
+  campanha_fim: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v), {
+      message: "Data inválida.",
+    })
+    .optional()
+    .nullable(),
+  /**
+   * A FORMA É `LinhaDaComposicao`, e a lista de tipos sai do domínio.
+   *
+   * `z.enum(TIPOS_DE_MATERIAL)` e nunca os sete valores escritos à mão: foi
+   * uma cópia dessas que recusou o oitavo tipo de evento no clique, com
+   * *"Confira o campo: tipo"* — a tela oferecia e a action não conhecia o
+   * valor.
+   *
+   * **A quantidade ZERO não é recusada aqui, ela é DESCARTADA antes do
+   * insert:** zero quer dizer "este tipo não entra", e o `check` da 0122 do
+   * lado da campanha recusa a linha com zero. Recusar o pedido inteiro por
+   * causa de uma linha que a pessoa zerou seria recusar o estado normal de
+   * quem mudou de ideia.
+   */
+  composicao: z
+    .array(
+      z.object({
+        tipo: z.enum(TIPOS_DE_MATERIAL),
+        quantidade: z.number().int().min(0).max(200),
+        formato: z.string().trim().max(120).default(""),
+        dimensoes: z.string().trim().max(120).default(""),
+      }),
+    )
+    .optional()
+    .nullable(),
   respostas: z.record(z.string(), z.string()).default({}),
   data_desejada: z
     .string()
@@ -99,7 +156,17 @@ const esquemaDoPedido = z.object({
     .refine((v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v), { message: "Data inválida." })
     .optional()
     .nullable(),
-});
+})
+  .refine(
+    (v) =>
+      !v.campanha_inicio ||
+      !v.campanha_fim ||
+      v.campanha_fim >= v.campanha_inicio,
+    {
+      path: ["campanha_fim"],
+      message: "O encerramento não pode ser antes do início.",
+    },
+  );
 
 const ROTULOS = {
   client_id: "empresa",
@@ -108,6 +175,9 @@ const ROTULOS = {
   campaign_id: "campanha",
   frente: "Social ou Campanha",
   vertente_id: "vertente",
+  campanha_inicio: "início da campanha",
+  campanha_fim: "encerramento da campanha",
+  composicao: "materiais da campanha",
 };
 
 /**
@@ -153,6 +223,20 @@ export async function abrirSolicitacao(dados: unknown): Promise<Resultado<string
         descricao: entrada.descricao?.trim() || null,
         respostas: entrada.respostas,
         data_desejada: entrada.data_desejada?.trim() || null,
+        // O PERÍODO E A COMPOSIÇÃO (0138), e os três caem para NULO quando
+        // vêm vazios.
+        //
+        // **A lista vazia vira nulo e não `[]`**, e a diferença é o ramo 5 do
+        // gatilho: `[]` é "a pessoa abriu a seção e não escreveu nada", que o
+        // ramo deixa passar de propósito — gravá-lo poria no banco uma
+        // afirmação de que a campanha não tem material nenhum, quando o que
+        // aconteceu é que ninguém respondeu.
+        campanha_inicio: entrada.campanha_inicio?.trim() || null,
+        campanha_fim: entrada.campanha_fim?.trim() || null,
+        composicao:
+          entrada.composicao && entrada.composicao.length > 0
+            ? entrada.composicao.filter((l) => l.quantidade > 0)
+            : null,
       })
       .select("id")
       .maybeSingle();

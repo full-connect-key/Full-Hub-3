@@ -9,6 +9,7 @@ import {
   CalendarClock,
   Check,
   ExternalLink,
+  Megaphone,
   Paperclip,
   Trash2,
   Wand2,
@@ -17,6 +18,7 @@ import {
 import { escreverNaSolicitacao } from "@/app/(cliente)/portal/_actions/solicitacoes";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PageHeader } from "@/components/shared/page-header";
+import { CampanhaDoPedido } from "@/components/shared/campanha-do-pedido";
 import { SeloDaSolicitacao } from "@/components/shared/selo-da-solicitacao";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { BotaoDeDecisao } from "@/components/shared/botao-de-decisao";
@@ -221,6 +223,16 @@ export function DetalheDoPedido({
         </p>
       ) : null}
 
+      {/* A CAMPANHA QUE ELE PEDIU vem ANTES do briefing, e a ordem é a da
+          decisão de quem lê: o período e a lista de materiais são o que o
+          Atendimento confere para abrir a campanha, e o briefing é o que ele
+          lê depois para escrevê-la. */}
+      <CampanhaDoPedido
+        inicio={pedido.campanha_inicio}
+        fim={pedido.campanha_fim}
+        composicao={pedido.composicao}
+      />
+
       {pedido.descricao ? (
         <section className="space-y-1.5">
           <h2 className="text-sm font-semibold">O que ele escreveu</h2>
@@ -334,8 +346,52 @@ export function DetalheDoPedido({
             </Button>
           ) : null}
 
+          {/* ABRIR A CAMPANHA, e ela vem ANTES de "Converter em demanda"
+              (0138).
+
+              Decisão do usuário: *"pode deixar o cliente com a mesma
+              visualização de abrir campanha que o atendimento, para que ele
+              envie para gente para editarmos e abrirmos a task"*. A ordem é a
+              da decisão: num pedido que o cliente classificou como Campanha, o
+              caminho normal é abrir a campanha — e "Converter em demanda" fica
+              ao lado porque o Atendimento é quem decide se aquilo é uma
+              campanha de verdade ("dez estáticos" às vezes é uma demanda com
+              dez etapas).
+
+              **É UM `<Link>` E NÃO UMA AÇÃO**, e é a metade "para editarmos" do
+              pedido: ele leva ao formulário de abrir campanha com o que o
+              cliente escreveu já preenchido — nome, frente, período, briefing
+              e os materiais —, e o Atendimento ajusta antes de gravar. Uma
+              ação que criasse a campanha direto do pedido tiraria dele as
+              quatro decisões que a abertura pede e que o pedido não traz: o
+              estado, a pasta de entrega, quem faz cada peça e a árvore.
+
+              **E só na frente CAMPANHA**: num pedido de social ou sem
+              classificação ele seria uma porta para um formulário que abriria
+              em branco. */}
+          {pedido.frente === "campanha" &&
+          !pedido.demanda &&
+          pedido.status !== "recusada" ? (
+            <Button asChild disabled={executando}>
+              <Link
+                href={`/painel/aprovacoes/campanhas/nova?pedido=${pedido.id}`}
+              >
+                <Megaphone aria-hidden />
+                Abrir a campanha
+              </Link>
+            </Button>
+          ) : null}
+
           {!pedido.demanda && pedido.status !== "recusada" ? (
-            <Button disabled={executando} onClick={converter}>
+            <Button
+              // A VARIANTE MUDA NA FRENTE CAMPANHA, e não é enfeite: com os
+              // dois cheios, lado a lado, nada diria qual é o caminho normal
+              // daquele pedido — e é a decisão da pílula preta do produto,
+              // onde a ação principal é UMA.
+              variant={pedido.frente === "campanha" ? "outline" : "default"}
+              disabled={executando}
+              onClick={converter}
+            >
               <Wand2 aria-hidden />
               Converter em demanda
             </Button>

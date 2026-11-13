@@ -10399,6 +10399,209 @@ ambiente. O cenário da 0124 que prova o ramo 1 é o que esta migration vira do
 avesso: *"tirar a exigência da frente no insert derruba 3"* passa a ser o
 contrário, e o insert sem frente tem de PASSAR.
 
+#### O CLIENTE PEDE UMA CAMPANHA, COM PERÍODO E COMPOSIÇÃO (0138)
+
+Decisão do usuário: *"pode deixar o cliente com a mesma visualização de abrir
+campanha que o atendimento, para que ele envie para gente para editarmos e
+abrirmos a task"*.
+
+**A SEGUNDA METADE DA FRASE DECIDE O QUE ISTO É, e sem ela a leitura óbvia
+está errada.** *"Mesma visualização de abrir campanha"* soa como dar ao cliente
+`abrir_campanha()`, e *"para que ele envie para gente para editarmos e abrirmos
+a task"* diz o contrário: o que ele manda é um PEDIDO, e quem abre a campanha
+continua sendo o Atendimento. **E o banco já dizia isso**: `campaigns_insert` é
+`is_atendimento()` desde a 0054, com a razão escrita — *abrir trabalho e
+distribuir trabalho são duas decisões*. Então não nasce campanha nenhuma aqui:
+nascem três colunas em `client_requests`, e a abertura passa a ler um pedido.
+
+**METADE JÁ EXISTIA, e ir medir antes de escrever é o que separou o que
+precisava de código do que só precisava ser ligado** — a lição da 0060, da 0127
+e da 0128:
+
+| o que ele pede | onde já estava |
+| --- | --- |
+| o cliente abre um pedido de campanha | `client_requests.frente = 'campanha'`, desde a 0124 |
+| o pedido vira uma demanda num clique | `converterEmDemanda`, desde a 0068 |
+| o pedido some da fila quando o trabalho começa | `tasks_espelha_no_pedido`, desde a 0068 |
+| a lista de materiais por tipo | `EditorDaComposicao` — **existia dentro da tela da agência** |
+| o **período** e a **composição** no pedido | **não existia** |
+
+##### TRÊS DAS CINCO SEÇÕES DA ABERTURA NÃO SÃO DELE, e a ausência é a decisão
+
+A tela de abrir campanha tem cinco seções, e o pedido do cliente recebe **duas**:
+o período e a composição. As outras três ficam onde estavam, e cada uma por um
+motivo próprio:
+
+- **a pasta de entrega** é a pasta do Drive da agência, e o cliente não tem
+  acesso a ela — é a razão escrita em "O pedido concluído devolve o material";
+- **o estado** (`planejamento`/`ativa`) é o combinado da agência com ela mesma;
+  oferecê-lo seria pedir ao cliente uma decisão que a equipe toma depois;
+- **quem faz cada peça** é distribuição de trabalho, que é a separação da 0046
+  palavra por palavra: o Atendimento abre o mês e a gestão distribui a corrente.
+
+**E A ÁRVORE DE ENTREGÁVEIS TAMBÉM NÃO**, mas essa é consequência e não
+escolha: ela é DERIVADA da composição desde a 0122 — *"Montar a lista"* a gera.
+Com a composição vindo do cliente, a árvore vem junto, montada por quem abre.
+
+##### A COMPOSIÇÃO É `jsonb` AQUI E TABELA LÁ, e a assimetria é medida
+
+`campaign_composicao` (0122) é normalizada porque `composicao_da_campanha()` a
+consulta item a item — o `full outer join` que faz o tipo planejado sem peça
+nenhuma continuar aparecendo com zero. **`client_requests.composicao` não tem
+nada disso**: ela é escrita de uma vez pelo formulário, lida inteira pelas duas
+telas de detalhe e pela abertura, e **ninguém soma material por tipo entre
+pedidos** — o bloco "O que os clientes pediram" do Resumo da Agência (0124)
+agrupa por FRENTE, não por tipo de material. É o critério de
+`post_versions.arquivos` palavra por palavra.
+
+**E O `check` GARANTE QUE ELA É UMA LISTA, nunca a forma de cada item**, que é
+exatamente o que `request_types.campos_json` já garantia (0068). Por isso a
+leitura passa por `composicaoDoPedido()`, um parser que descarta o item sem
+tipo conhecido e a quantidade que não é número — a forma de `camposDoRoteiro`.
+Um `as LinhaDaComposicao[]` poria no briefing da demanda, e na tela do
+Atendimento, o que alguém escreveu num PATCH.
+
+**E O TIPO MUDOU DE ARQUIVO POR CAUSA DISSO:** `LinhaDaComposicao` era de
+`lib/dominio/campanhas.ts` e passou a ser de `database.types.ts`, onde ela é
+reexportada — é o precedente de `CampoDoRoteiro`: **a forma de uma coluna
+`jsonb` mora ao lado da coluna**, senão o tipo do banco importaria do domínio e
+o domínio do banco.
+
+##### O RAMO 5: o período e a lista são de uma campanha
+
+`client_requests_classificacao()` ganhou a quinta recusa — período ou
+composição numa frente que não é `campanha` é recusado, nomeando as duas
+saídas. É a forma do ramo 3, que já recusa a campanha escolhida numa frente
+Social: **um pedido que carrega o que uma campanha carrega e diz que não é uma
+é a linha afirmando duas coisas que se contradizem**, e o relatório somaria a
+primeira enquanto a abertura leria a segunda.
+
+**O contrário não é trava**, pela razão da 0124: frente `campanha` sem período
+e sem lista é o caso comum — o cliente pede a ação e as duas coisas se
+combinam na conversa.
+
+**E a função foi copiada INTEIRA**, que é a lição da 0030: `create or replace`
+reescreve a partir do texto de agora e **não avisa quando o texto novo tem
+menos coisa que o velho**. Os quatro ramos anteriores estão lá, palavra por
+palavra, e o `update of` do gatilho ganhou as três colunas — sem elas, um
+`update` que mexesse só na composição passaria pela trava sem acordá-la.
+
+##### O ESPELHO TINHA UM BURACO QUE SÓ ESTE CAMINHO ABRE
+
+`tasks_espelha_no_pedido` move o pedido para `em_andamento` quando a demanda é
+PUBLICADA — e o ramo dele compara `publicada_em` de `null` para não-nulo, que é
+o que a conversão em demanda faz, porque ela abre um RASCUNHO (0028).
+
+**`abrir_campanha()` cria a demanda JÁ PUBLICADA** (0051), e a assinatura dela
+não muda pela quarta vez (0061, 0120, 0122, 0125) — então o vínculo com o
+pedido é uma segunda escrita, DEPOIS. Quer dizer que no instante em que
+`request_id` é gravado, `publicada_em` já era não-nulo **antes e depois**: o
+ramo 1 não dispara, e **o pedido ficaria em "Em análise" para sempre**, com a
+campanha correndo e o cliente lendo que ninguém olhou o pedido dele.
+
+Então o gatilho ganhou o ramo do meio: `request_id` saindo de nulo numa demanda
+já publicada move o pedido do mesmo jeito. **É no TRIGGER e não na action**,
+pela razão da 0045 e da 0068 — a action que cria campanha já foi reescrita
+quatro vezes, e cada reescrita é uma chance de o trecho ficar para trás; de
+quebra ele pega todo caminho, o `update` colado no SQL Editor inclusive.
+
+##### O VÍNCULO É UMA SEGUNDA ESCRITA, e ela AVISA em vez de recusar
+
+`criarCampanha` grava `tasks.request_id` depois de `abrir_campanha()` retornar,
+e uma falha ali **não desfaz nada**: a campanha, a demanda, as etapas e as
+peças já estão gravadas. É a decisão da 0052 e a das sete colunas da 0125 — o
+que a segunda escrita pode fazer é dizer o que não ficou, e ela entra na mesma
+lista de `naoGravou` da vertente e do briefing.
+
+**E A RECUSA DO PEDIDO JÁ CONVERTIDO VEM ANTES DA RPC**, que é a ordem da 0076
+e da 0128: `tasks.request_id` é único, então um pedido que já virou demanda
+seria recusado pelo índice — **depois de a campanha inteira já ter nascido**. A
+pergunta é feita antes, e a frase diz qual demanda já existe.
+
+##### `EditorDaComposicao`: o que se centraliza é a edição, nunca o rodapé
+
+São DUAS telas que querem a mesma coisa — a abertura da agência e o pedido do
+cliente —, que é o critério do `SeletorDeVisao` e não o do `EmptyState`: lá a
+moldura tracejada estava certa em trinta e oito dos quarenta, aqui os dois
+donos concordam. E a que divergiria é a do PORTAL, que a equipe nunca abre.
+
+**O `rodape` fica com quem chama**, e é a decisão de `SeletorDeResponsavel`
+palavra por palavra: *"Montar a lista"* existe na abertura, onde há uma árvore
+para montar, e **não existe no pedido**, onde não há árvore nenhuma. O
+componente desenha a seção e as linhas; o que se faz com elas é de cada tela.
+
+**E `CampanhaDoPedido` é o par dele, só leitura**, pelas mesmas duas telas: o
+detalhe do pedido do lado da agência e o do lado do cliente. **Quem leu o
+pedido precisa ver o que ele pediu** — sem o bloco, o Atendimento teria de
+clicar em "Abrir a campanha" para descobrir, e quem mandou doze estáticos não
+teria como reler o que mandou.
+
+##### `briefingDoPedido` DESCEU PARA O DOMÍNIO, porque as rotas são duas
+
+Ela morava dentro de `solicitacoes/acoes.ts`, que é `"use server"`, e era
+chamada por um caminho só — a conversão em demanda. Com a abertura de campanha
+lendo o mesmo pedido, duas telas passam a dizer o que aquele pedido é, e **a
+que divergiria é a da campanha**, que se abre menos.
+
+**E O PERÍODO E OS MATERIAIS ENTRAM NO TEXTO DELA**, apesar de irem para os
+CAMPOS na abertura: o Atendimento pode decidir que aquilo é uma DEMANDA e não
+uma campanha — *"dez estáticos"* às vezes é uma demanda com dez etapas —, e a
+tela de task não tem campo para nenhum dos dois. Duas rotas, a mesma
+informação, e nenhuma das duas a perde.
+
+**E O PERÍODO NÃO VAI PARA `tasks.data_inicio`/`data_fim`**, pela regra da 0078
+aplicada a duas datas: aquelas colunas são DERIVADAS das etapas desde a 0028, e
+o próximo recálculo desfaria o que fosse escrito ali.
+
+##### A DATA SAÍA EM ISO, e o singular saía errado — as duas só a imagem pegou
+
+O briefing escrevia *"O cliente pediu a campanha de 2026-12-03 a 2027-01-02"*,
+e o bloco dos materiais dizia *"1 Outros"*. Nenhuma das duas é tipo, cor ou
+árvore de acessibilidade, então nenhuma das dez varreduras as alcança.
+
+**`emDiaMes()` é um `split` e não `date-fns`, de propósito:** a coluna é `date`,
+e `parseISO` a devolve à meia-noite LOCAL — num servidor em UTC, o 3 de
+dezembro que o cliente escreveu sai como 2 de dezembro para quem lê em São
+Paulo. É `hojeNaAgencia()` visto de outro ângulo: aqui não há fuso a resolver,
+há três números a trocar de ordem.
+
+**E ela conserta de passagem uma linha que estava crua desde a 0124** — *"O
+cliente gostaria para 2026-12-03"* —, porque é o mesmo texto, o mesmo leitor e
+a mesma função: as duas pontas saem no mesmo commit.
+
+**O singular sai de `SINGULAR_DO_TIPO`**, que existe desde a 0122 justamente
+porque o plural tirado por expressão regular erra "Carrosséis" e "Stories" —
+*"um grupo chamado 'Carrossei 1' é a tela mostrando um erro de português na
+peça que o cliente vai aprovar"*. "1 Outros" é o mesmo erro, no briefing que o
+Atendimento lê.
+
+##### E O SELETOR DE CLIENTE SAÍA EM BRANCO no protótipo
+
+A primeira imagem da abertura vinda de um pedido mostrou a faixa dizendo *"os
+campos vieram do pedido de Mundo Verde"* e o campo **Cliente vazio** logo
+abaixo. A causa era do STUB: o `client_id` do pedido de exemplo era um uuid que
+`clientesAtivos()` não conhece, então o `Select` não achava a opção.
+
+**É a duplicata do Cronograma pelo avesso:** o ambiente de exemplo mostrava o
+produto num estado que ele não tem — e o que a imagem afirmaria é que o prefill
+não preenche justamente o primeiro campo. O id do pedido passou a ser o da
+lista de clientes.
+
+***E o exemplo tem UM pedido de campanha com os três preenchidos, não seis:***
+com todos preenchidos a imagem provaria que o bloco aparece e não que ele sabe
+FALTAR — que é o estado da maioria dos pedidos. A `91` continua abrindo um
+pedido sem eles, e a `91c` abre este.
+
+***E as datas dele são CALCULADAS e nunca literais***, que é a lição dos meses
+da nota fiscal: um período escrito em 2027 para de ser futuro sozinho, e a
+imagem sai igual sem nada reclamar.
+
+***O que NÃO foi feito, e é dito em vez de escondido:*** **a migration não foi
+aplicada e a bateria não foi rodada** — não há Docker nem Postgres local neste
+ambiente. A 0138 está escrita, com a linha do `onde-esta-o-banco.sql` apontando
+para o CORPO do gatilho (`no_corpo`, `old.request_id is null`), que é a última
+coisa que o arquivo cria e a única que uma colagem parcial não produz.
+
 ### Portal do Cliente
 
 A gestão abre `/portal/{slug}` e vê a tela que aquele cliente vê. **Não é login

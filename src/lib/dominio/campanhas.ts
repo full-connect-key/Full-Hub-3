@@ -3,6 +3,7 @@ import type {
   ContentStatus,
   DeliverableTipo,
   EstruturaDeTemplate,
+  LinhaDaComposicao,
 } from "@/lib/supabase/database.types";
 
 /**
@@ -747,25 +748,48 @@ export function ehTipoDeMaterial(valor: unknown): valor is DeliverableTipo {
 }
 
 /**
- * Uma linha da composição: deste tipo, tantos, neste formato e nesta medida.
+ * Uma linha da composição — REEXPORTADA de `database.types.ts` desde a 0138.
  *
- * `formato` e `dimensoes` entraram na 0125 e são TEXTO, pela razão de
- * `posts.formato` (0032): o vocabulário muda a cada temporada de produto das
- * plataformas, e metade do que a agência combina é proporção ou nome de papel.
- *
- * **Eles são do TIPO e não da peça**, e é por isso que moram ao lado da
- * quantidade: "dez estáticos em 1080x1350" é uma linha, não dez. *O que isso
- * não representa, e é consequência aceita:* dez estáticos em duas medidas
- * diferentes — o campo é texto, então as duas cabem escritas; o que não cabe é
- * a agência querer CONTAR por medida, e aí a chave `(campaign_id, tipo)` da
- * 0122 muda.
+ * Ela passou a ser a forma de uma coluna `jsonb` (`client_requests.composicao`),
+ * e a forma de um jsonb mora ao lado da tabela que o guarda — que é a razão de
+ * `CampoDoRoteiro` morar lá. A reexportação é o que faz todo importador antigo
+ * continuar valendo sem uma segunda declaração do mesmo tipo.
  */
-export type LinhaDaComposicao = {
-  tipo: DeliverableTipo;
-  quantidade: number;
-  formato: string;
-  dimensoes: string;
-};
+export type { LinhaDaComposicao };
+
+/**
+ * A composição que veio do banco, conferida item a item.
+ *
+ * **O `jsonb` pode ser qualquer coisa, e um `.map()` nele estoura a tela.** O
+ * `check client_requests_composicao_e_lista` (0138) garante que é um ARRAY e
+ * não garante a forma de cada item — é a mesma distinção de `camposDoRoteiro`,
+ * e a mesma razão: descartar a linha torta é melhor que desenhar uma linha que
+ * não soma.
+ *
+ * **O tipo é conferido contra `TIPOS_DE_MATERIAL`** porque é ele que indexa
+ * `ROTULO_DO_TIPO` — um `"estaticos"` de dedo torto sairia como `undefined` no
+ * rótulo da linha. E `formato`/`dimensoes` caem para string vazia em vez de
+ * descartar a linha: a quantidade é o que importa, e a medida é opcional desde
+ * a 0125.
+ */
+export function composicaoDoPedido(bruto: unknown): LinhaDaComposicao[] {
+  if (!Array.isArray(bruto)) return [];
+  return bruto.flatMap((l) => {
+    if (typeof l !== "object" || l === null) return [];
+    const linha = l as Record<string, unknown>;
+    if (!ehTipoDeMaterial(linha.tipo)) return [];
+    const quantidade = Number(linha.quantidade);
+    if (!Number.isFinite(quantidade) || quantidade <= 0) return [];
+    return [
+      {
+        tipo: linha.tipo,
+        quantidade: Math.min(200, Math.floor(quantidade)),
+        formato: typeof linha.formato === "string" ? linha.formato : "",
+        dimensoes: typeof linha.dimensoes === "string" ? linha.dimensoes : "",
+      },
+    ];
+  });
+}
 
 /**
  * A COMPOSIÇÃO VIRA A ÁRVORE, e é ela que responde o item 5 do pedido.

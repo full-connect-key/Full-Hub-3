@@ -140,6 +140,20 @@ const esquemaDaCampanha = z
      * de salvar: a pessoa veria uma árvore e gravaria outra.
      */
     estrutura: z.array(esquemaDoNo).default([]),
+    /**
+     * O PEDIDO DO CLIENTE DE ONDE ESTA CAMPANHA SAIU (0138).
+     *
+     * Decisão do usuário: *"pode deixar o cliente com a mesma visualização de
+     * abrir campanha que o atendimento, para que ele envie para gente para
+     * editarmos e abrirmos a task"*.
+     *
+     * **Ele é o VÍNCULO e não o conteúdo:** o que o cliente escreveu já veio
+     * nos campos acima, pré-preenchidos pela tela. O que este id faz é ligar a
+     * demanda da campanha ao pedido, e é isso que faz o cliente saber que ela
+     * nasceu — `tasks_espelha_no_pedido` move o pedido quando a demanda
+     * publicada ganha um `request_id` (o ramo que a 0138 acrescentou).
+     */
+    pedidoId: z.string().uuid().optional(),
   })
   .refine((v) => v.dataFim >= v.dataInicio, {
     path: ["dataFim"],
@@ -193,6 +207,27 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
     const dados = validado.data;
 
     const supabase = await criarClienteServidor();
+
+    // ------------------------------------------------- o pedido, ANTES da RPC
+    //
+    // A PERGUNTA VEM ANTES DE QUALQUER ESCRITA, e é a decisão de
+    // `converterEmDemanda`: o índice único de `tasks.request_id` já garante
+    // que um pedido vira uma demanda só, e sem esta consulta a pessoa levaria
+    // a recusa crua do Postgres com o nome do índice — DEPOIS de a campanha
+    // inteira já ter nascido, porque o vínculo é uma segunda escrita.
+    if (dados.pedidoId) {
+      const { data: jaExiste } = await supabase
+        .from("tasks")
+        .select("id")
+        .eq("request_id", dados.pedidoId)
+        .maybeSingle();
+
+      if (jaExiste) {
+        return falha(
+          "Este pedido já virou uma demanda. Abra a campanha sem o pedido, ou converta a demanda que existe.",
+        );
+      }
+    }
 
     const { data, error } = await supabase.rpc("abrir_campanha", {
       p_cliente: dados.clienteId,
@@ -273,6 +308,37 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
       }
     }
 
+    // ------------------------------------------------- o vínculo com o pedido
+    //
+    // TERCEIRA SEGUNDA ESCRITA, pela razão das outras duas: a assinatura de
+    // `abrir_campanha()` não muda (0061, 0120, 0122, 0125).
+    //
+    // **E ela AVISA em vez de recusar**, que é a decisão da 0052 e da vertente
+    // logo acima: a campanha, a demanda e as peças já estão gravadas, então
+    // uma recusa aqui não desfaz nada — o que ela pode fazer é dizer que o
+    // pedido do cliente ficou sem o vínculo, e o Atendimento responde na
+    // conversa do pedido.
+    //
+    // **O `eq("publicada_em")` não existe de propósito:** a demanda de uma
+    // campanha nasce publicada (0051), e é justamente isso que faz o ramo novo
+    // de `tasks_espelha_no_pedido` disparar neste `update` — ele pergunta
+    // `publicada_em is not null` do lado do banco.
+    if (dados.pedidoId) {
+      const { error: erroDoVinculo } = await supabase
+        .from("tasks")
+        .update({ request_id: dados.pedidoId })
+        .eq("id", (await demandaDaCampanha(supabase, data)) ?? "")
+        .select("id");
+
+      if (erroDoVinculo) {
+        console.error(
+          "[criarCampanha] o vínculo com o pedido não foi gravado",
+          erroDoVinculo,
+        );
+        naoGravou.push("o vínculo com o pedido do cliente");
+      }
+    }
+
     // O BRIEFING NÃO TEM SEGUNDA ESCRITA DESDE A 0136, e a ausência é a
     // entrega: ele é a prosa da DEMANDA, e `abrir_campanha()` já a grava no
     // `p_briefing_rico`/`p_briefing_texto` acima. As sete colunas da 0125
@@ -316,6 +382,15 @@ export async function criarCampanha(entrada: NovaCampanha): Promise<Resultado> {
 
     revalidatePath(ROTA);
     revalidatePath("/portal/campanhas");
+    // AS DUAS TELAS DO PEDIDO, porque o status dele andou: é a mesma razão de
+    // `revalidarOsDoisLados` em `solicitacoes/acoes.ts` — o cliente precisa
+    // ver "Em produção" e a fila precisa deixar de cobrar o pedido.
+    if (dados.pedidoId) {
+      revalidatePath("/painel/solicitacoes");
+      revalidatePath(`/painel/solicitacoes/${dados.pedidoId}`);
+      revalidatePath("/portal/solicitacoes");
+      revalidatePath(`/portal/solicitacoes/${dados.pedidoId}`);
+    }
 
     if (naoGravou.length > 0) {
       return sucesso(

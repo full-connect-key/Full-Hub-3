@@ -995,6 +995,12 @@ const TELAS = [
   { nome: "90d-solicitacoes-por-status", rota: "/painel/solicitacoes?status=concluida", largura: 1500, altura: 800, role: "colaborador" },
   { nome: "91-solicitacao-detalhe", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000001", largura: 1500, altura: 1500, role: "colaborador" },
   { nome: "91b-solicitacao-classificar", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000004", largura: 1500, altura: 1300, role: "colaborador" },
+  // O PEDIDO DE CAMPANHA, com o periodo e a lista de materiais que o cliente
+  // mandou (0138) e com o botao "Abrir a campanha" ao lado de "Converter em
+  // demanda". A `91` acima abre um pedido SEM os tres, entao ela prova que o
+  // bloco sabe faltar; esta prova que ele aparece -- e e a razao do evento de
+  // cada par da legenda do calendario.
+  { nome: "91c-solicitacao-campanha", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1500, altura: 1700, role: "colaborador" },
   { nome: "92-portal-pedidos", rota: "/portal/solicitacoes", largura: 1400, altura: 900, role: "cliente" },
   // A ABA FILTRADA, e nao so a de "Todos": a imagem de "Todos" mostra a faixa
   // de abas e nao prova que alguma delas RECORTA. Esta sai em "Em ajustes",
@@ -1066,6 +1072,14 @@ const TELAS = [
   // 0068 construiu, nao sairia em imagem nenhuma. O clique e o que prova as
   // duas metades: que ele nao esta la por padrao, e que ele aparece.
   { nome: "93d-portal-pedido-com-roteiro", rota: "/portal/solicitacoes?novo=1", largura: 1400, altura: 2100, role: "cliente", clicar: '[role="radio"]:has-text("Peça para redes")' },
+  // O PERIODO E OS MATERIAIS, no portal (0138). As duas secoes so existem na
+  // frente Campanha, e `?campanha=` e o que faz a frente nascer escolhida --
+  // em `?novo=1` solto a frente nasce em branco de proposito (0137), e as
+  // duas secoes nao sao desenhadas. O clique acrescenta uma linha: sem ele a
+  // imagem provaria que o editor aparece e nao que ele guarda o que foi
+  // escrito.
+  { nome: "93e-portal-pedido-materiais", rota: "/portal/solicitacoes?novo=1&campanha=camp-wave", largura: 1400, altura: 2400, role: "cliente",
+    clicar: 'button:has-text("Tipo")' },
   { nome: "94-portal-pedido-detalhe", rota: "/portal/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1400, altura: 1300, role: "cliente" },
   // OS DOIS ESTADOS DA SEÇÃO "Material deste pedido", e a razão de serem duas
   // telas: a de cima prova que o material aparece, a de baixo prova que o
@@ -1197,6 +1211,12 @@ const TELAS = [
   // nova. Dois passos: abrir o seletor de cliente, e escolher.
   { nome: "20u-nova-campanha-vertente", rota: "/painel/aprovacoes/campanhas/nova", largura: 1280, altura: 1000, role: "socio",
     clicar: ['[aria-label="Cliente"]', '[role="option"]:has-text("Mundo Verde")'] },
+  // A ABERTURA VINDA DE UM PEDIDO DO CLIENTE (0138), que e a imagem que esta
+  // entrega existe para produzir: a faixa dizendo de onde a tela veio, os
+  // cinco campos preenchidos e a composicao com as tres linhas que o cliente
+  // mandou. Sem ela, nada prova que o `?pedido=` preenche alguma coisa -- a
+  // `20f` acima abre a mesma rota em branco.
+  { nome: "20v-nova-campanha-do-pedido", rota: "/painel/aprovacoes/campanhas/nova?pedido=e0000000-0000-0000-0000-000000000002", largura: 1280, altura: 2000, role: "socio" },
   // A CAMPANHA COM O WORKFLOW APLICADO NAO TEM IMAGEM, e fica dito em vez de
   // escondido (migration 0108). A arvore vem de `arvoreDoWorkflowParaCampanha`,
   // e `exigirAtendimentoNaAcao` chama `is_atendimento()` NO BANCO -- o

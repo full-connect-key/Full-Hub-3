@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 
 import { abrirSolicitacao } from "@/app/(cliente)/portal/_actions/solicitacoes";
+import { EditorDaComposicao } from "@/components/shared/editor-da-composicao";
+import type { LinhaDaComposicao } from "@/lib/dominio/campanhas";
 import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -205,6 +207,22 @@ export function FormularioDePedido({
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [quando, setQuando] = useState("");
+  /**
+   * O PERÍODO E OS MATERIAIS DA CAMPANHA (0138).
+   *
+   * Decisão do usuário: *"pode deixar o cliente com a mesma visualização de
+   * abrir campanha que o atendimento, para que ele envie para gente para
+   * editarmos e abrirmos a task"*.
+   *
+   * **Os três só são desenhados na frente Campanha**, e é o ramo 5 de
+   * `client_requests_classificacao` que recusa o contrário no banco. Eles
+   * ficam no estado mesmo quando a seção sai da tela — quem marcou Campanha,
+   * preencheu, e voltou para conferir o tipo de trabalho não perde o que
+   * escreveu; quem TROCA de frente é que perde, e aí o `enviar` não os manda.
+   */
+  const [campanhaInicio, setCampanhaInicio] = useState("");
+  const [campanhaFim, setCampanhaFim] = useState("");
+  const [composicao, setComposicao] = useState<LinhaDaComposicao[]>([]);
   const [respostas, setRespostas] = useState<Record<string, string>>({});
   const [arquivos, setArquivos] = useState<File[]>([]);
   const campo = useRef<HTMLInputElement>(null);
@@ -258,6 +276,16 @@ export function FormularioDePedido({
    */
   const campanhaValida = frente === "campanha" ? campanhaEscolhida : "";
 
+  /**
+   * A FRENTE CAMPANHA DESENHA DUAS SEÇÕES A MAIS (0138).
+   *
+   * Uma pergunta só, lida em quatro lugares — as duas seções, o período e a
+   * composição no envio: duas comparações com `"campanha"` seriam duas
+   * verdades sobre quando a tela é a de abrir campanha, e a que divergiria é
+   * a do ENVIO, que não aparece em imagem nenhuma.
+   */
+  const ehCampanha = frente === "campanha";
+
   const tipo = tipos.find((t) => t.id === tipoId) ?? null;
   const campos = camposDoRoteiro(tipo?.campos_json);
   /**
@@ -299,6 +327,14 @@ export function FormularioDePedido({
           descricao,
           respostas,
           data_desejada: quando,
+          // OS TRÊS SÓ VIAJAM NA FRENTE CAMPANHA, e a pergunta é a mesma que
+          // desenha as duas seções: quem trocou de frente depois de
+          // preencher não manda ao banco um período que a tela não mostra
+          // mais — o ramo 5 do gatilho recusaria, e a recusa chegaria depois
+          // do clique falando de uma seção que não está à vista.
+          campanha_inicio: ehCampanha ? campanhaInicio : null,
+          campanha_fim: ehCampanha ? campanhaFim : null,
+          composicao: ehCampanha ? composicao : null,
         }),
       );
       if (!r.ok || !r.dados) return;
@@ -830,21 +866,91 @@ export function FormularioDePedido({
           mais se interpreta errado.
           ================================================================== */}
       <SecaoDoFormulario numero={4} titulo="Para quando">
-        <div className="space-y-1.5">
-          <Label htmlFor="pedido-quando">A data que ajudaria você</Label>
-          <Input
-            id="pedido-quando"
-            type="date"
-            value={quando}
-            onChange={(e) => setQuando(e.target.value)}
-            className="w-full sm:w-52"
-          />
-          <p className="text-muted-foreground text-xs">
-            Não é o prazo combinado. A gente olha o pedido e responde por aqui
-            com a data que dá para assumir.
-          </p>
-        </div>
+        {/* NA CAMPANHA A PERGUNTA É O PERÍODO, e não uma data (0138).
+
+            As duas respondem a mesma coisa — quando isso tem de estar
+            pronto —, e uma campanha tem começo e fim: é o que a abertura de
+            campanha pergunta do outro lado. Desenhar as duas daria dois
+            campos para o mesmo fato, e `data_desejada` é justamente a que o
+            briefing lê como "o cliente gostaria para X". */}
+        {ehCampanha ? (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="pedido-campanha-inicio">
+                  A campanha começa
+                </Label>
+                <Input
+                  id="pedido-campanha-inicio"
+                  type="date"
+                  value={campanhaInicio}
+                  onChange={(e) => setCampanhaInicio(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pedido-campanha-fim">e encerra</Label>
+                <Input
+                  id="pedido-campanha-fim"
+                  type="date"
+                  value={campanhaFim}
+                  onChange={(e) => setCampanhaFim(e.target.value)}
+                />
+              </div>
+            </div>
+            {/* O PERÍODO INVERTIDO APARECE ANTES DO CLIQUE, e o `check` do
+                banco é quem vale: é quase sempre um número trocado, e a
+                recusa que chega depois do envio manda a pessoa procurar qual
+                dos dois campos está errado. */}
+            {campanhaInicio && campanhaFim && campanhaFim < campanhaInicio ? (
+              <p className="text-warning text-sm" role="status">
+                O encerramento está antes do início.
+              </p>
+            ) : null}
+            <p className="text-muted-foreground text-xs">
+              Não é o prazo combinado. A gente olha o pedido e responde por
+              aqui com as datas que dá para assumir.
+            </p>
+          </>
+        ) : (
+          <div className="space-y-1.5">
+            <Label htmlFor="pedido-quando">A data que ajudaria você</Label>
+            <Input
+              id="pedido-quando"
+              type="date"
+              value={quando}
+              onChange={(e) => setQuando(e.target.value)}
+              className="w-full sm:w-52"
+            />
+            <p className="text-muted-foreground text-xs">
+              Não é o prazo combinado. A gente olha o pedido e responde por
+              aqui com a data que dá para assumir.
+            </p>
+          </div>
+        )}
       </SecaoDoFormulario>
+
+      {/* ==================================================================
+          5. QUANTOS MATERIAIS DE CADA TIPO — só na frente Campanha (0138).
+
+          **A SEÇÃO APARECE NO FIM e não no meio**, porque ela é a única que
+          nasce e some: pondo-a antes de "Para quando", marcar Campanha
+          renumeraria a seção que a pessoa acabou de ler. E ela é a mais
+          detalhada das cinco, que é onde ela pertence numa lista que vai do
+          que a pessoa quer até como isso se divide.
+
+          **É O MESMO `EditorDaComposicao` DA ABERTURA DE CAMPANHA**, e o que
+          não vem com ele é o rodapé: lá a lista MONTA A ÁRVORE, e a árvore é
+          a distribuição de trabalho da agência — literalmente o que o cliente
+          manda a gente fazer.
+          ================================================================== */}
+      {ehCampanha ? (
+        <EditorDaComposicao
+          numero={5}
+          valor={composicao}
+          onChange={setComposicao}
+          explicacao="Se você já sabe, diga quantos de cada tipo a campanha precisa — dez estáticos, quinze stories. Dá para deixar em branco e combinar com a gente na conversa."
+        />
+      ) : null}
 
       {/* A FRASE NOMEIA O QUE FALTA, e não diz "preencha os obrigatórios".
           É a decisão da recusa da 0023, que conta quantas faltam e diz QUAIS:

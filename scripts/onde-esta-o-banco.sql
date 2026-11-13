@@ -905,7 +905,16 @@ from (
     -- recusa envelhece quando alguem ACRESCENTA, que e a armadilha que a
     -- linha da 0060 pagou duas migrations depois.
     ('0137', 'a classificacao deixa de ser obrigatoria', 'comentario',
-             'client_requests|frente|OPCIONAL desde a 0137')
+             'client_requests|frente|OPCIONAL desde a 0137'),
+
+    -- A 0138 CRIA TRES COLUNAS e reescreve DOIS gatilhos, e o marcador e o
+    -- gatilho do espelho -- a ULTIMA coisa que o arquivo faz. As colunas
+    -- nascem no PASSO 1, e apontar para uma delas diria `ok` sobre um banco
+    -- onde o cliente consegue pedir a campanha e o pedido dele fica parado em
+    -- "Em analise" para sempre, porque a demanda de campanha nasce publicada
+    -- e o vinculo e escrito depois.
+    ('0138', 'o cliente pede uma campanha', 'no_corpo',
+             'tasks_espelha_no_pedido|old.request_id is null')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
