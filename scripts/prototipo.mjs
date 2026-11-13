@@ -685,6 +685,11 @@ const TELAS = [
   { nome: "46d-entrega-observacao", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio",
     clicar: ['button:has-text("Criar KV")', 'li:has-text("Criar KV final.pdf") button:has-text("editar")'] },
   { nome: "47-task-historico", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Histórico")' },
+  // O MESMO HISTORICO EM 375px, e ele entrou com a forma nova: a linha e
+  // avatar + nome + frase + duas pilulas + hora, e a hora e `ms-auto`. Num
+  // celular isso quebra em duas linhas, e a imagem e a unica coisa que diz se
+  // a hora continua encostada na direita ou se ela desce sozinha.
+  { nome: "47b-task-historico-375", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 375, altura: 1400, role: "socio", clicar: '[role="tab"]:has-text("Histórico")' },
 
   // --- Sprint 3C: identidade, tela inicial e portais de clientes ---------
   { nome: "50-inicio-socio", rota: "/painel", largura: 1600, altura: 1100, role: "socio" },

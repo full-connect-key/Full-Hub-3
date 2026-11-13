@@ -1175,6 +1175,88 @@ Minhas Tasks elas não aparecem — excluir de dentro de um painel que abriu por
 cima de uma lista deixa a pessoa olhando para uma lista que ainda mostra o que
 sumiu.
 
+##### A ABA HISTÓRICO É UM FEED DE ATIVIDADE, agrupado por dia
+
+Decisão do usuário, com duas imagens ao lado — a aba como ela estava e o feed
+de atividade da ferramenta que ele usou como referência: *"deixe essa parte de
+histórico mais parecido com o [feed da referência]"*.
+
+**ERA UMA COLUNA DE DATA E UMA FRASE SOLTA.** Cada linha começava com
+`12/11/26 14:32` numa coluna de 28 caracteres, e o resto era
+`Status da subtarefa — de em_andamento para concluida · Ana Souza`. Quatro
+coisas mudaram, e cada uma é a mesma pergunta respondida de outro jeito:
+
+| | Era | É |
+| --- | --- | --- |
+| o dia | repetido em cada linha | **cabeçalho**, escrito uma vez |
+| a pessoa | no fim, depois de um ponto do meio | **primeiro, com o rosto** |
+| a ação | um substantivo ("Status da subtarefa") | **uma frase** ("mudou o status da etapa") |
+| o valor | texto cru, com o nome do enum | **pílula**, com a cor do status |
+
+**A PESSOA VEM PRIMEIRO PORQUE É A PERGUNTA**: quem abre o histórico está
+perguntando *quem mexeu nisto* — o rótulo da ação é a segunda pergunta, e ela
+vinha antes. **E o rosto só existe quando há pessoa**, que é a regra da pilha
+de avatares: um círculo genérico para o que um gatilho escreveu afirmaria que
+existe alguém. O vão fica, para a coluna do texto não andar de linha para
+linha.
+
+**O VALOR PASSA POR `StatusBadge`, e não por um segundo mapa de cor.** Ele já
+desenha o par medido de cada status desde a 0127 e **já sabe mostrar cru o
+valor que não conhece**, com o par neutro e sem ícone — que é exatamente o que
+uma coluna de texto livre precisa de quem a desenha.
+
+**E ELE SÓ APARECE NA MUDANÇA DE STATUS.** Nas outras ações o `para_valor` é o
+valor de enum da rodada — `aprovada`, `ajustes_solicitados` —, e a frase já o
+diz: *"Joana aprovou — aprovada"* escreve duas vezes a mesma coisa, uma delas
+na camada em inglês, que é a que não vai para a tela.
+
+###### DUAS AÇÕES NÃO TINHAM RÓTULO, e são as que o BANCO escreve
+
+O mapa antigo tinha onze entradas, e elas são **exatamente** as onze ações que
+as Server Actions de `gestao-tasks/` gravam. O banco escreve mais duas por
+conta própria — `status_da_etapa`, pelo gatilho `subtasks_registra_status`
+(0035), e `gerada_por_recorrencia` (0040) —, e as duas caíam no `?? evento.acao`:
+**apareciam com o nome da coluna na tela**.
+
+**E a primeira é o evento mais comum do histórico inteiro:** toda vez que
+alguém move uma etapa, o gatilho grava uma linha. Quem abria a aba de uma
+demanda com dez etapas lia `status_da_etapa` dez vezes.
+
+**O `?? evento.acao` FICA**, e é por ele que elas foram encontradas: ação sem
+rótulo aparecendo crua é como um evento novo é notado em vez de passar batido.
+É a decisão do `StatusBadge` com o status desconhecido, um nível acima.
+
+###### E A HORA ESTAVA TRÊS HORAS ADIANTADA
+
+`format(parseISO(x), "HH:mm")` responde pelo fuso do PROCESSO, e o container
+roda em UTC: um evento das 11h32 em São Paulo saía como **14:32** na tela de
+quem o viveu. É o mesmo furo que `hojeNaAgencia()` fechou para o DIA, e ele é
+mais traiçoeiro — três horas de erro numa hora do dia continuam parecendo uma
+hora do dia.
+
+**E O AGRUPAMENTO TINHA O MESMO FURO, uma camada acima:**
+`created_at.slice(0, 10)` é a data em UTC, então um evento das 22h de São Paulo
+já é o dia seguinte lá — ele cairia num grupo **à frente de "Hoje"**, com um
+cabeçalho datado de amanhã em cima do que acabou de acontecer. A chave do dia é
+`hojeNaAgencia(parseISO(...))`, que é a mesma função recebendo outro instante.
+
+`horaNaAgencia()` nasceu em `lib/dominio/datas.ts` ao lado dela. ***O que ela
+NÃO conserta, e é dito em vez de escondido:*** o resto do produto continua
+escrevendo hora com `format(..., "HH:mm")` — a conversa do pedido, o histórico
+de aprovações, o feed de Recomendações. Trocar as ocorrências é uma passada
+própria; o que esta função faz é existir, para a próxima tela não nascer
+errada.
+
+***E o exemplo do protótipo tinha DOIS eventos***, os dois com autor, os dois
+sem mudança de status, os dois em dias diferentes e com data **literal**. Quer
+dizer que o agrupamento com mais de um evento no mesmo dia, as duas pílulas, a
+linha sem rosto e os cabeçalhos "Hoje" e "Ontem" não sairiam em imagem
+nenhuma. São cinco agora, com as datas calculadas — a lição dos meses da nota
+fiscal. **E entrou o 375**, porque a linha virou avatar + nome + frase + duas
+pílulas + hora: a imagem é a única coisa que diz se a hora continua encostada
+na direita quando o resto quebra em duas linhas.
+
+
 #### O seletor de status, nos dois níveis
 
 `components/shared/seletor-de-status.tsx`: popover com **busca**, agrupado

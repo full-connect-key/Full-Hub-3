@@ -56,6 +56,31 @@ export function hojeNaAgencia(agora: Date = new Date()): string {
 }
 
 /**
+ * A HORA de um instante, no relógio da agência — `14:32`.
+ *
+ * ---------------------------------------------------------------------------
+ * **`format(parseISO(x), "HH:mm")` responde pelo fuso do PROCESSO**, e o
+ * container roda em UTC: um evento das 11h32 em São Paulo sai como `14:32` na
+ * tela de quem o viveu. É o mesmo furo que `hojeNaAgencia()` fechou para o
+ * DIA, um nível abaixo — e ele é mais traiçoeiro, porque três horas de erro
+ * numa hora do dia continuam parecendo uma hora do dia.
+ *
+ * ***O que isto NÃO conserta, e é dito em vez de escondido:*** o resto do
+ * produto continua escrevendo hora com `format(..., "HH:mm")` — a conversa do
+ * pedido, o histórico de aprovações, o feed. Trocar as trinta ocorrências é
+ * uma passada própria; o que esta função faz é existir, para a próxima tela
+ * não nascer errada.
+ * ---------------------------------------------------------------------------
+ */
+export function horaNaAgencia(instante: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO_DA_AGENCIA,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(instante);
+}
+
+/**
  * O domingo que fecha a semana de `hoje` — a semana começa na segunda.
  *
  * **A conta é feita em UTC sobre uma data SIMPLES**, e não com `endOfWeek` do

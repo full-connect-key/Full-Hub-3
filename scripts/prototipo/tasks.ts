@@ -1323,19 +1323,57 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
     autor: CARLA,
     tipo: null,
     subtarefas: SUBTAREFAS.filter((s) => s.task_id === id),
+    // O HISTORICO DO EXEMPLO EXERCITA OS CINCO RAMOS DA TELA, e eram dois
+    // eventos ate aqui -- os dois com autor, os dois sem mudanca de status e
+    // os dois em dias diferentes, com data LITERAL. Quer dizer que o
+    // agrupamento por dia com mais de um evento, as duas pilulas de status, a
+    // linha que um gatilho escreveu (sem rosto) e os cabecalhos "Hoje" e
+    // "Ontem" nao sairiam em imagem nenhuma.
+    //
+    // E AS DATAS SAO CALCULADAS, que e a licao dos meses da nota fiscal: um
+    // "2026-09-10" escrito a mao nunca e hoje, e a imagem sai igual sem nada
+    // reclamar.
     historico: [
       {
-        id: "h1",
+        id: "h5",
         task_id: id,
         subtask_id: null,
         approval_round_id: null,
-        acao: "task_criada",
-        de_valor: null,
-        para_valor: task.titulo,
-        autor_id: CARLA.id,
+        acao: "status_da_task",
+        de_valor: "em_andamento",
+        para_valor: "em_aprovacao",
+        autor_id: ANA.id,
         detalhes: null,
-        created_at: "2026-09-10T09:00:00.000Z",
-        autor: CARLA,
+        created_at: `${dia(0)}T14:32:00.000Z`,
+        autor: ANA,
+      },
+      {
+        id: "h4",
+        task_id: id,
+        subtask_id: null,
+        approval_round_id: null,
+        acao: "entrega_anexada",
+        de_valor: null,
+        para_valor: "kv-aprovado.pdf",
+        autor_id: BRUNO.id,
+        detalhes: null,
+        created_at: `${dia(0)}T11:05:00.000Z`,
+        autor: BRUNO,
+      },
+      {
+        // SEM AUTOR: quem escreveu foi `subtasks_registra_status` (0035), e a
+        // linha diz "O Full Hub" e nao desenha rosto nenhum.
+        id: "h3",
+        task_id: id,
+        subtask_id: null,
+        approval_round_id: null,
+        acao: "status_da_etapa",
+        de_valor: "nao_iniciada",
+        para_valor: "em_andamento",
+        autor_id: null,
+        detalhes: null,
+        created_at: `${dia(-1)}T16:20:00.000Z`,
+        autor: null,
       },
       {
         id: "h2",
@@ -1347,8 +1385,21 @@ export async function obterTask(id: string): Promise<TaskCompleta | null> {
         para_valor: "Rodada 1",
         autor_id: BRUNO.id,
         detalhes: null,
-        created_at: "2026-09-19T10:00:00.000Z",
+        created_at: `${dia(-9)}T10:00:00.000Z`,
         autor: BRUNO,
+      },
+      {
+        id: "h1",
+        task_id: id,
+        subtask_id: null,
+        approval_round_id: null,
+        acao: "task_criada",
+        de_valor: null,
+        para_valor: task.titulo,
+        autor_id: CARLA.id,
+        detalhes: null,
+        created_at: `${dia(-18)}T09:00:00.000Z`,
+        autor: CARLA,
       },
     ] as TaskCompleta["historico"],
     referencias:
