@@ -157,7 +157,7 @@ export async function CronogramaDoPortal({
           <EmptyState
             icon={CalendarRange}
             title="Nada marcado neste mês"
-            description="Quando houver material com data, ele aparece aqui — o que vai ao ar e o que tem prazo."
+            description="Quando houver material com data, ele aparece aqui — o que foi entregue e o que tem prazo."
             className="bg-card rounded-card shadow-cartao border-solid"
           />
         ) : (
@@ -292,13 +292,13 @@ export async function CronogramaDoPortal({
 
             {/* ----------------------------------------------------- legenda --
               ELA DIZ AS DUAS PALAVRAS, que é a única coisa que a cor não
-              consegue dizer: o chip do Social marca o dia em que a peça VAI
-              AO AR, e os outros dois marcam PRAZO. Sem a frase, a grade
-              junta "sai" com "vence" e quem lê escolhe um dos dois sentidos
-              para tudo. */}
+              consegue dizer: o chip do Social marca o dia em que a arte foi
+              ENTREGUE, e os outros dois marcam PRAZO. Sem a frase, a grade
+              junta "entregue" com "vence" e quem lê escolhe um dos dois
+              sentidos para tudo. */}
             <p className="text-text-muted text-xs">
               A cor de cada item é o estado dele. O Social Media marca o dia em
-              que a peça vai ao ar; Campanhas e Demandas marcam o prazo.
+              que entregamos a arte; Campanhas e Demandas marcam o prazo.
             </p>
           </>
         )}

@@ -24,10 +24,28 @@ import type { ContentStatus } from "@/lib/supabase/database.types";
  * De onde cada linha vem — e o que a DATA dela quer dizer.
  *
  * **As três datas não são a mesma coisa, e a tela diz qual é qual.** O post
- * carrega o dia em que ele VAI AO AR; a peça de campanha e o material de uma
- * demanda carregam o dia em que eles VENCEM. Misturar "sai" com "vence" numa
- * grade sem dizer qual é qual seria a tela afirmando o que não aconteceu —
- * então cada chip leva a palavra no rótulo acessível, e a legenda diz as duas.
+ * carrega o dia em que a arte foi ENTREGUE ao cliente; a peça de campanha e o
+ * material de uma demanda carregam o dia em que eles VENCEM. Misturar
+ * "entregue" com "vence" numa grade sem dizer qual é qual seria a tela
+ * afirmando o que não aconteceu — então cada chip leva a palavra no rótulo
+ * acessível, e a legenda diz as duas.
+ *
+ * ---------------------------------------------------------------------------
+ * **O SOCIAL MUDOU DE DATA, por decisão do usuário:** *"post de social não
+ * aparece no cronograma, apenas na aba do social, o cliente só visualiza a
+ * data que entregamos as artes para ele no cronograma"*.
+ *
+ * Ele carregava `data_publicacao`, **e aquela coluna aceita nulo desde a
+ * 0044** — o mês de social abre em branco, e a data é de quem produz. Então a
+ * peça que ainda não foi datada não tinha célula nenhuma para cair: o chip
+ * sumia da grade e só existia na aba do Social, que é exatamente a queixa.
+ *
+ * **`posts.enviado_em` não tem esse buraco, e é POR CONSTRUÇÃO:**
+ * `posts_select_cliente` exige `enviado_em is not null` desde a 0032 — um
+ * post que o cliente enxerga SEMPRE tem a data em que ele foi entregue. A
+ * grade deixa de depender de um campo opcional e passa a depender do carimbo
+ * que faz a peça existir para ele.
+ * ---------------------------------------------------------------------------
  */
 export type FrenteDoCronograma = "social" | "campanha" | "demanda";
 
@@ -39,7 +57,7 @@ export const ROTULO_DA_FRENTE: Record<FrenteDoCronograma, string> = {
 
 /** O que a data daquela frente significa, em português de cliente. */
 export const SENTIDO_DA_DATA: Record<FrenteDoCronograma, string> = {
-  social: "vai ao ar",
+  social: "entregue",
   campanha: "prazo",
   demanda: "prazo",
 };

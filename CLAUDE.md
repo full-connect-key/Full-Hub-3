@@ -13899,17 +13899,55 @@ aqui seria um quarto lugar decidindo o que o cliente enxerga, e o que vaza é
 sempre o quarto.
 
 **AS TRÊS DATAS NÃO QUEREM DIZER A MESMA COISA**, e a legenda diz as duas
-palavras: o post carrega o dia em que ele VAI AO AR, a peça de campanha e o
-material de uma demanda carregam o dia em que VENCEM. Misturar "sai" com
-"vence" numa grade sem dizer qual é qual seria a tela afirmando o que não
-aconteceu — e o rótulo acessível de cada chip leva a palavra junto, porque quem
-usa leitor de tela não tem a legenda à vista quando chega no chip.
+palavras: o post carrega o dia em que a arte foi ENTREGUE ao cliente, a peça de
+campanha e o material de uma demanda carregam o dia em que VENCEM. Misturar
+"entregue" com "vence" numa grade sem dizer qual é qual seria a tela afirmando
+o que não aconteceu — e o rótulo acessível de cada chip leva a palavra junto,
+porque quem usa leitor de tela não tem a legenda à vista quando chega no chip.
 
-**O recorte do social é a DEMANDA DO MÊS e não a data de publicação**, que é a
-regra do Sprint 3K e que a varredura de nomes mortos guarda. A borda fica dita:
-uma peça de outubro marcada para 2 de novembro não aparece em nenhuma das duas
-grades — na primeira porque o dia não está lá, na segunda porque ela é de outro
-mês de social.
+##### E O POST SUMIA DA GRADE, por uma coluna que aceita nulo
+
+Decisão do usuário: *"post de social não aparece no cronograma, apenas na aba
+do social, o cliente só visualiza a data que entregamos as artes para ele no
+cronograma"*.
+
+**O CHIP DO SOCIAL CARREGAVA `data_publicacao`, E AQUELA COLUNA ACEITA NULO
+DESDE A 0044** — o mês de social abre em branco, e a data é de quem produz. A
+peça ainda não datada não tinha célula nenhuma para cair: ela existia na
+consulta, era descartada na montagem, e só aparecia na aba do Social. **Um
+item que a grade não desenha não é um item sem data: é um item que a tela
+afirma não existir naquele mês.**
+
+**`posts.enviado_em` NÃO TEM ESSE BURACO, E É POR CONSTRUÇÃO:**
+`posts_select_cliente` exige `enviado_em is not null` desde a 0032 — **todo
+post que o cliente enxerga tem, obrigatoriamente, a data em que foi entregue a
+ele**. A grade deixa de depender de um campo opcional e passa a depender do
+carimbo que faz a peça existir para quem a olha. Não há migration: as duas
+colunas já estavam no `select` desde a 0032.
+
+**O DIA DE PUBLICAÇÃO NÃO SE PERDE, ele desce para o contexto** — *"vai ao ar
+em 22/11 às 12:00"*, embaixo do título. Com a data do chip sendo a da entrega,
+tirá-lo deixaria o cliente sem saber quando a peça sai; e **o horário vem
+junto da data e nunca sozinho**, que era o contexto inteiro até aqui: "às
+12:00" embaixo de uma data de ENTREGA diria a hora de uma coisa que não
+acontece naquele dia.
+
+***O que isso custa, e é dito em vez de escondido:*** uma peça entregue no fim
+de setembro para sair em outubro aparece na grade de **setembro**, que é
+quando ela chegou ao cliente. O dia em que ela vai ao ar continua no
+calendário do próprio Social, que é onde o mês é aberto.
+
+**O recorte do MÊS continua sendo a DEMANDA DO MÊS e não a data de
+publicação**, que é a regra do Sprint 3K e que a varredura de nomes mortos
+guarda: o que mudou é em que CÉLULA a peça cai, não quais peças a consulta
+traz. A borda fica dita: uma peça de outubro entregue em setembro cai na grade
+de setembro, e a de outubro que ainda não foi entregue não cai em nenhuma —
+porque ela não existe para o cliente.
+
+***E o exemplo do protótipo prova as duas metades sem uma linha de mudança:***
+as duas peças de `dataPublicacao: null` já carregam `enviadoEm`, então elas
+eram justamente as que a grade não desenhava — a imagem antes e depois é o
+bug e o conserto.
 
 **AS ABAS NÃO SÃO AS DO ROTEIRO.** Ele pede *Tudo / Campanhas / Social / Site*,
 e "Site" não existe neste produto — não há módulo, tabela nem material de site,

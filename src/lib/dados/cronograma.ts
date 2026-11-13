@@ -47,26 +47,53 @@ export async function cronogramaDoMes(
   const itens: ItemDoCronograma[] = [];
 
   /* ------------------------------------------------------------- social --
-     O RECORTE É A DEMANDA DO MÊS e não `data_publicacao`, e isso é regra do
-     produto: a peça pode ser aberta sem data (0044) e a data é de quem
-     produz, então filtrar por ela deixaria de fora uma peça que pertence
-     àquele mês — foi o conserto do Sprint 3K, e a varredura de nomes mortos
-     tem uma entrada só para esse filtro não voltar.
+     A DATA É A DA ENTREGA — `posts.enviado_em` —, por decisão do usuário:
+     *"post de social não aparece no cronograma, apenas na aba do social, o
+     cliente só visualiza a data que entregamos as artes para ele no
+     cronograma"*.
 
-     **O que fica dito, porque é consequência:** uma peça do mês de outubro
-     marcada para o dia 2 de novembro não aparece na grade de outubro nem na
-     de novembro — na primeira porque o dia não está lá, na segunda porque ela
-     é de outro mês de social. É a borda, e ela é rara: o mês de social é
-     produzido para sair dentro dele. Quem a vê de qualquer jeito é o
-     calendário do próprio Social, que é onde o mês é aberto. */
+     **O QUE FAZIA O POST SUMIR ERA `data_publicacao` ACEITAR NULO** (0044): o
+     mês de social abre em branco e a data é de quem produz, então a peça
+     ainda não datada não tinha célula para cair — o chip não existia na grade
+     e só aparecia na aba do Social, que é literalmente a queixa.
+
+     **`enviado_em` não tem esse buraco, e é por construção:**
+     `posts_select_cliente` exige `enviado_em is not null` desde a 0032, então
+     **todo post que o cliente enxerga tem a data em que foi entregue a ele**.
+     A grade deixa de depender de um campo opcional e passa a depender do
+     carimbo que faz a peça existir para ele.
+
+     E ela é cortada no DIA: a coluna é `timestamptz`, e a grade é de dias.
+
+     O RECORTE DO MÊS CONTINUA SENDO A DEMANDA DO MÊS em `postsDoMes` — a
+     regra do Sprint 3K, com uma entrada própria na varredura de nomes mortos
+     para o filtro por `data_publicacao` não voltar. O que mudou é em que
+     CÉLULA a peça cai, não quais peças a consulta traz.
+
+     **O que fica dito, porque é consequência:** uma peça entregue no fim de
+     setembro para sair em outubro aparece na grade de SETEMBRO, que é quando
+     ela chegou ao cliente. O dia em que ela vai ao ar continua no calendário
+     do próprio Social, que é onde o mês é aberto. */
   for (const post of posts) {
-    if (!noMes(post.dataPublicacao)) continue;
+    const entregue = post.enviadoEm?.slice(0, 10) ?? null;
+    if (!noMes(entregue)) continue;
     itens.push({
       id: `post-${post.id}`,
       frente: "social",
       titulo: post.tema,
-      contexto: post.horario ? `às ${post.horario}` : null,
-      dia: post.dataPublicacao,
+      // O CONTEXTO VIROU O DIA DE PUBLICAÇÃO, quando ele existe: a data do
+      // chip passou a ser a da entrega, e sem esta linha o cliente perderia
+      // de vista quando a peça sai. Com ela a célula diz as duas coisas — o
+      // dia em que a arte chegou, e o dia em que ela vai ao ar.
+      //
+      // E O HORÁRIO VEM JUNTO DA DATA, nunca sozinho: ele era o contexto
+      // inteiro até aqui, e "às 10:00" embaixo de uma data de ENTREGA diria
+      // a hora de uma coisa que não acontece naquele dia.
+      contexto: post.dataPublicacao
+        ? `vai ao ar em ${post.dataPublicacao.slice(8, 10)}/${post.dataPublicacao.slice(5, 7)}` +
+          (post.horario ? ` às ${post.horario}` : "")
+        : null,
+      dia: entregue,
       status: post.status,
       caminho: `${base}/social-media/${post.id}`,
     });
