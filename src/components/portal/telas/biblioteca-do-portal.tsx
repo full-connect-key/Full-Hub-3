@@ -3,10 +3,13 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowRight, Download, FolderOpen, ImageOff } from "lucide-react";
 
+import { ArquivosDaMarca } from "@/components/portal/arquivos-da-marca";
 import { FiltrosDaBiblioteca as BarraDaBiblioteca } from "@/components/portal/filtros-da-biblioteca";
+import { SecoesDaBiblioteca } from "@/components/portal/secoes-da-biblioteca";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ImagemAssinada } from "@/components/shared/imagem-assinada";
 import { arquivosDaBiblioteca } from "@/lib/dados/biblioteca";
+import { acervoDeMarca } from "@/lib/dados/biblioteca-de-marca";
 import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import {
   combinaComFiltros,
@@ -16,30 +19,94 @@ import {
   type ArquivoDaBiblioteca,
   type FiltrosDaBiblioteca,
 } from "@/lib/dominio/biblioteca";
+import { emArvore, type SecaoDaBiblioteca } from "@/lib/dominio/biblioteca-de-marca";
 import { ROTULO_DA_FRENTE } from "@/lib/dominio/cronograma";
 import type { Vertente } from "@/lib/dominio/vertentes";
 
 /**
  * A BIBLIOTECA — onde o cliente pega de volta o material pronto.
  *
- * **Uma seção e nenhuma aba**, e a razão está escrita em
- * `lib/dominio/biblioteca.ts`: das cinco abas do roteiro, quatro não têm
- * tabela, bucket nem tela de upload por trás. O que entrou no lugar é a
- * **navegação por vertente** (item 29, migration 0119), que é a fileira de
- * chips com "Todos os materiais" na primeira posição.
+ * **SÃO DUAS SEÇÕES desde a migration 0139**, e até ela era uma só — a razão
+ * estava escrita em `lib/dominio/biblioteca.ts`: *"das cinco abas do roteiro,
+ * quatro não têm tabela, bucket nem tela de upload por trás"*, e a frase
+ * seguinte dizia de quem era a decisão — *"o que falta é decisão de quem usa,
+ * não de quem escreve"*. Ela foi tomada:
+ *
+ *   - **Materiais aprovados** — o que o cliente aprovou, navegado por vertente
+ *     (item 29, migration 0119), com "Todos os materiais" na primeira posição;
+ *   - **Arquivos da marca** — as pastas que a gestão monta (migration 0139),
+ *     que é o *"logo, banners, e tudo mais que ele precisar"* do pedido.
+ *
+ * **A barra nasce cumprindo a regra "menos de duas seções não vira barra"**, e
+ * não a contrariando.
  *
  * **Tudo mora na URL**, como todo filtro de listagem do produto: "manda o
  * link do KV" precisa ser um link.
+ *
+ * ---------------------------------------------------------------------------
+ * **AS DUAS LEITURAS SÃO SEPARADAS, e só a da seção aberta acontece.** Um
+ * `Promise.all` com as duas custaria a ida ao banco do acervo em toda visita à
+ * grade de materiais, que é a seção que quase toda visita abre — e a do acervo
+ * são duas consultas mais uma ida ao Storage.
+ * ---------------------------------------------------------------------------
  */
 export async function BibliotecaDoPortal({
   base,
   clienteId,
   filtros,
+  secao = "materiais",
+  contaDoAcervo = null,
+  podeEditarOAcervo = false,
 }: {
   base: string;
   clienteId: string | null;
   filtros: FiltrosDaBiblioteca;
+  secao?: SecaoDaBiblioteca;
+  /**
+   * A CONTA DO ACERVO DE MARCA, decidida por quem chama.
+   *
+   * **E é obrigatório que seja de quem chama**, ao contrário da empresa da
+   * fileira de vertentes: aquela sai do próprio acervo de materiais
+   * (`empresaUnicaDoAcervo`), e aqui isso não serve — uma conta nova pode ter
+   * o logo guardado e nenhum material aprovado, que é justamente o primeiro
+   * dia de uso. Derivá-la dos materiais deixaria o acervo invisível ali.
+   *
+   * **E não `obterMinhasEmpresas()` aqui dentro**, porque quem olha pode ser a
+   * equipe: aquela leitura é recortada pela RLS, então para `is_staff()` ela
+   * devolve TODAS as contas ativas — e numa agência com um cliente só ela
+   * escolheria aquele. Cada página sabe de quem é a tela dela.
+   */
+  contaDoAcervo?: string | null;
+  /** `is_gestor()`, e a tela do cliente passa `false`. */
+  podeEditarOAcervo?: boolean;
 }) {
+  if (secao === "marca") {
+    const pastas = await acervoDeMarca(contaDoAcervo);
+    return (
+      <div className="space-y-5">
+        <SecoesDaBiblioteca atual={secao} />
+
+        {contaDoAcervo ? (
+          <ArquivosDaMarca
+            clienteId={contaDoAcervo}
+            pastas={emArvore(pastas)}
+            podeEditar={podeEditarOAcervo}
+          />
+        ) : (
+          /* SEM CONTA NÃO HÁ ACERVO A MOSTRAR, e a frase diz qual é o passo em
+             vez de uma lista vazia: quem responde por duas empresas e não
+             escolheu nenhuma no cabeçalho não tem de que conta ver o logo. É a
+             decisão da grade do Feed, que é de uma rede só e nunca escolhida
+             em silêncio. */
+          <p className="text-text-muted rounded-card border border-dashed p-4 text-sm">
+            Escolha a empresa no alto da página para ver os arquivos da marca
+            dela.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   const todos = await arquivosDaBiblioteca(base, clienteId ?? undefined);
 
   /* ------------------------------------------------- de quem é este acervo --
@@ -69,6 +136,8 @@ export async function BibliotecaDoPortal({
 
   return (
     <div className="space-y-5">
+      <SecoesDaBiblioteca atual={secao} />
+
       <BarraDaBiblioteca
         filtros={filtros}
         encontrados={encontrados.length}

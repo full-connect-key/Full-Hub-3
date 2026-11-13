@@ -707,6 +707,16 @@ const TELAS = [
   // sair iguais aos do socio -- `comoEquipe` nao pergunta o perfil, e a tela
   // continua sendo leitura para toda a equipe.
   { nome: "59e-portal-pelo-colaborador", rota: "/portal/mundo-verde", largura: 1400, altura: 1200, role: "colaborador-no-portal" },
+  // O ACERVO DE MARCA PELA GESTAO (0139): o "Criar pasta", o "Subir", o
+  // "Link", o renomear, a subpasta e o apagar em cada pasta. E a MESMA arvore
+  // da imagem do cliente, com `podeEditar` -- duas telas da mesma arvore
+  // divergiriam, e a que divergiria e a do portal.
+  { nome: "59f-portal-marca-pela-gestao", rota: "/portal/mundo-verde/biblioteca?secao=marca", largura: 1400, altura: 1500, role: "socio-no-portal" },
+  // E PELO COLABORADOR, que e a outra metade da mesma medicao: a arvore sai
+  // igual e NENHUM dos seis controles aparece. So a presenca passaria num
+  // `podeEditar` que respondesse sim para todo mundo; so a ausencia passaria
+  // numa tela que parou de desenhar a gestao.
+  { nome: "59g-portal-marca-pelo-colaborador", rota: "/portal/mundo-verde/biblioteca?secao=marca", largura: 1400, altura: 1200, role: "colaborador-no-portal" },
 
   // --- Sprint 6: Full Days -----------------------------------------------
   { nome: "60-full-days-solicitar", rota: "/painel/full-days", largura: 1600, altura: 1200, role: "socio" },
@@ -1319,7 +1329,24 @@ const TELAS = [
   // que o seletor aparece: ele e desenhado SO quando o recorte tem mais de um
   // formato, entao num acervo sem arquivo ele nao sai -- e e essa ausencia que
   // faz ele poder existir.
-  { nome: "16w-portal-biblioteca-formato", rota: "/portal/biblioteca", largura: 1280, altura: 1000 },
+  { nome: "16w2-portal-biblioteca-formato", rota: "/portal/biblioteca", largura: 1280, altura: 1000 },
+
+  // --- 0139: os arquivos da marca ----------------------------------------
+  //
+  // A SEGUNDA SECAO DA BIBLIOTECA, e a imagem prova as quatro coisas que a
+  // arvore sabe fazer -- os dois niveis com o fio, a pasta VAZIA dizendo que
+  // esta vazia, o "Abrir" do link ao lado do "Baixar" do arquivo, e a frase do
+  // arquivo cuja assinatura falhou. A razao de cada uma mora no stub.
+  { nome: "16x2-portal-arquivos-da-marca", rota: "/portal/biblioteca?secao=marca", largura: 1280, altura: 1400 },
+  // EM 375px a linha do arquivo quebra -- nome, peso e botao nao cabem lado a
+  // lado --, e e a unica coisa que diz se o botao continua alcancavel depois
+  // da quebra.
+  { nome: "16x3-portal-arquivos-da-marca-375", rota: "/portal/biblioteca?secao=marca", largura: 375, altura: 1700 },
+  // O ACERVO VAZIO, que e o estado do primeiro dia de uso e a razao de a
+  // Optica Visao nao ter pasta nenhuma no exemplo. Para o CLIENTE a frase diz
+  // que a Full ainda nao guardou nada; para a gestao ela manda criar a
+  // primeira pasta -- sao duas frases, e esta e a do cliente.
+  { nome: "16x4-portal-arquivos-da-marca-vazio", rota: "/portal/biblioteca?secao=marca&empresa=c0000000-0000-0000-0000-00000000000b", largura: 1280, altura: 800 },
   { nome: "16c-portal-pedir-ajustes", rota: "/portal/aprovacoes", largura: 1100, altura: 800, clicar: 'button:has-text("Solicitar ajustes")' },
   { nome: "17-portal-escuro", rota: "/portal", largura: 1280, altura: 800, tema: "escuro" },
 
@@ -1456,6 +1483,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/recomendacoes": ["./scripts/prototipo/recomendacoes.ts"],
   "@/lib/dados/solicitacoes": ["./scripts/prototipo/solicitacoes.ts"],
   "@/lib/dados/comodatos": ["./scripts/prototipo/comodatos.ts"],
+  "@/lib/dados/biblioteca-de-marca": ["./scripts/prototipo/biblioteca-de-marca.ts"],
   "@/lib/dados/feedback": ["./scripts/prototipo/feedback.ts"],
   // A BUSCA ENTRA AQUI PORQUE A PALETA ABRE DE QUALQUER TELA: o campo mora
   // na topbar do layout, e sem o stub a acao chamaria o Supabase de dentro

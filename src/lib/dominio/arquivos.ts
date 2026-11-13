@@ -223,14 +223,31 @@ export function atributoAccept(
     .join(",");
 }
 
-/** "15 MB", "1,2 GB". */
+/**
+ * "48 KB", "1,2 MB", "15 MB", "1,2 GB".
+ *
+ * **O DEGRAU DE KB ENTROU COM A BIBLIOTECA DE MARCA (0139), e ele conserta um
+ * defeito que já existia:** sem ele a conta começava em MB, e um logo SVG de
+ * quatro quilobytes — que é o arquivo mais comum de um acervo de marca — saía
+ * como **"0,0 MB"**, que se lê como arquivo vazio e não como arquivo pequeno.
+ * O outro leitor desta função é o progresso do uploader, onde a mesma linha
+ * dizia *"0,0 MB de 0,0 MB"* durante a subida de qualquer arquivo pequeno.
+ *
+ * **Os tetos da família continuam em MB inteiros**, e é por isso que o degrau
+ * novo não os alcança: `TETO_DA_FAMILIA` começa em 15 MB.
+ */
 export function pesoLegivel(bytes: number): string {
   if (bytes >= 1024 * 1024 * 1024) {
     const gb = bytes / (1024 * 1024 * 1024);
     return `${gb.toFixed(gb < 10 ? 1 : 0).replace(".", ",")} GB`;
   }
-  const mb = bytes / (1024 * 1024);
-  return `${mb < 10 ? mb.toFixed(1).replace(".", ",") : Math.round(mb)} MB`;
+  if (bytes >= 1024 * 1024) {
+    const mb = bytes / (1024 * 1024);
+    return `${mb < 10 ? mb.toFixed(1).replace(".", ",") : Math.round(mb)} MB`;
+  }
+  // Abaixo de um megabyte o decimal não informa nada — "47,3 KB" e "47 KB"
+  // respondem a mesma pergunta, e o arredondado cabe na linha estreita.
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 export type RecusaDeArquivo = { ok: false; motivo: string } | { ok: true };

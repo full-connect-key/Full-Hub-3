@@ -914,7 +914,14 @@ from (
     -- "Em analise" para sempre, porque a demanda de campanha nasce publicada
     -- e o vinculo e escrito depois.
     ('0138', 'o cliente pede uma campanha', 'no_corpo',
-             'tasks_espelha_no_pedido|old.request_id is null')
+             'tasks_espelha_no_pedido|old.request_id is null'),
+    -- A 0139 CRIA DUAS TABELAS, UM BUCKET E DOIS GATILHOS, e o marcador e o
+    -- gatilho que faz o arquivo herdar a conta da pasta -- a ULTIMA coisa que
+    -- o arquivo cria. O bucket vem no PASSO 1 de proposito: com ele no fim,
+    -- uma colagem que morresse antes dele deixaria as duas tabelas de pe com o
+    -- upload sem lugar para onde ir, e um marcador numa das tabelas diria
+    -- `ok`.
+    ('0139', 'a biblioteca tem pastas', 'trigger', 'client_files_herda_a_conta')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

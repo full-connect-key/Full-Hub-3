@@ -4,7 +4,12 @@ import { Suspense } from "react";
 import { BibliotecaDoPortal } from "@/components/portal/telas/biblioteca-do-portal";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirClienteNaTela } from "@/lib/auth/portal-administrativo";
+import { obterMinhasEmpresas } from "@/lib/dados/clientes";
 import { lerFiltrosDaBiblioteca } from "@/lib/dominio/biblioteca";
+import {
+  lerSecaoDaBiblioteca,
+  subtituloDaBiblioteca,
+} from "@/lib/dominio/biblioteca-de-marca";
 
 export const metadata: Metadata = { title: "Biblioteca" };
 
@@ -16,6 +21,23 @@ export default async function PaginaDaBiblioteca({
 
   const empresa = typeof params.empresa === "string" ? params.empresa : null;
   const filtros = lerFiltrosDaBiblioteca(params);
+  const secao = lerSecaoDaBiblioteca(params.secao);
+
+  /* ---------------------------------------------- a conta do acervo de marca --
+     A EMPRESA ESCOLHIDA, OU A ÚNICA DE QUEM ESTÁ OLHANDO.
+
+     **A leitura só acontece na seção do acervo**, e só quando ninguém escolheu
+     empresa: na grade de materiais ela não decide nada, e uma ida ao banco por
+     visita para responder uma pergunta que a tela não faz é o que
+     `empresaUnicaDoAcervo()` existe para evitar do outro lado.
+
+     **E ela não serve para a grade de materiais**, que continua derivando a
+     empresa do próprio acervo: aqui a resposta tem de existir numa conta nova,
+     com o logo guardado e nada aprovado ainda. */
+  const contaDoAcervo =
+    secao === "marca" && !empresa
+      ? ((await obterMinhasEmpresas())[0]?.id ?? null)
+      : empresa;
 
   return (
     <div className="space-y-8">
@@ -24,7 +46,7 @@ export default async function PaginaDaBiblioteca({
           Biblioteca
         </h1>
         <p className="text-text-muted text-sm">
-          Tudo o que você já aprovou, guardado para baixar depois.
+          {subtituloDaBiblioteca(secao, false)}
         </p>
       </div>
 
@@ -33,6 +55,11 @@ export default async function PaginaDaBiblioteca({
           base="/portal"
           clienteId={empresa}
           filtros={filtros}
+          secao={secao}
+          contaDoAcervo={contaDoAcervo}
+          /* O CLIENTE SÓ LÊ, e a ausência é a regra do Portal: quem monta o
+             acervo é a agência, como quem entra e quem sai. */
+          podeEditarOAcervo={false}
         />
       </Suspense>
     </div>

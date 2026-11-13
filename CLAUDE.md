@@ -9613,6 +9613,183 @@ ponto. **O nome sai da lista da conta e não de uma coluna no material:** o
 material guarda o id, e é isso que faz renomear uma vertente aparecer em toda
 tela de uma vez — o item 33 do pedido, de graça.
 
+#### A BIBLIOTECA TEM PASTAS, e a agência as monta (0139)
+
+Duas decisões do usuário, na mesma mensagem: *"a biblioteca do cliente, deve
+permitir acessar logo, banners, e tudo mais que ele precisar, como um deskify
+sabe?"* e *"quero que desenvolvedores e sócios, possam mexer e criar pastas
+novas no portal do cliente / dentro da biblioteca / e outras abas que sejam
+necessárias"*.
+
+**O BURACO JÁ ESTAVA ESCRITO AQUI, com a razão e com a saída.** A Biblioteca
+tem **uma** seção desde a 0119, e o parágrafo dela diz por quê: *"o roteiro
+pede cinco abas, e quatro não têm tabela, bucket nem tela de upload por trás
+(…) o que falta é decisão de quem usa, não de quem escreve"*. **Esta migration
+é essa decisão** — e o que ela entrega não são as quatro abas.
+
+##### AS OUTRAS ABAS SÃO PASTAS
+
+A leitura literal de *"outras abas que sejam necessárias"* é uma aba por
+assunto — Arquivos da marca, Cronogramas, Relatórios —, cada uma com tabela,
+bucket e tela própria. **As três são a mesma coisa:** uma pasta que a agência
+enche e o cliente baixa. Um mecanismo cobre as três, e a quarta — a que
+ninguém previu — custa um clique em vez de uma migration.
+
+**E é por isso que a seção nova se chama "Arquivos da marca" e não "Pastas":**
+o nome diz o que há dentro para quem abre o portal, e quem monta já sabe que
+são pastas porque está criando uma.
+
+##### São DUAS TABELAS, e não o bucket navegado por prefixo
+
+O Storage do Supabase guarda caminho, e `biblioteca-arquivos/{conta}/{pasta}/`
+já descreve uma árvore — a tentação é não ter tabela nenhuma. **Quatro coisas
+quebram no primeiro dia:**
+
+| | o que acontece sem a tabela |
+| --- | --- |
+| a pasta vazia | **não existe**: no Storage um prefixo só existe quando há objeto dentro, e a pasta recém-criada some da tela |
+| renomear | é mover N objetos um a um, sem transação — e o que falhar no meio parte a pasta em duas |
+| a ordem | é alfabética, e a ordem de um acervo de marca é uma escolha (o logo antes do banner) |
+| a RLS | `storage.objects` só sabe perguntar por `(storage.foldername(name))[1]`, que é a CONTA; um nível abaixo ela não alcança |
+
+`client_folders` e `client_files`, então, com o bucket guardando o byte e a
+linha guardando o que a tela lê.
+
+**DOIS NÍVEIS E NUNCA TRÊS** (`client_folders_dois_niveis`), que é a forma de
+`deliverables_dois_niveis` (0033) e da sub-etapa (0022), pela mesma razão:
+árvore que passa de dois níveis na tela do cliente é árvore que ninguém
+acompanha, e o recuo deixa de significar alguma coisa. **E com dois níveis o
+ciclo é impossível por construção**, então não há guarda de ciclo a escrever —
+uma pasta que fosse mãe da própria mãe precisaria de um terceiro nível.
+
+**A pasta de topo é única por NOME dentro da conta, e a filha dentro da mãe**,
+por dois índices PARCIAIS e não por um `unique` comum: nulo não é distinto de
+nulo num `unique`, então `(client_id, pasta_pai_id, nome)` deixaria passar
+duas pastas "Marca" no topo. A comparação é por `lower(btrim(nome))`, senão
+"Marca" e "marca " são duas.
+
+##### `url` guarda o caminho do bucket OU um link de fora, na mesma coluna
+
+Quem decide é `ehLinkDeFora()`, que pergunta se a string começa com `http`.
+
+**É a forma de `subtask_entregas` e a do par `assinarArquivos()` /
+`enderecoDaArte()`**, que já atravessa o produto inteiro: *"nem toda arte mora
+no bucket — algumas são link de Drive ou de Figma"*. Metade do que uma agência
+guarda de uma marca é link: a paleta no Figma, a pasta de fontes no Drive, o
+manual num PDF que já está em algum lugar.
+
+**E NÃO é um enum como o `formato` da 0115**, que é o precedente mais
+próximo e o que mais se parece: lá o valor decide **qual TELA o item vira** —
+o e-book interativo abre com progresso por capítulo, o PDF abre com Baixar.
+Aqui ele decide o RÓTULO DE UM BOTÃO, e o que dá para calcular não se guarda.
+
+**E NÃO HÁ COLUNA DE MIME, que é a outra tentação.** A 0120 mediu: o navegador
+devolve `application/octet-stream` para um `.psd` em metade dos sistemas e
+`application/pdf` para um `.ai` moderno. O formato sai da EXTENSÃO do nome,
+por `formatoDoArquivo()`, que é a mesma função do uploader.
+
+##### `folder_id` é `not null`, e a conta vem da pasta
+
+**Um arquivo na raiz é um arquivo que ninguém classificou**, numa tela cujo
+trabalho inteiro é classificar — e ele mata um ramo de interface: não há
+"arquivos soltos" acima das pastas, porque não há como existirem.
+
+**E `client_id` é escrito por GATILHO a partir da pasta**
+(`client_files_herda_a_conta`), nunca digitado: é a forma de `posts_normaliza`
+e a regra de sempre — o que é consequência não se escreve duas vezes. É ela
+também que faz a policy de SELECT do cliente poder perguntar direto à linha,
+sem um `join` com a pasta em toda leitura.
+
+##### QUEM ESCREVE É `is_gestor()`, e isso desfaz uma fronteira declarada
+
+A 0133 abriu a visualização do portal para toda a equipe e escreveu, em voz
+alta, que **ninguém edita nada ali**: *"criar uma trava para uma ação que não
+existe é a 0060 de novo — então a frase vale como BORDA: no dia em que a tela
+ganhar uma ação, ela nasce `is_atendimento()`, e aí é migration própria"*.
+
+**Este é esse dia, e o perfil é outro porque o pedido o nomeia:**
+*"desenvolvedores e sócios"* é `is_gestor()`, palavra por palavra. A borda da
+0133 era um palpite sobre qual ação viria primeiro; a decisão de quem usa
+ganha dela.
+
+**Ler continua sendo `is_staff() or my_client_ids()`**, que é a assimetria de
+todo módulo do Portal: a equipe inteira vê o acervo de qualquer conta — ela já
+vê o material aprovado desde a 0133 —, e o cliente vê o da empresa dele.
+
+**E A FAIXA DA VISUALIZAÇÃO TROCOU UMA PALAVRA, o que só a imagem pegou:** ela
+dizia *"nenhuma AÇÃO em nome do cliente está disponível"*, e quinze
+centímetros abaixo a gestão passou a criar pasta, subir arquivo, renomear e
+apagar — a tela afirmando duas coisas que se contradizem. Hoje ela diz
+**"nenhuma DECISÃO em nome do cliente"**, que é mais estreito e é o que ela
+sempre existiu para garantir: `decidir_rodada_do_cliente` recusa no banco quem
+não é o cliente daquela rodada. Montar o acervo é trabalho da agência sobre o
+material da agência, e não uma decisão tomada no lugar de quem contratou.
+
+##### Na tela: as duas seções, e o que cada estado diz
+
+O seletor de seção é o par de pílulas da `BarraDeContexto` em miniatura, com
+`router.replace` e `scroll: false` — e ele **carrega só o `?empresa=`** na
+troca: os filtros de data, frente e busca são da outra seção e não querem
+dizer nada aqui.
+
+**A CONTAGEM DA PASTA DE TOPO INCLUI AS FILHAS, e foi a imagem que mandou:**
+"Marca — 2 arquivos" em cima de uma pasta que mostrava quatro é um número que
+quem lê não tem como reconciliar com o que está logo abaixo. Com o total os
+números FECHAM à vista, e ela é a mesma conta do diálogo de apagar — o que sai
+com a pasta é o que ela tem dentro, que é a decisão do diálogo de apagar
+campanha: *"'Apagar esta campanha?' não informa nada; a contagem é a única
+coisa que faz alguém parar"*.
+
+**A pasta vazia DIZ que está vazia**, em vez de não dizer nada: sem a palavra
+ela se lê como uma pasta que não carregou.
+
+**E A SUBPASTA NÃO GANHA SUBPASTA**, em vez de o botão aparecer e o banco
+recusar: a trava é do trigger, e a tela não oferece o clique que ele nega.
+
+**O arquivo sem endereço diz "Não foi possível abrir agora"**, que é a decisão
+de `ImagemAssinada`: a assinatura do bucket pode falhar, e um botão que não
+leva a lugar nenhum é pior que a frase — ela distingue *"não carregou"* de
+*"não existe"*.
+
+**RENOMEAR E DESCREVER SÃO O MESMO FORMULÁRIO**, e a descrição é a metade que
+importa: o nome que sobe é o nome do arquivo no computador de quem subiu —
+`logo_final_v3_OK.svg` —, e *"versão principal, fundo claro"* é o único jeito
+de duas versões do mesmo logo se distinguirem na tela de quem baixa. **E `url`
+não está nesse formulário**, de propósito: trocar o endereço por baixo de um
+arquivo que o cliente já baixou é trocar o material sem deixar rastro — a
+decisão de `post_referencias`, que não tem policy de UPDATE. Trocou o arquivo,
+anexa outro e apaga este.
+
+##### DOIS DEFEITOS ANTIGOS SAÍRAM JUNTO, e os dois só a imagem pega
+
+**`pesoLegivel()` COMEÇAVA EM MB**, então um logo SVG de quatro quilobytes —
+que é o arquivo mais comum de um acervo de marca — saía como **"0,0 MB"**, que
+se lê como arquivo vazio e não como arquivo pequeno. O outro leitor daquela
+função é o progresso do uploader, onde a mesma linha dizia *"0,0 MB de 0,0
+MB"* durante a subida de qualquer arquivo pequeno, em todas as telas de
+entrega do produto. O degrau de KB entrou com esta migration e conserta os
+dois de uma vez.
+
+**E O NOME DO ARQUIVO ERA O ÚNICO A CEDER LARGURA em 375px** — `nome | peso |
+botão` com os dois últimos `shrink-0` dá *"mundo-verde-logo...."*. É a lição
+que esta casa já pagou três vezes, nas mesmas palavras: **o título é a única
+coisa que a linha existe para dizer, e é a última que pode encolher.** Abaixo
+de `sm` o nome ocupa a linha inteira e o peso e o botão descem.
+
+***E o exemplo do protótipo tem uma pasta vazia, um link de fora, um arquivo
+com descrição e outro sem, e uma conta sem acervo nenhum*** — com tudo
+preenchido a imagem provaria que a tela desenha, e não que ela **distingue**,
+que é a razão do evento de cada par da legenda do calendário.
+
+***O que NÃO foi feito, e é dito em vez de escondido:*** **a migration não foi
+aplicada e a bateria não foi rodada** — não há Docker nem Postgres local neste
+ambiente. A 0139 está escrita, com a linha do `onde-esta-o-banco.sql`
+apontando para o gatilho que herda a conta, que é a última coisa que o arquivo
+cria; o bucket é o PASSO 1 justamente por isso, para uma colagem parcial
+responder FALTA em vez de `ok`. **E não há ordenação por arrasto:** `ordem` é
+coluna desde o primeiro dia e a pasta nova entra no fim, mas a tela não a
+edita — quem quiser outra ordem renomeia, e o arrasto é decisão própria.
+
 #### Preferências e registro
 
 `client_notification_prefs` fecha em `user_id = auth.uid()` nas quatro
@@ -10823,17 +11000,25 @@ da migration: escrever a própria visita é registrar o que eu fiz, e ler a list
 como a trilha de auditoria da 0058. `staff_user_id = auth.uid()` fica, e é ele
 que impede forjar a visita de alguém.
 
-***"EDIÇÃO LIMITADA A ATENDIMENTO E SÓCIOS" NÃO TEM REFERENTE NESTE MÓDULO, e é
-dito em vez de inventado.*** Dentro de `/portal/{slug}` ninguém edita nada
-hoje, para perfil nenhum: `comoEquipe` desliga as três decisões e a conversa,
-`decidir_rodada_do_cliente` recusa no banco quem não é o cliente daquela
-rodada, e a faixa do topo já escreve *"nenhuma ação em nome do cliente está
-disponível"*. A única escrita da visualização é a linha de rastro. **Criar uma
-trava para uma ação que não existe é a 0060 de novo** — então a frase vale como
-BORDA: no dia em que a tela ganhar uma ação, ela nasce `is_atendimento()`, e aí
-é migration própria. Os dois lugares onde ela poderia cair são a conversa do
-material (hoje desligada para a equipe inteira) e o cadastro do cliente, que é
-`is_gestor()` em `clients_update_gestor` e mora em outro módulo.
+***"EDIÇÃO LIMITADA A ATENDIMENTO E SÓCIOS" NÃO TINHA REFERENTE NESTE MÓDULO, e
+foi dito em vez de inventado.*** No dia desta migration, dentro de
+`/portal/{slug}` ninguém editava nada, para perfil nenhum: `comoEquipe`
+desliga as três decisões e a conversa, `decidir_rodada_do_cliente` recusa no
+banco quem não é o cliente daquela rodada, e a faixa do topo escrevia que
+nenhuma ação em nome do cliente está disponível. A única escrita da
+visualização era a linha de rastro. **Criar uma trava para uma ação que não
+existe é a 0060 de novo** — então a frase ficou como BORDA: no dia em que a
+tela ganhasse uma ação, ela nasceria `is_atendimento()`, e aí seria migration
+própria.
+
+**ESSE DIA CHEGOU NA 0139, E O PERFIL É OUTRO** — a biblioteca de marca, que o
+usuário pediu para *"desenvolvedores e sócios"*, ou seja `is_gestor()`. A
+borda acima era um palpite sobre qual ação viria primeiro, e a decisão de quem
+usa ganha dela; a faixa do topo trocou "ação" por "decisão" no mesmo commit,
+porque a tela passou a ter ações. O que continua sem referente são os outros
+dois lugares onde a edição poderia cair: a conversa do material (desligada
+para a equipe inteira) e o cadastro do cliente, que é `is_gestor()` em
+`clients_update_gestor` e mora em outro módulo.
 
 **E A CHECAGEM PASSOU A MEDIR A SEÇÃO, não só o `roles`.** `check:sprint9`
 media presença e ausência do rótulo na barra, e com `roles: EQUIPE` um

@@ -743,6 +743,88 @@ export interface Database {
        * valendo para as demandas que já apontam para ela, senão o relatório
        * por vertente perderia o recorte do que já foi entregue.
        */
+      /**
+       * AS PASTAS DO ACERVO DE MARCA de cada conta (migration 0139).
+       *
+       * Montadas pela gestão no portal do cliente e lidas por ele. **Dois
+       * níveis e nunca três** — `client_folders_dois_niveis` recusa o neto,
+       * pela razão de `deliverables_dois_niveis` (0033).
+       */
+      client_folders: {
+        Row: {
+          id: string;
+          client_id: string;
+          /** Nulo é pasta de topo. Com dois níveis o ciclo é impossível. */
+          pasta_pai_id: string | null;
+          nome: string;
+          /** Escolhida por quem monta, não alfabética. */
+          ordem: number;
+          criado_por: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          pasta_pai_id?: string | null;
+          nome: string;
+          ordem?: number;
+          criado_por?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          nome?: string;
+          ordem?: number;
+          pasta_pai_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /**
+       * OS ARQUIVOS DO ACERVO DE MARCA (migration 0139).
+       *
+       * `url` guarda o caminho no bucket `biblioteca-arquivos` **ou** um
+       * endereço `https://` — a forma de `subtask_entregas`, e quem decide o
+       * rótulo do botão é a própria string.
+       *
+       * **`client_id` fica fora de `Insert` e de `Update`**: ele é escrito por
+       * `client_files_herda_a_conta` a partir da pasta, e o que é
+       * consequência não se digita — a forma de `posts.arte_url`.
+       */
+      client_files: {
+        Row: {
+          id: string;
+          client_id: string;
+          folder_id: string;
+          nome: string;
+          url: string;
+          descricao: string | null;
+          /** Nulo no link: um Google Doc não tem tamanho a afirmar. */
+          tamanho: number | null;
+          ordem: number;
+          enviado_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          folder_id: string;
+          nome: string;
+          url: string;
+          descricao?: string | null;
+          tamanho?: number | null;
+          ordem?: number;
+          enviado_por?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          nome?: string;
+          descricao?: string | null;
+          ordem?: number;
+          folder_id?: string;
+        };
+        Relationships: [];
+      };
       client_vertentes: {
         Row: {
           id: string;

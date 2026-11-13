@@ -12,6 +12,20 @@ import { Eye, LogOut } from "lucide-react";
  *
  * O fundo é âmbar, não vermelho: nada de errado está acontecendo, é um modo de
  * trabalho legítimo. Vermelho é para erro.
+ *
+ * ---------------------------------------------------------------------------
+ * **A FRASE DIZ "DECISÃO" E NÃO "AÇÃO" DESDE A 0139, e foi a imagem que
+ * mandou:** a faixa afirmava que *nenhuma ação* está disponível, e na mesma
+ * tela, quinze centímetros abaixo, a gestão passou a criar pasta, subir
+ * arquivo, renomear e apagar no acervo de marca — a tela dizendo duas coisas
+ * que se contradizem a poucos centímetros.
+ *
+ * **O que a faixa existe para garantir continua inteiro, e é mais estreito que
+ * "ação":** ninguém APROVA, pede ajustes ou recusa em nome de quem contratou —
+ * `decidir_rodada_do_cliente` recusa no banco quem não é o cliente daquela
+ * rodada, e é essa a promessa. Montar o acervo é trabalho da agência sobre o
+ * material da agência, e não uma decisão tomada no lugar dele.
+ * ---------------------------------------------------------------------------
  */
 export function AvisoDeVisualizacao({
   nomeDaEmpresa,
@@ -24,7 +38,7 @@ export function AvisoDeVisualizacao({
         <Eye aria-hidden className="size-4 shrink-0" />
         <p className="min-w-0 flex-1 text-sm">
           Você está visualizando o portal da <strong>{nomeDaEmpresa}</strong>{" "}
-          como equipe Full Connect Key. Nenhuma ação em nome do cliente está
+          como equipe Full Connect Key. Nenhuma decisão em nome do cliente está
           disponível.
         </p>
         <Link

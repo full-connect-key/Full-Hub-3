@@ -308,6 +308,46 @@ async function textoDaArvore(raiz, aceita) {
   return junto;
 }
 
+console.log("\nCada tela do protótipo tem um nome só\n");
+
+/* ---------------------------------------------------------------------------
+   DUAS TELAS COM O MESMO NOME = UMA IMAGEM SOBRESCRITA, EM SILÊNCIO.
+
+   O gerador grava `prototipos/{nome}.png` e `prototipos/html/{nome}.html`, e
+   nada nele recusa um nome repetido: a segunda tela escreve por cima da
+   primeira, a rodada termina dizendo "Pronto", e a conferência que a primeira
+   existia para fazer passa a ser feita sobre outra tela. **É a família do 500
+   com a cara boa**: não há erro nenhum a reportar.
+
+   E ela existia: `16w` nomeava a `portal-post-vertical` (do sprint da
+   proporção da arte) e a `portal-biblioteca-formato` (do sprint do upload), e
+   a segunda apagava a imagem da primeira — com as duas no mesmo arquivo, a
+   duas centenas de linhas de distância.
+
+   **Nenhuma outra verificação pega isto:** o `tsc` não lê o gerador, o `lint`
+   não acha nada errado num objeto literal repetido, e o `check:prototipo` só
+   olhava os stubs e os cliques.
+--------------------------------------------------------------------------- */
+const nomes = [...(gerador ?? "").matchAll(/\{\s*nome:\s*"([^"]+)"/g)].map(
+  (m) => m[1],
+);
+const vistos = new Set();
+const repetidos = new Set();
+for (const nome of nomes) {
+  if (vistos.has(nome)) repetidos.add(nome);
+  vistos.add(nome);
+}
+
+for (const nome of repetidos) {
+  console.log(
+    `  FALHA   “${nome}” nomeia mais de uma tela — a última sobrescreve a imagem das outras`,
+  );
+}
+
+if (repetidos.size === 0) {
+  console.log(`  ok      ${nomes.length} tela(s), nenhum nome repetido`);
+}
+
 console.log("\nOs cliques do protótipo apontam para texto que existe\n");
 
 // Uma entrada de `TELAS` por vez: o nome e o `clicar` daquela entrada precisam
@@ -361,7 +401,14 @@ if (mortos === 0) {
   console.log(`  ok      ${conferidos} texto(s) de clique, todos ainda no produto`);
 }
 
-if (problemas > 0 || mortos > 0) {
+if (problemas > 0 || mortos > 0 || repetidos.size > 0) {
+  if (repetidos.size > 0) {
+    console.log(
+      `\n${repetidos.size} nome(s) de tela repetido(s). A rodada grava as duas no ` +
+        `mesmo arquivo\ne termina dizendo "Pronto" — a imagem que sobra é a da ` +
+        `última, com o nome da\nprimeira.\n`,
+    );
+  }
   if (problemas > 0) {
     console.log(
       `\n${problemas} stub(s) para trás do módulo real. O \`npm run prototipo\` ` +
