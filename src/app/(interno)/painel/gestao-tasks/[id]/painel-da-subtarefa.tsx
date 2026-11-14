@@ -727,7 +727,7 @@ export function PainelDaSubtarefa({
               className={cn(
                 "flex flex-wrap items-center justify-end gap-2",
                 mexidos > 0 &&
-                  "bg-card/95 sticky bottom-0 -mx-4 border-t px-4 py-3 backdrop-blur",
+                  "bg-card sticky bottom-0 -mx-4 border-t px-4 py-3",
               )}
             >
               {mexidos > 0 ? (

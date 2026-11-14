@@ -302,7 +302,7 @@ function CartaoDoMes({
       href={`?aba=social&mes=${mes.mes.slice(0, 7)}&cliente=${clienteId}`}
       className={cn(
         "hover:bg-muted block space-y-2 rounded-xl border p-3 transition-colors",
-        mes.arquivadaEm ? "bg-muted/40" : "bg-surface-card",
+        mes.arquivadaEm ? "bg-muted" : "bg-surface-card",
       )}
     >
       <span className="flex items-baseline gap-1.5">

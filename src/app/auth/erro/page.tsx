@@ -10,7 +10,11 @@ export const metadata: Metadata = { title: "Link inválido" };
 
 export default function PaginaDeErroDeAutenticacao() {
   return (
-    <main className="from-muted/60 via-background to-muted/40 flex min-h-dvh items-center justify-center bg-gradient-to-br px-4 py-12">
+    // O DEGRADÊ SAIU, e ele não pintava nada: `body` é `bg-background`, e
+    // 60% de `--muted` sobre a página dá quase exatamente a página — um
+    // degradê invisível feito de opacidade sobre um fundo conhecido. O que
+    // separa o cartão do chão é o cartão ser branco.
+    <main className="flex min-h-dvh items-center justify-center px-4 py-12">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-base">Não deu para validar o link</CardTitle>

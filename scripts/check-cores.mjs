@@ -546,10 +546,28 @@ const PARES = [
   // controle, não de divisória. Exigir 3:1 dela daria um traço pesado em
   // volta de cada cartão — o oposto da tela que o sprint descreve.
   //
-  // --input entra: é a borda do CAMPO, o que diz onde se clica para digitar.
-  ["--input", "--surface-card", GRANDE, "borda do campo de formulário"],
-  ["--input", "--surface-page", GRANDE, "borda do campo sobre a página"],
+  // --input entra: é a borda do CONTROLE — o que diz onde se clica. Era "do
+  // CAMPO" nesta frase, e a palavra estreita custou 169 botões: o `outline`
+  // usava `border` (1,07:1 sobre a página) porque a lista dizia que a borda
+  // de 3:1 era coisa de campo. Campo e botão são a mesma pergunta — "isto se
+  // clica" —, e os dois pares abaixo já mediam a resposta.
+  ["--input", "--surface-card", GRANDE, "borda do controle sobre o cartão"],
+  ["--input", "--surface-page", GRANDE, "borda do controle sobre a página"],
   ["--ring", "--surface-card", GRANDE, "anel de foco"],
+
+  // O BOTÃO DO SWITCH SOBRE OS DOIS TRILHOS.
+  //
+  // Ele é um objeto gráfico que carrega o estado do controle, então vale a
+  // régua de elemento de interface — e ele era `--background`, a página, o
+  // que dava **1,49:1 no trilho ligado** do tema claro: o switch marcado não
+  // tinha botão visível. O trilho ligado era `--brand`, o ciano que a regra
+  // escrita deste produto reserva ao símbolo e aos acentos de marca; hoje é
+  // `--action`, que é a cor de ação e tem o par branco medido (5,66:1).
+  //
+  // O botão é `--action-foreground`, que NÃO troca por tema — preenchimento
+  // carrega o próprio chão, a decisão da família das três decisões —, então
+  // ele se lê nos dois trilhos e nos dois temas.
+  ["--action-foreground", "--input", GRANDE, "botão do switch no trilho desligado"],
 
   // As cores de gráfico. Régua de ELEMENTO DE INTERFACE (3:1): uma linha ou
   // uma barra não é texto, e o que o padrão cobra dela é ser distinguível do
@@ -1138,6 +1156,179 @@ const COM_PAR_SUAVE = [
     }
   } else {
     console.log("  ok      nenhum token de estado usado com opacidade");
+  }
+}
+
+// --- opacidade em cor de SUPERFÍCIE -----------------------------------------
+//
+// A seção de cima mede o SELO; esta mede o CHÃO, e é a mesma regra: opacidade
+// sobre um fundo qualquer dá uma cor que ninguém mediu, e no tema escuro dá
+// outra.
+//
+// ELA NASCEU PORQUE ESTE PADRÃO QUEBROU OITO VEZES, cada uma consertada à mão
+// e nenhuma reprovada por nada: o seletor de visão (`bg-muted/60`, que
+// desaparecia no chão), o cabeçalho da `DataTable` (`bg-muted/40`), os três
+// contêineres de Minhas Tasks, o calendário da Gestão de Tasks, o zero da
+// régua do Day Off (`text-text-muted/50`, opacidade em TEXTO) e o `outline`
+// de 169 botões. A frase estava escrita no CLAUDE.md e em sete comentários de
+// código, e **o que falta a uma regra escrita em prosa é alguém conferindo**.
+//
+// O QUE ELA DEIXA PASSAR, de propósito:
+//
+// - **o modificador transitório.** `hover:bg-muted/50` pinta durante o
+//   ponteiro, sobre um chão que a pessoa está vendo mudar — e um realce de
+//   hover é justamente onde a translucidez serve. O que a regra proíbe é a
+//   cor de REPOUSO.
+// - **`bg-black/50`**, o véu do diálogo. Um véu é o único caso em que
+//   translucidez sobre um fundo desconhecido É o ponto, e `black` não é token
+//   de superfície.
+// - **`.disco-da-topbar`**, que é vidro de verdade sobre a malha, declarado
+//   no `globals.css` com a razão escrita e com o composto medido.
+//
+// E ELA LÊ O ARQUIVO SEM OS COMENTÁRIOS, que é a diferença entre esta seção e
+// a de cima. A armadilha desta casa é a explicação carregar o que ela proíbe
+// — paga oito vezes, a última na própria frase que explica o seletor de
+// visão. Com os comentários fora, a explicação pode citar `bg-muted/40` à
+// vontade e o que reprova é só o que vai para a tela.
+
+console.log("\nOpacidade em cor de superfície (chão de repouso)\n");
+
+const SUPERFICIES = [
+  "surface-card",
+  "surface-page",
+  "text-primary",
+  "text-secondary",
+  "text-muted",
+  "background",
+  "secondary",
+  "popover",
+  "primary",
+  "accent",
+  "muted",
+  "border",
+  "input",
+  "card",
+];
+
+// Um modificador que só pinta durante uma interação ou um estado passageiro.
+// `dark:` NÃO está aqui: ele é repouso, no outro tema.
+const TRANSITORIO =
+  /(^|:)(hover|focus|focus-visible|focus-within|active|disabled|group-hover|group-focus|group-focus-visible|peer-[a-z-]+|aria-[a-z-]+|data-\[[^\]]*\]|in-\[[^\]]*\]|has-\[[^\]]*\])$/;
+
+/**
+ * O arquivo sem os comentários.
+ *
+ * O `//` só é cortado quando NÃO vem depois de `:` — senão `https://` apagaria
+ * o resto da linha.
+ */
+function semComentarios(texto) {
+  return texto
+    // O bloco é trocado pelas MESMAS quebras de linha que ele ocupava: sem
+    // isso o número que a falha imprime é o da linha depois de o comentário
+    // ter encolhido, e manda quem for consertar para a linha errada.
+    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
+    .split("\n")
+    .map((linha) => linha.replace(/(^|[^:])\/\/.*$/, "$1"))
+    .join("\n");
+}
+
+{
+  const alvo = new RegExp(
+    `([\\w\\-\\[\\]:=.%]*)\\b(bg|text|border|ring|divide|from|via|to)-(${SUPERFICIES.join("|")})\\/(\\d{1,3})\\b`,
+    "g",
+  );
+
+  let arquivos = [];
+  try {
+    arquivos = execSync(
+      "find src -name '*.ts' -o -name '*.tsx' | sort",
+      { encoding: "utf8" },
+    )
+      .trim()
+      .split("\n")
+      .filter(Boolean);
+  } catch {
+    arquivos = [];
+  }
+
+  const encontrados = [];
+  for (const arquivo of arquivos) {
+    const linhas = semComentarios(readFileSync(arquivo, "utf8")).split("\n");
+    linhas.forEach((linha, i) => {
+      for (const achado of linha.matchAll(alvo)) {
+        const [tudo, prefixo] = achado;
+        const modificadores = prefixo.split(":").filter(Boolean);
+        if (modificadores.some((m) => TRANSITORIO.test(m))) continue;
+        encontrados.push(`${arquivo}:${i + 1}  ${tudo}`);
+      }
+    });
+  }
+
+  if (encontrados.length > 0) {
+    falhas++;
+    console.log("  FALHA   opacidade num chão de repouso — use o token cheio");
+    for (const linha of encontrados) console.log(`          ${linha}`);
+  } else {
+    console.log(`  ok      nenhuma superfície de repouso vem de opacidade (${arquivos.length} arquivos)`);
+  }
+}
+
+// --- os dois controles que se leem sobre o cinza ----------------------------
+//
+// As duas seções de cima pegam a FAMÍLIA `/NN`. Estas duas classes não são
+// dessa família — elas pintam com token cheio — e cada uma era um controle que
+// não se via:
+//
+// - o `outline` do `Button`, em **169 telas**, era `bg-background` (a página,
+//   1,00:1 de chão) com `border` (1,07:1 de limite). Devolvê-lo não acende
+//   alarme nenhum: não é opacidade, não é cor literal, não é classe
+//   inexistente, e os dois pares de `--input` em `PARES` medem o TOKEN e não
+//   quem o usa.
+// - o botão do `Switch` era `--background` sobre o trilho `--brand`: **1,49:1
+//   no tema claro**, ou seja o switch marcado não tinha botão.
+//
+// É a forma das varreduras de frase que este arquivo já faz pelas travas da
+// 0029, da 0060 e da 0086: estreita, com o motivo escrito, e de MÃO DUPLA —
+// confere o que tem de estar lá E o que não pode voltar. Só a metade da
+// ausência passaria num botão que perdeu as duas classes de uma vez.
+
+console.log("\nOs dois controles que se leem sobre o cinza\n");
+
+const CONTROLES = [
+  {
+    arquivo: "src/components/ui/button.tsx",
+    nome: "o botão outline",
+    tem: ["border-input bg-card"],
+    naoTem: ["bg-background shadow-xs", '"border bg-background'],
+  },
+  {
+    arquivo: "src/components/ui/switch.tsx",
+    nome: "o switch",
+    tem: ["data-[state=checked]:bg-action", "bg-action-foreground pointer-events-none"],
+    naoTem: ["data-[state=checked]:bg-brand", "bg-background pointer-events-none"],
+  },
+];
+
+for (const controle of CONTROLES) {
+  let codigo = "";
+  try {
+    codigo = semComentarios(readFileSync(controle.arquivo, "utf8"));
+  } catch {
+    falhas++;
+    console.log(`  FALHA   ${controle.nome}: não achei ${controle.arquivo}`);
+    continue;
+  }
+
+  const faltando = controle.tem.filter((t) => !codigo.includes(t));
+  const voltou = controle.naoTem.filter((t) => codigo.includes(t));
+
+  if (faltando.length > 0 || voltou.length > 0) {
+    falhas++;
+    console.log(`  FALHA   ${controle.nome} voltou a ser cinza sobre cinza`);
+    for (const t of faltando) console.log(`          falta:  ${t}`);
+    for (const t of voltou) console.log(`          voltou: ${t}`);
+  } else {
+    console.log(`  ok      ${controle.nome} se lê sobre a página e sobre o cartão`);
   }
 }
 

@@ -51,8 +51,41 @@ const buttonVariants = cva(
           "bg-ajustar text-ajustar-foreground shadow-xs hover:bg-ajustar-hover focus-visible:ring-ajustar/40",
         recusar:
           "bg-recusar text-recusar-foreground shadow-xs hover:bg-recusar-hover focus-visible:ring-recusar/40",
+        // ------------------------------- O BOTÃO BRANCO SOBRE O CINZA --
+        // Decisão do usuário: "sempre que tenha um botão ou algum espaço de
+        // sinalização, fique aparecendo um botão branco, sobre o cinza, nunca
+        // cinza sobre cinza".
+        //
+        // Era `bg-background`, e `--background` aponta para `--surface-page`:
+        // o botão tinha EXATAMENTE a cor da página (1,00:1), separado dela só
+        // pelo `--border` a 1,07:1 — contra o piso de 3:1 que a WCAG 1.4.11
+        // pede para o limite de um controle. Ou seja: o contorno de 169
+        // botões deste produto não se via, e o que a pessoa enxergava era a
+        // palavra flutuando no cinza.
+        //
+        // `bg-card` sobre a página é branco sobre cinza (1,16:1 de chão), e
+        // `border-input` é 3,43:1 sobre a página e 3,98:1 sobre o cartão —
+        // acima do piso nas DUAS superfícies, com um token que os campos
+        // deste produto já usam e que o `check:cores` já media.
+        //
+        // **E É `--input` E NÃO `--border`, que é a distinção que faltava
+        // estar escrita:** `--input` é a borda de um CONTROLE, `--border`
+        // separa BLOCOS. Um fio de 1,07:1 está certo entre duas linhas de uma
+        // tabela, onde o que separa é a repetição; está errado em volta de
+        // uma coisa que se clica.
+        //
+        // E ISTO É O QUE FAZ O BOTÃO SE LER DENTRO DE DIÁLOGO E DE GAVETA,
+        // que é onde a queixa mais aparece: `DialogContent` e `SheetContent`
+        // são `bg-background`, ou seja a página cinza. Antes, o botão ali era
+        // a mesma cor do diálogo. **E é por isso que o diálogo NÃO vira
+        // branco junto:** com as duas superfícies brancas, o botão voltaria a
+        // ser a cor do chão — a mesma queixa pelo outro lado.
+        //
+        // Sobre um CARTÃO branco o chão passa a ser o mesmo do cartão, e quem
+        // desenha o controle é a borda a 3,98:1 — que é exatamente como este
+        // produto já desenha todo `Input` e todo `Textarea` sobre cartão.
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground",
+          "border-input bg-card shadow-xs hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",

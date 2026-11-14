@@ -39,7 +39,7 @@ export function SenhaDoPrimeiroAcesso({ senha }: { senha: string }) {
       <AlertTitle>Senha provisória — anote agora</AlertTitle>
       <AlertDescription className="space-y-2">
         <div className="flex w-full flex-wrap items-center gap-2">
-          <code className="bg-background/60 flex-1 rounded border px-3 py-2 font-mono text-sm tracking-wider">
+          <code className="bg-muted flex-1 rounded border px-3 py-2 font-mono text-sm tracking-wider">
             {senha}
           </code>
           <Button type="button" variant="outline" size="sm" onClick={copiar}>

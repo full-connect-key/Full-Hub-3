@@ -105,7 +105,7 @@ export function FiltrosDaAuditoria({
         <span className="text-muted-foreground text-xs font-medium">De</span>
         <input
           type="date"
-          className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+          className="border-input bg-transparent h-9 rounded-md border px-3 text-sm"
           defaultValue={parametros.get("de") ?? ""}
           onChange={(e) => trocar("de", e.target.value || TODAS)}
         />
@@ -115,7 +115,7 @@ export function FiltrosDaAuditoria({
         <span className="text-muted-foreground text-xs font-medium">Até</span>
         <input
           type="date"
-          className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+          className="border-input bg-transparent h-9 rounded-md border px-3 text-sm"
           defaultValue={parametros.get("ate") ?? ""}
           onChange={(e) => trocar("ate", e.target.value || TODAS)}
         />

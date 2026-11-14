@@ -919,7 +919,7 @@ function NovaAula({
             id={`tipo-${moduloId}`}
             value={tipo}
             onChange={(e) => setTipo(e.target.value as AcademyAulaTipo)}
-            className="border-input bg-background h-9 rounded-md border px-2 text-sm"
+            className="border-input bg-transparent h-9 rounded-md border px-2 text-sm"
           >
             {TIPOS_DE_AULA.map((t) => (
               <option key={t} value={t}>
@@ -995,7 +995,7 @@ function Obrigatoriedade({ itemId }: { itemId: string }) {
             id="o-funcao"
             value={funcao}
             onChange={(e) => setFuncao(e.target.value)}
-            className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm"
+            className="border-input bg-transparent h-9 w-full rounded-md border px-2 text-sm"
           >
             <option value="">A agência inteira</option>
             {FUNCOES.map((f) => (

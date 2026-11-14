@@ -58,8 +58,7 @@ export type SecaoDoModulo<C extends string = string> = {
  * **Ela GRUDA embaixo da topbar**, e é o que a faz ser barra de contexto e não
  * mais uma linha da página: rolando uma lista de quarenta demandas, saber em
  * que seção se está continua valendo. `top-16` é a altura do cabeçalho, e o
- * fundo é o da página com desfoque, como ele — as duas lidas juntas formam uma
- * faixa só.
+ * fundo é o da página CHEIO — a razão está no comentário ao lado do `div`.
  *
  * **E ela é ALINHADA AO CONTEÚDO, não sangra para fora dele.** A primeira
  * versão usava `-mx-4 lg:-mx-8` para encostar nas bordas, e é a decisão que a
@@ -154,7 +153,20 @@ export function BarraDeContexto<C extends string>({
       {titulo ? <PageHeader title={titulo} className="mb-4" /> : null}
 
       {temBarra ? (
-        <div className="bg-surface-page/75 sticky top-16 z-20 flex flex-wrap items-center gap-3 py-2 backdrop-blur-xl">
+        /* O CHÃO É `--surface-page` CHEIO, e era 75% com desfoque.
+            Opacidade sobre um fundo qualquer dá uma cor que ninguém
+            mediu — e o fundo aqui é o conteúdo rolando: um cartão
+            branco, uma pílula preta, uma caixa de status saturada. No
+            pior deles o rótulo da seção inativa saía abaixo do mínimo,
+            por um instante que ninguém consegue reproduzir de
+            propósito — a mesma conta que reprovou o vidro a 58% na
+            porta.
+
+            E a frase que estava aqui — "o fundo é o da página com
+            desfoque, como ele" — já não descrevia a topbar: ela não
+            tem fundo nenhum desde a interface Leve, justamente para
+            não criar uma segunda borda horizontal sobre a malha. */
+        <div className="bg-surface-page sticky top-16 z-20 flex flex-wrap items-center gap-3 py-2">
           {secoes.length > 1 ? (
             /* AS DUAS ÂNCORAS GENÉRICAS DOS MICRO-TOURS (0101), aqui e na
                fileira de ações logo abaixo. Elas existem porque nove módulos

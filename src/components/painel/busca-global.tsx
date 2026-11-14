@@ -107,7 +107,13 @@ export function BuscaGlobal() {
       <button
         type="button"
         onClick={() => setAberta(true)}
-        className="text-text-muted hover:text-text-secondary bg-surface-card/70 border-border/50 focus-visible:ring-ring/50 hidden h-10 w-full max-w-[330px] items-center gap-2.5 rounded-full border px-4 text-sm font-semibold backdrop-blur-lg transition-colors focus-visible:ring-[3px] focus-visible:outline-none md:flex"
+        // `disco-da-topbar` E NÃO O VIDRO ESCRITO À MÃO: este campo é o
+        // TERCEIRO disco da topbar, ao lado do sino e do avatar, e tinha o
+        // mesmo chão de 70% com outra borda e outro desfoque. A borda era
+        // `border-border/50` — exatamente o que o comentário da classe
+        // recusa por extenso: "um `--border` chapado apareceria como anel
+        // cinza no ponto claro da malha e sumiria no ponto escuro".
+        className="disco-da-topbar text-text-muted hover:text-text-secondary focus-visible:ring-ring/50 hidden h-10 w-full max-w-[330px] items-center gap-2.5 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:ring-[3px] focus-visible:outline-none md:flex"
       >
         <Search aria-hidden className="size-4 shrink-0" />
         <span className="truncate">Buscar na plataforma…</span>

@@ -4493,6 +4493,133 @@ página por baixo das linhas. É a decisão do `SeletorDeVisao`, que mudou por
 ser de dois donos que queriam a mesma coisa.
 
 
+#### E O BOTÃO ERA A COR DA PÁGINA: `--input` é a borda do CONTROLE
+
+Decisão do usuário: *"preciso que sempre que tenha um botão ou algum espaço de
+sinalização, fique aparecendo um botão branco, sobre o cinza, nunca cinza sobre
+cinza"*.
+
+**ELE ESTAVA DESCREVENDO UM NÚMERO, e ele é 1,00:1.** `variant="outline"` era
+`bg-background`, e `--background` aponta para `--surface-page`: o botão tinha
+**exatamente** a cor da página. O que o separava do chão era `--border`, a
+**1,07:1** — contra o piso de 3:1 que a WCAG 1.4.11 pede para o limite de um
+controle. Ou seja: o contorno de **169 botões** deste produto não se via, e o
+que a pessoa enxergava era a palavra flutuando no cinza.
+
+**A REGRA JÁ ESTAVA ESCRITA AQUI, E COM A PALAVRA ERRADA.** O `check:cores`
+diz, desde que a lista de pares nasceu: *"`--border` NÃO entra aqui. Ela separa
+blocos (…). `--input` entra: é a borda do CAMPO"*. A distinção está certa e o
+substantivo era estreito demais — **`--input` é a borda de um CONTROLE**, campo
+e botão, e foi a palavra "campo" que deixou o botão de fora. Um fio de 1,07:1
+está certo entre duas linhas de uma tabela, onde o que separa é a repetição;
+está errado em volta de uma coisa que se clica.
+
+| o par | claro | escuro |
+| --- | --- | --- |
+| `--card` sobre `--surface-page` (o chão novo) | 1,16 | 1,10 |
+| `--border` sobre a página (o contorno antigo) | **1,07** | 1,34 |
+| **`--input` sobre a página** | **3,43** | **3,78** |
+| **`--input` sobre o cartão** | **3,98** | **3,43** |
+
+**O CHÃO SOZINHO NÃO RESOLVE, e é por isso que são as duas trocas.** 1,16:1 de
+branco sobre cinza é uma diferença que se vê e não é um limite; quem desenha o
+controle é a borda, e ela precisa valer nas DUAS superfícies — a página e o
+cartão —, porque o mesmo botão aparece nas duas.
+
+**E ISTO É O QUE FAZ O BOTÃO SE LER DENTRO DE DIÁLOGO E DE GAVETA**, que é onde
+a queixa mais aparece: `DialogContent` e `SheetContent` são `bg-background`, ou
+seja a página cinza. Antes, o "Cancelar" ali era a mesma cor do diálogo.
+**E é por isso que o diálogo NÃO vira branco junto** — com as duas superfícies
+brancas, o botão voltaria a ser a cor do chão, que é a mesma queixa pelo outro
+lado. O diálogo fica cinza **por argumento, e não por cautela**.
+
+##### O PIOR CONTROLE DO PRODUTO ERA O SWITCH, a 1,49:1
+
+Medido junto: o trilho ligado era `--brand` (#7FCFF5) e o botão dentro dele era
+`--background`. **O botão do switch não tinha contorno nenhum e quase não tinha
+chão** — num controle cuja única informação é de que lado a bolinha está.
+
+A saída é a regra de token que este arquivo já escreve: **o ciano fica reservado
+ao símbolo e aos acentos de marca, e a cor de ação é `--action`.** Trilho em
+`--action` com o botão em `--action-foreground` — que é branco nos dois temas,
+porque preenchimento carrega o próprio chão (0127) — dá **5,66:1** ligado, e o
+desligado passou a ser medido também: **3,98 / 4,66** contra `--input`.
+
+##### O QUE A VARREDURA PASSOU A RECUSAR
+
+Três seções novas em `check:cores`, e cada uma fecha uma porta por onde isto
+voltaria:
+
+- **os dois pares de `--input`**, contra a página e contra o cartão, mais o
+  botão do switch no trilho desligado — sem eles a troca seria uma afirmação
+  sobre números que ninguém confere de novo;
+- **opacidade em cor de SUPERFÍCIE no estado de repouso.** `bg-muted/40`,
+  `bg-background/60`, `bg-surface-card/70` — *opacidade sobre um fundo qualquer
+  dá uma cor que ninguém mediu, e no tema escuro dá outra* é a regra mais
+  repetida deste arquivo, e **ela estava quebrada em dezessete lugares, em doze arquivos**. O
+  `hover:` e os outros estados transitórios passam, porque ali a cor é um
+  instante e não o chão; `dark:` **não** passa, de propósito — ele é repouso
+  com outro nome. As duas exceções declaradas são o véu do diálogo
+  (`bg-black/50`, que é o escurecimento e não uma superfície) e
+  `.disco-da-topbar`, cujo composto sobre a malha está medido;
+- **os dois controles, por frase.** `button.tsx` tem de conter
+  `border-input bg-card` e não pode conter `bg-background shadow-xs`;
+  `switch.tsx` tem de conter `bg-action` e `bg-action-foreground`. É a forma
+  das varreduras de trava da 0029, da 0060 e da 0086: a regra mora na tela, e o
+  que impede o retorno é alguém perguntar se ela ainda está lá.
+
+**E O LEITOR TIRA OS COMENTÁRIOS ANTES DE VARRER**, que é a armadilha que este
+projeto já pagou **oito vezes**: *a explicação não pode carregar o que ela
+proíbe*. Com ela fechada, o comentário ao lado de cada troca pode citar
+`bg-muted/40` por extenso — que é justamente o que faz a explicação valer. O
+bloco `/* */` é substituído pelas MESMAS quebras de linha que ocupava, senão o
+número da linha que a falha aponta não é o do arquivo.
+
+##### E A VARREDURA ACHOU O CASO QUE A BUSCA À MÃO NÃO PEGOU
+
+`barra-de-contexto.tsx` era `bg-surface-page/75` com desfoque, e a minha busca à
+mão não tinha pegado. **O fundo dela é o CONTEÚDO ROLANDO** — um cartão branco,
+uma pílula preta, uma caixa de status saturada —, então no pior deles o rótulo
+da seção inativa saía abaixo do mínimo, por um instante que ninguém reproduz de
+propósito: é a conta que reprovou o vidro a 58% na porta. Hoje é o chão cheio, e
+**a imagem confirma que a faixa opaca não corta uma banda na malha** — o
+argumento que o 75% existia para evitar e que não valia mais, porque a topbar
+não tem fundo nenhum desde a interface Leve. A frase do JSDoc que ainda dizia
+*"o fundo é o da página com desfoque, como ele"* saiu junto.
+
+##### BRANCO É O QUE FICA; CONTORNADO É O QUE SE ESCREVE AGORA
+
+A regra que sai dos dezoito arquivos tocados, e que decide o próximo:
+
+| | chão | por quê |
+| --- | --- | --- |
+| **contêiner de conteúdo** | `bg-card` | o briefing escrito, a coluna do board, a tabela, a caixa de arquivos |
+| **composer e controle** | transparente, com `border-input` | o campo de comentário, a "Nova subtarefa", o `Input`, o `SelectTrigger` |
+
+**O EDITOR DE BRIEFING MUDOU DE LADO POR CAUSA DISSO, e só a imagem pegou.** Ele
+mora **direto na página** na tela da demanda, e era `border` a 1,07:1 com a
+barra de ferramentas em `bg-muted/40` a 1,04:1: um retângulo cinza quase
+invisível sobre cinza. Ele é CONTEÚDO — é o texto que vai ser relido, como
+"Arquivos da entrega", que já é cartão branco ao lado dele —, então ganhou
+`bg-card border-input`. **O campo de comentário logo abaixo continua
+transparente**, porque ele é um composer: o que se escreve agora, não o que
+ficou.
+
+**E O SELETOR SEGMENTADO DOS COMODATOS JÁ TINHA DIVERGIDO**, que é a história
+das sete cópias de `abas.tsx` em miniatura: ele é `SeletorDeVisao` escrito à mão,
+com `bg-muted/60` na caixa e o item ativo separado por SOMBRA onde o
+compartilhado separa por COR. Hoje ele carrega as classes de lá, palavra por
+palavra. *Fica dito em vez de escondido:* a cópia continua existindo, e
+transformá-la num `ControleSegmentado` compartilhado é decisão própria.
+
+***O que isto NÃO alcança, e é dito em vez de escondido:*** `Input`, `Textarea`
+e `SelectTrigger` continuam `bg-transparent`, então sobre a página e dentro do
+diálogo eles são cinza sobre cinza com a borda a 3,43:1 fazendo todo o trabalho.
+**A borda passa**, e é por isso que a troca não foi feita junto: dar chão branco
+a todo campo do produto muda a aparência de cada formulário, e a queixa era
+sobre BOTÃO. É decisão própria, e o número está medido aqui para quem a tomar.
+
+
 #### O Início ganhou a composição, e passou a dizer o que ele É
 
 Terceira tela do redesenho, depois de Minhas Tasks — mesmo cabeçalho grande,
@@ -18750,6 +18877,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| O botão branco sobre o cinza | **`variant="outline"` era `bg-background`, e `--background` aponta para `--surface-page`: o botão tinha EXATAMENTE a cor da página** — decisão do usuário: *"preciso que sempre que tenha um botão ou algum espaço de sinalização, fique aparecendo um botão branco, sobre o cinza, nunca cinza sobre cinza"*. **Ele estava descrevendo um número, e ele é 1,00:1**, com `--border` a **1,07:1** como único limite, contra o piso de 3:1 que a WCAG 1.4.11 pede para o contorno de um controle: **169 botões** sem contorno visível. **A regra já estava escrita aqui e com a palavra errada** — o `check:cores` diz, desde que a lista de pares nasceu, que *"`--input` é a borda do CAMPO"*, e `--input` é a borda de um **CONTROLE**, campo e botão; foi a palavra "campo" que deixou o botão de fora. `bg-card` + `border-input` dá **3,43:1 sobre a página e 3,98:1 sobre o cartão** — acima do piso nas duas superfícies em que o mesmo botão aparece. **E o diálogo NÃO vira branco junto**, por argumento e não por cautela: `DialogContent` e `SheetContent` são a página cinza, e com as duas superfícies brancas o botão voltaria a ser a cor do chão — a mesma queixa pelo outro lado. **O pior controle do produto era o switch, a 1,49:1:** o trilho ligado era `--brand` e o botão dentro dele era `--background`, num controle cuja única informação é de que lado a bolinha está; hoje é `--action` com `--action-foreground` (branco nos dois temas, porque preenchimento carrega o próprio chão), **5,66:1** ligado e **3,98 / 4,66** desligado. **Três seções novas no `check:cores`**, e a do meio é a que vale: *opacidade sobre um fundo qualquer dá uma cor que ninguém mediu* é a regra mais repetida deste arquivo e **estava quebrada em dezessete lugares, em doze arquivos** — `hover:` e os outros estados transitórios passam, `dark:` não, porque ele é repouso com outro nome, e as exceções declaradas são o véu do diálogo e o `.disco-da-topbar`, cujo composto está medido. **O leitor tira os comentários antes de varrer**, que é a armadilha paga oito vezes (*a explicação não pode carregar o que ela proíbe*), substituindo cada bloco pelas MESMAS quebras de linha que ele ocupava — senão o número da linha que a falha aponta não é o do arquivo. **E ela achou o caso que a busca à mão não pegou:** `barra-de-contexto.tsx` era `bg-surface-page/75` com desfoque sobre o CONTEÚDO ROLANDO. A regra que sai disto é **branco é o que fica, contornado é o que se escreve agora** — e foi ela que mudou o editor de briefing de lado, o que só a imagem pegou: ele mora direto na página, era um retângulo de 1,07:1 com a barra de ferramentas a 1,04:1, e é CONTEÚDO. ***O que isto NÃO alcança, e é dito:*** `Input`, `Textarea` e `SelectTrigger` continuam `bg-transparent` — a borda a 3,43:1 passa, e dar chão branco a todo campo muda a aparência de cada formulário, o que a queixa não pediu. |
 | A etapa por inteiro | **Cinco pedidos numa mensagem, e dois deles eram o mesmo bug de RLS.** **(1) `padronize essas cores na plataforma toda`:** a pílula cheia com ícone saiu do cabeçalho de grupo e foi para o `StatusBadge`, de vinte e uma telas, **nas duas áreas** — seis delas do Portal do Cliente. Eu tinha escrito o argumento CONTRA uma entrega atrás (*uma pílula saturada numa célula densa é peso onde o status é o dado secundário*), e ele está certo sobre densidade e não é o que decide: o que a exclusão produziu foi **o mesmo status com duas cores conforme a tela**, a dois centímetros um do outro na página da Lista. Consistência ganha de densidade. **O hover precisou sair do mapa de cor**, que é a parte não óbvia: `group-hover:` serve um `<button>`, e num selo ele faria o status piscar quando o ponteiro passasse pelo CARD em volta — o card do board e a linha da Lista são exatamente isso. **(2) O status automático:** o que ele descreve **o produto já faz** — `recalcular_status_task()` roda por trigger desde a 0007 e `em_andamento` tem precedência sobre `nao_iniciada`. O que o desliga é `status_manual` (0025), e ele era uma porta de uma mão só: **arrastar um card no board** o marca, com a tela respondendo *"Salvo."*. **Medido: das demandas publicadas daquele banco, TODAS estavam paradas na mão.** São três metades e nenhuma afrouxa a 0025 — a frase passou a dizer o que a escolha desligou, a marca **"à mão"** pinta a exceção no card e na linha, e ela É o botão que devolve o volante num clique. Nada reescreveu as demandas já paradas: soltá-las em massa desfaria, em silêncio, a escolha de quem marcou de propósito. **(3) Briefing na sub-etapa:** `descricao_rica` e `descricao_texto` existem desde o Sprint 3B, `atualizarSubtarefa` grava as duas desde então, e **nenhuma tela jamais mandou nenhuma** — a ponte construída e nunca atravessada pela vigésima primeira vez, inteira dos dois lados. O editor entrou no MESMO Salvar das cinco propriedades: um segundo botão faria a barra do pé contar duas alterações sobre um briefing que ela não grava, e *uma alteração pendente que o aviso de alteração pendente não conhece é pior que aviso nenhum*. O valor mora num `ref` e o aviso num estado, senão o modal inteiro re-renderizaria a cada tecla. **(4) e (5) A equipe que sumia:** *"quando eu preencho um responsável, com a visualização de sócio, ela desaparece na visualização de colaborador"*. **`profiles` tinha DUAS policies de SELECT, `own` e `is_gestor()`** — um colaborador lia **exatamente UM perfil, o dele**, então todo embutido `profiles(...)` do produto voltava nulo para ele: o responsável de cada etapa, a pilha de avatares, o autor de cada comentário. Medido como gente de verdade: 1 perfil e 0 responsáveis contra 15 e 1 do sócio. A **migration 0132** acrescenta `is_staff() and role <> 'cliente'` — **estreitada por LINHA e não por coluna**, porque revogar a coluna de e-mail quebraria o login de todo mundo (`dal.ts` faz `select("*")` do próprio perfil a cada página). Depois: 14 perfis, 1 responsável, **0 contatos de cliente**. Com isso as sub-etapas e as fotos delas voltaram a aparecer — elas **já entravam**, por `folhas()` e pelo mesmo componente de linha. O que de fato faltava era a SEGUNDA pessoa da etapa, que mora em `subtask_responsaveis` desde a 0114 e que `enriquecer()` não lia; *medido, isso não muda nada hoje — 3 vínculos, 0 pessoas a mais —, e é por isso que a ponte durou*. ***E a frase da busca global deixou de valer***: estava escrito que, se a regra mudasse, mudaria **na policy — num lugar, para as vinte telas que leem `profiles`**. Mudou ali, e a paleta passou a achar colega sem uma linha de código, porque `busca_global()` não é `security definer`. |
 | A caixa cheia | **O cabeçalho de grupo da Lista virou uma pílula CHEIA, com um ícone dentro** — decisão do usuário, por referência: uma imagem de uma lista agrupada com pílulas saturadas, ícone à esquerda do nome e a contagem fora, em cinza. **ELE JÁ TINHA DITO ISSO UMA VEZ, e esta entrega leva o pedido anterior até o fim:** a caixa nasceu porque *"a cor estava lá e não se lia a dois metros"*, e o par nomeado resolve o pastel a 11px e **não resolve a distância** — sete pílulas pálidas numa página branca continuam sendo sete manchas claras. **OS TOKENS QUE JÁ EXISTEM NÃO SERVEM, e o número diz por quê:** eles são cor de TEXTO e trocam por tema — `--laranja` é `#B4440C` no claro e `#FB923C` no escuro, e como chão com texto branco o primeiro dá 5,57:1 e o segundo dá **2,1:1**. É a 0127 palavra por palavra: **preenchimento carrega o próprio chão**, uma família `--status-*` declarada uma vez, sem par no `.dark`, e a colisão do tema escuro deixa de existir por construção. **NÃO É UM SEGUNDO MAPA DE COR**, e a distinção é a que faz ele caber: o de-para de status para tom continua sendo um, e o que muda é o PAPEL da superfície — `Record<Tom, string>` obriga os dois mapas a serem totais, então um tom novo não compila sem os dois. **Três dos sete calham de ter o valor da família das decisões** (Concluído é o verde de Aprovar, Em ajuste o vermelho de Recusar), e **não apontam** um para o outro, ao contrário de `--ferias → --roxo`: o chão de lá é de um BOTÃO, com hover, foco e pressionado, e o daqui é de um RÓTULO — no dia em que o botão escurecer por uma razão de interação, o rótulo não vai junto. Medidos, iguais nos dois temas: **5,66 / 5,57 / 8,48 / 10,54 / 5,02 / 4,99 / 6,47** em repouso e sete pares de hover acima deles. **O ÍCONE EXISTE POR CAUSA DE UMA MEDIÇÃO e não por enfeite:** nos chãos cheios, `--status-marrom` fica a **ΔE 1,9** de `--status-negativo` em protanopia e `--status-lima` a **3,4** em deuteranopia — para quem não separa vermelho de verde, "Aguardando aprovação", "Em ajuste" e "Entregue" são três pílulas da mesma cor. A ampulheta, a seta de voltar e o avião de papel são três silhuetas que nada têm em comum, e é a decisão do bolo do aniversário palavra por palavra. **O mapa é keyado por STATUS e não por tom**, que é a única chave que serve: `negativo` é o tom de `em_ajustes` E de `rejeitado`, e um ícone por tom daria a mesma seta de "volta para mexer" a uma recusa. **`neutro` e `pausado` ficam pálidos**, e a ausência é a referência: pinta-se a exceção, e sete pílulas cheias com uma clara se leem onde oito se anulam. **A seta e a contagem saíram de dentro**, porque as duas são fatos sobre a LISTA e não sobre o status — e dentro, a seta competiria com o ícone a seis pixels de distância. ***O que NÃO muda, e é dito:*** o selo de vinte e uma telas e o chip do cronograma continuam com o par suave — lá o status é o dado secundário da linha, e a saturação seria peso onde não se pede. ***E uma frase voltou a ser verdade:*** o JSDoc de `classesDoChipDeStatus` dizia *"quem o usa é o cronograma"* enquanto dois cabeçalhos também o usavam. ***E o `icone` quase ficou no objeto sem chegar à tela*** — a ponte construída e não atravessada em miniatura, pega por acaso pelo `tsc` num ramo do agrupamento por cliente. |
 | A etapa editável | **Seis pedidos numa mensagem, e cinco deles são sobre a mesma tela: a lista de etapas da demanda.** **(1) O responsável se escolhe na LINHA** — *"clicando na palavra responsável, sem precisar abrir mais abas para editar, quero que a plataforma de maneira geral seja intuitiva"*. O que estava ali era TEXTO MORTO pela terceira vez neste produto: `atualizarSubtarefa` grava `responsavel_id` desde o Sprint 3B, e a linha desenhava um `<span>` cinza. `SeletorDeResponsavel` **não decide quando salvar** — na linha o clique É o salvamento, no modal ele escreve no rascunho —, que é a assimetria escrita de `FaixaDeDisponibilidade`. **E o chevron aparece em REPOUSO, o que foi um conserto no meio da entrega:** escondido até o ponteiro passar por cima, o controle ficava idêntico ao `<span>` que ele substituiu — literalmente a queixa que abriu o pedido —, e a tela do protótipo precisava ABRIR a lista, o que custa três nós de `aria-hidden-focus` no axe. **(2) O modal ganhou um SALVAR**, que desfaz METADE da 0028: *"salva sozinho, campo a campo"* continua certo no rascunho, que não existe para mais ninguém, e nunca valeu numa etapa publicada, com dono e prazo, que a outra pessoa vê mudar enquanto quem edita ainda decide. São CINCO campos no rascunho e não os doze; a barra existe nos DOIS estados, porque uma barra que só nasce depois da primeira edição é descoberta depois de ela acontecer; e ela gruda no pé enquanto há rascunho. ***O que custa:*** fechar o modal descarta sem perguntar — a guarda de saída seria a cerimônia que o nome digitado do `ConfirmDialog` já custou uma vez. **(3) e (4) A ordem se ARRASTA**, e a segunda frase dele é a que decide o desenho: *"arrastando, elas já mudem de ordem de visualização"* — então reordena irmãs e **nunca troca de mãe**, porque mudar o `parent_id` por um gesto de seis pixels é a diferença entre uma etapa que conta tempo e uma agrupadora que não conta (0022). `reordenarSubtarefas` existia e estava nas `ISENTAS` do `check:acoes` com o motivo escrito — *"FALTA A TELA"* —, e a isenção saiu junto, porque uma que deixou de ser verdade é pior que isenção nenhuma. O arrasto é por ALÇA e não pela linha: espalhar os `attributes` do dnd-kit num contêiner que carrega botões dá `nested-interactive`, e este produto já pagou isso uma vez no cartão do board. **(5) SETE STATUS, SETE CORES** — e ele descreveu a dívida que este arquivo já tinha escrito: três pares dividiam o mesmo tom, e com a CAIXA no cabeçalho de grupo o chão virou a peça grande da tela. `info` saiu (era `marca` com outro nome, a mesma string letra por letra), `atencao` ficou com um consumidor só — o "Ajustes" do cliente, que fica ao lado de "Rejeitado" e que a 0127 existe para separar —, e os três pares novos foram medidos ANTES da troca: 4,86 / 6,89 / 4,60 no claro. A troca vale nos TRÊS vocabulários de propósito: a legenda do calendário do portal AGRUPA lendo `corDoPontoDeStatus`, então ela se reorganiza de cinco entradas para sete sem uma linha de código. ***E a medição do daltonismo é dita com o número em vez de afirmada:*** rodando os sete chãos como grupo, **sete pares ficam abaixo do piso**, o pior a ΔE 0,8 — eles ficam fora porque o NOME está escrito dentro da caixa, que é a regra de 0127 e 0130, e porque os pastéis desta paleta vivem perto entre si por construção. **De quebra o `--accent` do tema escuro foi consertado:** ele era `#2C3137` igual a `--muted`, a ΔE 0,0 — achado que a 0130 declarou e deixou de fora, e que deixou de ser aceitável quando dois cabeçalhos de grupo passaram a ter o mesmo chão. **(6) O BRIEFING ganhou caixa, tabela e uma paleta que sai de TOKEN**, e isso resolve uma decisão que estava em suspenso neste arquivo por uma TERCEIRA saída que ele não enxergava: gravar o NOME e não o valor. A premissa das duas saídas antigas — *"a cor não pode sair de um token"* — estava errada, e a verificação foi de dependência e não de memória: `getStyleProperty` em `@tiptap/core` lê o `style` cru, então a `var()` atravessa o parse. Com ela a exceção do `editor-rico.tsx` saiu do `check:cores` (o arquivo não tem mais hexadecimal nenhum) e os pares passaram a ser medidos toda vez — **4,94:1 no claro e 6,82:1 no escuro** contra 3,18 e 2,30. ***O que não se faz, e é a consequência honesta:*** o documento antigo mantém o hex dele e não é reescrito — o exemplo guarda um, e o axe o acusa **só no escuro**, que é o argumento inteiro medido por uma ferramenta de fora. A caixa tem quatro tipos e o comando ALTERNA; a tabela abre 3×3 com cabeçalho e rola dentro de si; e a fileira de nove bolinhas de 16px virou quatro MENUS, porque vinte alvos daquele tamanho seriam duas fileiras acima do campo. |

@@ -134,7 +134,11 @@ function ChipDePrazo({
             "focus-visible:ring-ring/50 inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors focus-visible:ring-[3px] focus-visible:outline-none",
             ativo
               ? "border-blue-muted bg-accent text-accent-strong"
-              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+              : // `border-input` NO DESLIGADO, e é a mesma conta do botão
+                // `outline`: sem ele o chip herda `--border` (1,07:1 sobre a
+                // página) e o contorno de um controle não se vê. O ligado
+                // tem a cor do `--accent` para carregar, e não precisa.
+                "border-input text-muted-foreground hover:bg-accent hover:text-accent-foreground",
           )}
         >
           <CalendarRange aria-hidden className="size-3.5 shrink-0" />

@@ -313,7 +313,12 @@ function Coluna({
     <section
       ref={setNodeRef}
       className={cn(
-        "bg-muted/40 flex min-w-0 flex-col rounded-xl border transition-colors",
+        // `bg-card` E NÃO `bg-muted/40`: a coluna é um contêiner de
+        // conteúdo, e o cinza dela vinha de opacidade sobre a página —
+        // uma cor que ninguém mediu. O CLAUDE.md registrava este caso
+        // como pendente desde o dia em que o board da Gestão de Tasks
+        // ganhou a folha branca.
+        "bg-card flex min-w-0 flex-col rounded-xl border transition-colors",
         isOver && "border-accent-strong bg-accent",
       )}
     >

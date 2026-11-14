@@ -175,7 +175,7 @@ export function DetalheDoColaborador({
               <Label htmlFor="area-derivada">Área</Label>
               <p
                 id="area-derivada"
-                className="border-input bg-muted/40 text-text-secondary flex h-9 items-center rounded-md border px-3 text-sm"
+                className="border-input bg-muted text-text-secondary flex h-9 items-center rounded-md border px-3 text-sm"
               >
                 {funcao
                   ? AREA_DA_FUNCAO[funcao as keyof typeof AREA_DA_FUNCAO]

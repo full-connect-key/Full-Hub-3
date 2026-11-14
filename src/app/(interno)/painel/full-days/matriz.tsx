@@ -308,7 +308,13 @@ function Grupo({
               aria-label={rotulo}
               className={cn(
                 "bg-neutral-soft border-b px-0 py-0.5 text-center text-[10px] font-semibold tabular-nums",
-                fora === 0 && "text-text-muted/50",
+                // SEM `/50`, e é a regra que esta tela já pagou uma vez:
+                // "as células do mês vizinho saíram com `opacity-40`, e
+                // opacidade em texto dá uma cor que ninguém mediu — elas
+                // recuam pelo tom agora". `--text-muted` É o tom recuado,
+                // e ele está medido; metade dele não está. E o zero é
+                // informação: ninguém fora naquele dia.
+                fora === 0 && "text-text-muted",
                 fora === 1 && "bg-warning-soft text-warning",
                 // O PAR NOMEADO, e não `bg-danger text-white`: no tema
                 // escuro `--danger` clareia bastante, e branco por cima dele
@@ -338,7 +344,7 @@ function Grupo({
         const totais = contarTotais(pessoa, dias, statusDoDia);
         const souEu = pessoa.id === quemSouEu;
         return (
-          <tr key={pessoa.id} className={cn(souEu && "bg-accent/40")}>
+          <tr key={pessoa.id} className={cn(souEu && "bg-accent")}>
             <th
               scope="row"
               className={cn(

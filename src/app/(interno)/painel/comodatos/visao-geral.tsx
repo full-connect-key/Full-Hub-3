@@ -143,7 +143,12 @@ export function VisaoGeral({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="bg-muted/60 inline-flex rounded-lg border p-0.5">
+        {/* A MESMA CASCA DE `SeletorDeVisao`, escrita à mão aqui — e ela
+            já tinha divergido: a caixa era `bg-muted/60` (opacidade sobre
+            um fundo qualquer, que dá uma cor que ninguém mediu, e no tema
+            escuro dá outra) e o item ativo separava por SOMBRA o que agora
+            separa por cor. As classes são as de lá, palavra por palavra. */}
+        <div className="bg-card shadow-cartao inline-flex rounded-lg border p-0.5">
           {(
             [
               ["equipamento", "Por equipamento", PackageOpen],
@@ -158,8 +163,8 @@ export function VisaoGeral({
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
                 visao === chave
-                  ? "bg-surface-card text-text-primary shadow-sm"
-                  : "text-text-secondary hover:text-text-primary",
+                  ? "bg-action-soft text-action-text font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               <Icone aria-hidden className="size-4" />

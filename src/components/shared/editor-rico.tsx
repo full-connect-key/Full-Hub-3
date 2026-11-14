@@ -146,7 +146,7 @@ function Barra({ editor }: { editor: Editor }) {
   }
 
   return (
-    <div className="bg-muted/40 flex flex-wrap items-center gap-0.5 border-b px-1.5 py-1">
+    <div className="bg-muted flex flex-wrap items-center gap-0.5 border-b px-1.5 py-1">
       <BotaoDaBarra
         titulo="Negrito"
         ativo={editor.isActive("bold")}
@@ -433,13 +433,30 @@ export function EditorRico({
   });
 
   if (!editor) {
-    return <div className={cn("bg-muted/30 h-44 animate-pulse rounded-md border", className)} />;
+    return <div className={cn("bg-muted h-44 animate-pulse rounded-md border", className)} />;
   }
 
   return (
     <div
       className={cn(
-        "focus-within:border-ring focus-within:ring-ring/50 overflow-hidden rounded-md border transition-[color,box-shadow] focus-within:ring-[3px]",
+        // BRANCO, E A BORDA DE CONTROLE. O invólucro não pintava chão
+        // nenhum: na tela de detalhe da demanda o editor mora direto na
+        // PÁGINA, então a caixa inteira era cinza sobre cinza, contornada por
+        // `--border` a 1,07:1 — ou seja, um retângulo que não se via. E a
+        // barra dentro dela era `bg-muted`, que sobre a página dá 1,04:1:
+        // invisível também.
+        //
+        // Sobre o branco a barra passa a ser a faixa de 1,11:1 que um
+        // cabeçalho de ferramenta é, e a caixa ganha 1,16:1 de chão mais
+        // 3,43:1 de limite. **É o mesmo par do botão `outline`**, pela mesma
+        // razão: aqui se clica e se digita.
+        //
+        // E ele é CONTEÚDO e não composição: o briefing é gravado e lido por
+        // quem produz, como "Arquivos da entrega" logo abaixo — que já era
+        // cartão branco. O campo de comentário continua transparente, e a
+        // distinção é essa: **branco é o que fica, contornado é o que se
+        // escreve agora.**
+        "focus-within:border-ring focus-within:ring-ring/50 bg-card border-input overflow-hidden rounded-md border transition-[color,box-shadow] focus-within:ring-[3px]",
         className,
       )}
     >
@@ -465,6 +482,6 @@ export function VisualizadorRico({
     editorProps: { attributes: { class: cn("conteudo-rico outline-none", className) } },
   });
 
-  if (!editor) return <div className="bg-muted/30 h-20 animate-pulse rounded-md" />;
+  if (!editor) return <div className="bg-muted h-20 animate-pulse rounded-md" />;
   return <EditorContent editor={editor} />;
 }
