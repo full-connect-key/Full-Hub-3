@@ -10,6 +10,12 @@ import type {
   TipoComFluxo as TipoComFluxoReal,
   WorkflowDaAgencia as TipoReal,
 } from "../../src/lib/dados/workflows";
+import {
+  expandirQuantidades,
+  pecasDaEtapa,
+  type EtapaComQuantidade,
+  type PecasPorEtapa,
+} from "../../src/lib/dominio/workflows";
 
 export type WorkflowDaAgencia = TipoReal;
 export type { EtapaAplicada, FluxoAplicado };
@@ -33,6 +39,7 @@ type FluxoDeExemplo = {
 const POST = "w0000000-0000-0000-0000-000000000001";
 const ENXOVAL = "t0108000-0000-4000-8000-000000000001";
 const LANDING = "w0000000-0000-0000-0000-000000000002";
+const CATALOGO = "t0140000-0000-4000-8000-000000000001";
 
 const FLUXOS: FluxoDeExemplo[] = [
   {
@@ -94,6 +101,33 @@ const FLUXOS: FluxoDeExemplo[] = [
       etapa(ENXOVAL, "e13", "Tabloide", 30, "Design", 12, true, "cliente", null),
     ],
   },
+  {
+    id: CATALOGO,
+    nome: "Catálogo de produtos",
+    descricao:
+      "O caso que a 0140 existe para resolver: a etapa entrega N peças, e o N muda de mês para mês.",
+    client_id: null,
+    ativo: true,
+    criado_por: null,
+    created_at: "2026-11-01T10:00:00.000Z",
+    cliente: null,
+    // DUAS ETAPAS QUE MULTIPLICAM, e nao uma: com uma, a imagem do dialogo
+    // provaria que ele aparece e nao que ele pergunta UM NUMERO POR ETAPA --
+    // a razao do evento de cada par da legenda do calendario.
+    //
+    // E elas NAO DEPENDEM de nada, porque a 0140 recusa: a etapa que
+    // multiplica vira agrupadora ao ser aplicada, e `subtasks_agrupadora`
+    // (0022) recusa a dependencia de uma agrupadora nos dois sentidos.
+    //
+    // "Tratar as fotos" PEDE AVAL DO CLIENTE de proposito: a aprovacao viaja
+    // para as pecas e sai da mae, e e so com ela no exemplo que a imagem da
+    // cadeia aplicada mostra isso.
+    etapas: [
+      etapa(CATALOGO, "e14", "Briefing dos produtos", 1, "Atendimento", 1, false, null, null),
+      etapa(CATALOGO, "e15", "Fotografar", 2, "Audiovisual", 5, false, null, null, null, 50),
+      etapa(CATALOGO, "e16", "Tratar as fotos", 3, "Design", 12, true, "cliente", null, null, 50),
+    ],
+  },
 ];
 
 function etapa(
@@ -107,6 +141,7 @@ function etapa(
   tipo: TipoComFluxo["etapas"][number]["tipo_aprovacao"],
   depende: number | null,
   pai?: number | null,
+  quantidade?: number,
 ): TipoComFluxo["etapas"][number] {
   return {
     id,
@@ -123,6 +158,10 @@ function etapa(
     // O PAI (0108) entra com default: so o exemplo que mostra a arvore o
     // passa, e as outras oito etapas continuam de topo sem mudar de linha.
     parent_ordem: pai ?? null,
+    // QUANTAS PECAS (0140) entra com default, pela razao do pai acima: so as
+    // duas etapas do catalogo a passam, e as treze outras continuam
+    // entregando uma peca sem mudar de linha.
+    quantidade: quantidade ?? 1,
     created_at: "2026-09-01T10:00:00.000Z",
     responsavelPadrao: null,
   };
@@ -138,7 +177,7 @@ export const TIPOS: WorkflowDaAgencia[] = [
     ativo: true,
     created_at: "2026-09-01T10:00:00.000Z",
     cliente: null,
-    workflow: { id: POST, nome: "Post de feed", etapas: 4 },
+    workflow: { id: POST, nome: "Post de feed", etapas: 4, multiplicam: [] },
   },
   {
     id: "t0000000-0000-0000-0000-000000000002",
@@ -149,7 +188,7 @@ export const TIPOS: WorkflowDaAgencia[] = [
     ativo: true,
     created_at: "2026-09-05T10:00:00.000Z",
     cliente: ALFA,
-    workflow: { id: LANDING, nome: "Landing page — Mundo Verde", etapas: 4 },
+    workflow: { id: LANDING, nome: "Landing page — Mundo Verde", etapas: 4, multiplicam: [] },
   },
   // O WORKFLOW DE DOIS NIVEIS (0108): e ele que a tela de abrir campanha
   // oferece em "Partir de um modelo", ao lado dos modelos de campanha.
@@ -162,7 +201,30 @@ export const TIPOS: WorkflowDaAgencia[] = [
     ativo: true,
     created_at: "2026-09-10T10:00:00.000Z",
     cliente: null,
-    workflow: { id: ENXOVAL, nome: "Campanha com enxoval", etapas: 5 },
+    workflow: { id: ENXOVAL, nome: "Campanha com enxoval", etapas: 5, multiplicam: [] },
+  },
+  // O WORKFLOW QUE MULTIPLICA (0140): e ele que faz o seletor de workflow
+  // PERGUNTAR o numero antes de aplicar, e e a unica entrada da lista com
+  // `multiplicam` preenchido -- com todas preenchidas, a imagem provaria que
+  // o dialogo aparece e nao que ele SABE NAO aparecer.
+  {
+    id: "t0140000-0000-4000-8000-000000000011",
+    nome: "Catálogo de produtos",
+    descricao: "Fotografar e tratar N produtos; o N muda de mês para mês.",
+    client_id: null,
+    workflow_template_id: CATALOGO,
+    ativo: true,
+    created_at: "2026-11-01T10:00:00.000Z",
+    cliente: null,
+    workflow: {
+      id: CATALOGO,
+      nome: "Catálogo de produtos",
+      etapas: 3,
+      multiplicam: [
+        { ordem: 2, nome: "Fotografar", quantidade: 50 },
+        { ordem: 3, nome: "Tratar as fotos", quantidade: 50 },
+      ],
+    },
   },
   {
     id: "t0000000-0000-0000-0000-000000000003",
@@ -196,10 +258,11 @@ export async function fluxoDoWorkflow(
   tipoId: string,
   dataInicio: string,
   clienteId?: string | null,
+  pecas?: PecasPorEtapa | null,
 ): Promise<FluxoAplicado | null> {
   const tipo = TIPOS.find((t) => t.id === tipoId);
   if (!tipo?.workflow_template_id) return null;
-  return etapasDoWorkflow(tipo.workflow_template_id, dataInicio, clienteId);
+  return etapasDoWorkflow(tipo.workflow_template_id, dataInicio, clienteId, pecas);
 }
 
 /**
@@ -217,6 +280,7 @@ export async function etapasDoWorkflow(
   templateId: string,
   dataInicio: string,
   clienteId?: string | null,
+  pecas?: PecasPorEtapa | null,
 ): Promise<FluxoAplicado | null> {
   const modelo = FLUXOS.find((w) => w.id === templateId);
   if (!modelo) return null;
@@ -237,24 +301,35 @@ export async function etapasDoWorkflow(
           .map((e) => e.funcao_padrao!),
       ),
     ],
-    etapas: modelo.etapas.map((etapa) => ({
-      titulo: etapa.nome,
-      prazo:
-        etapa.prazo_offset_dias === null ? null : somarDias(dataInicio, etapa.prazo_offset_dias),
-      responsavel_id: daConta(etapa.funcao_padrao),
-      funcao_padrao: etapa.funcao_padrao,
-      prioridade: etapa.prioridade,
-      requer_aprovacao: etapa.requer_aprovacao,
-      tipo_aprovacao: etapa.tipo_aprovacao,
-      parent_de:
-        etapa.parent_ordem === null
-          ? null
-          : (posicaoPorOrdem.get(etapa.parent_ordem) ?? null),
-      depende_de:
-        etapa.depende_de_ordem === null
-          ? null
-          : (posicaoPorOrdem.get(etapa.depende_de_ordem) ?? null),
-    })),
+    // A EXPANSAO (0140) PASSA PELA MESMA `expandirQuantidades` da versao real,
+    // e nao por uma copia: o stub existe para trocar a IDA AO BANCO, e
+    // reescrever a traducao aqui seria o segundo lugar onde ela divergiria --
+    // a imagem passaria a conferir o stub em vez do produto.
+    etapas: expandirQuantidades(
+      modelo.etapas.map(
+        (etapa): EtapaComQuantidade => ({
+          quantidade: pecasDaEtapa(etapa.ordem, etapa.quantidade, pecas),
+          titulo: etapa.nome,
+          prazo:
+            etapa.prazo_offset_dias === null
+              ? null
+              : somarDias(dataInicio, etapa.prazo_offset_dias),
+          responsavel_id: daConta(etapa.funcao_padrao),
+          funcao_padrao: etapa.funcao_padrao,
+          prioridade: etapa.prioridade,
+          requer_aprovacao: etapa.requer_aprovacao,
+          tipo_aprovacao: etapa.tipo_aprovacao,
+          parent_de:
+            etapa.parent_ordem === null
+              ? null
+              : (posicaoPorOrdem.get(etapa.parent_ordem) ?? null),
+          depende_de:
+            etapa.depende_de_ordem === null
+              ? null
+              : (posicaoPorOrdem.get(etapa.depende_de_ordem) ?? null),
+        }),
+      ),
+    ),
   };
 }
 

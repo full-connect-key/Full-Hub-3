@@ -13,6 +13,7 @@ import {
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
 import { interpretarTempo } from "@/lib/dominio/tempo";
+import type { PecasPorEtapa } from "@/lib/dominio/workflows";
 import { podeMoverTaskPara } from "@/lib/tasks/state-machine";
 import { fluxoDoWorkflow, type FluxoAplicado } from "@/lib/dados/workflows";
 import { pastaDaEntregaDaDemanda } from "@/lib/drive/pastas";
@@ -848,6 +849,21 @@ export async function descartarRascunho(id: string): Promise<Resultado> {
 export async function aplicarWorkflowNaTask(
   taskId: string,
   tipoId: string | null,
+  /**
+   * Quantas peças cada etapa entrega NESTA aplicação (migration 0140).
+   *
+   * **O modelo é a sugestão e isto é a confirmação**, que é o pedido inteiro:
+   * *"em um mês podem ter 50 produtos e no outro 80"*. Sem o parâmetro, o
+   * número viveria só no modelo compartilhado — e corrigi-lo a cada mês
+   * mudaria a cadeia para toda conta que o usa, porque `regravarEtapas()`
+   * reescreve o workflow inteiro a cada salvamento.
+   *
+   * Ele é OPCIONAL, e o que fica no lugar é o que o modelo diz: a tela só
+   * pergunta quando há etapa que multiplica, e um caminho que não passa por
+   * ela (o atalho de um link, um chamador novo) continua aplicando o workflow
+   * como ele está.
+   */
+  pecas?: PecasPorEtapa,
 ): Promise<Resultado> {
   return executarAcao("aplicarWorkflowNaTask", async () => {
     await exigirRotaNaAcao(ROTA);
@@ -878,6 +894,7 @@ export async function aplicarWorkflowNaTask(
       tipoId,
       task.data_inicio,
       task.client_id,
+      pecas,
     );
 
     const { error: erroDaTask } = await supabase

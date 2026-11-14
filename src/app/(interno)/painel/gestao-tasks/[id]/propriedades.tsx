@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -41,9 +41,14 @@ import { chamarAcao } from "@/lib/acoes/cliente";
 import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
 import { vertentesParaEscolher, type Vertente } from "@/lib/dominio/vertentes";
 import { formatarMinutos } from "@/lib/dominio/tempo";
+import type {
+  EtapaQueMultiplica,
+  PecasPorEtapa,
+} from "@/lib/dominio/workflows";
 import { EXPLICACAO_DO_STATUS } from "@/lib/tasks/state-machine";
 import type { TaskCompleta } from "@/lib/dados/tasks";
 
+import { DialogoDePecas } from "./dialogo-de-pecas";
 import {
   aplicarWorkflowNaTask,
   atualizarTask,
@@ -92,7 +97,16 @@ export function PropriedadesDaTask({
 }: {
   task: TaskCompleta;
   clientes: { id: string; nome_empresa: string }[];
-  tipos: { id: string; nome: string }[];
+  /**
+   * Os workflows que esta conta alcança, com as etapas que entregam mais de
+   * uma peça (migration 0140).
+   *
+   * `multiplicam` é o que decide se o seletor PERGUNTA antes de aplicar: num
+   * workflow em que toda etapa entrega uma peça não há escolha a fazer, e um
+   * diálogo com a lista vazia seria um passo a mais entre o clique e o
+   * resultado.
+   */
+  tipos: { id: string; nome: string; multiplicam: EtapaQueMultiplica[] }[];
   /**
    * As vertentes da conta desta demanda (migration 0118) — todas, inclusive
    * as desativadas. Quem decide o que o seletor oferece é
@@ -116,9 +130,20 @@ export function PropriedadesDaTask({
   const router = useRouter();
   const [, iniciar] = useTransition();
 
-  function aplicarWorkflow(tipoId: string | null) {
+  /**
+   * O workflow escolhido que ainda espera o número de peças (migration 0140).
+   *
+   * Ele é o ESTADO e não um booleano, porque o diálogo precisa das etapas
+   * daquele workflow — trocar de workflow com o diálogo aberto trocaria as
+   * perguntas, e um `aberto: boolean` deixaria as do anterior na tela.
+   */
+  const [aPerguntar, setAPerguntar] = useState<
+    { id: string; nome: string; multiplicam: EtapaQueMultiplica[] } | null
+  >(null);
+
+  function aplicarWorkflow(tipoId: string | null, pecas?: PecasPorEtapa) {
     iniciar(async () => {
-      const resultado = await chamarAcao(() => aplicarWorkflowNaTask(task.id, tipoId));
+      const resultado = await chamarAcao(() => aplicarWorkflowNaTask(task.id, tipoId, pecas));
       if (!resultado.ok) toast.error(resultado.error);
       else {
         toast.success(resultado.mensagem);
@@ -355,6 +380,15 @@ export function PropriedadesDaTask({
                 ) {
                   return;
                 }
+                /* A PERGUNTA DO NÚMERO VEM DEPOIS DA CONFIRMAÇÃO, e a ordem
+                   é a da 0128: perguntar quantas peças e só então avisar que
+                   isto apaga as etapas de agora seria pedir uma escolha para
+                   em seguida descobrir que ela pode ser cancelada. */
+                const escolhido = tipos.find((tipo) => tipo.id === novo);
+                if (escolhido && escolhido.multiplicam.length > 0) {
+                  setAPerguntar(escolhido);
+                  return;
+                }
                 aplicarWorkflow(novo);
               }}
             >
@@ -470,6 +504,23 @@ export function PropriedadesDaTask({
       <p className="text-text-muted mt-4 border-t pt-3 text-xs">
         Criada por {task.autor?.nome ?? "—"}.
       </p>
+
+      {/* MONTADO SÓ ENQUANTO HÁ O QUE PERGUNTAR, e desmontado na resposta:
+          nascendo a cada escolha, ele abre com a sugestão do workflow que
+          está na tela em vez de com o número que alguém digitou para outro —
+          e sem um efeito ressincronizando estado, que é o que o lint do
+          projeto reprova. */}
+      {aPerguntar ? (
+        <DialogoDePecas
+          etapas={aPerguntar.multiplicam}
+          onFechar={() => setAPerguntar(null)}
+          onConfirmar={(pecas) => {
+            const id = aPerguntar.id;
+            setAPerguntar(null);
+            aplicarWorkflow(id, pecas);
+          }}
+        />
+      ) : null}
     </section>
   );
 }

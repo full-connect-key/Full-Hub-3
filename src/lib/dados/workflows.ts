@@ -1,6 +1,14 @@
 import "server-only";
 
 import { ouFalha } from "@/lib/dados/consulta";
+import {
+  etapasQueMultiplicam,
+  expandirQuantidades,
+  pecasDaEtapa,
+  type EtapaComQuantidade,
+  type EtapaQueMultiplica,
+  type PecasPorEtapa,
+} from "@/lib/dominio/workflows";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { TaskType, TeamFuncao, WorkflowStep } from "@/lib/supabase/database.types";
 
@@ -24,7 +32,20 @@ import type { TaskType, TeamFuncao, WorkflowStep } from "@/lib/supabase/database
 
 export type WorkflowDaAgencia = TaskType & {
   cliente: { id: string; nome_empresa: string } | null;
-  workflow: { id: string; nome: string; etapas: number } | null;
+  workflow: {
+    id: string;
+    nome: string;
+    etapas: number;
+    /**
+     * As etapas que entregam mais de uma peça (migration 0140), para a tela
+     * perguntar o número antes de aplicar — "em um mês podem ter 50 produtos e
+     * no outro 80".
+     *
+     * **Não custa consulta nenhuma**: esta função já lia `workflow_steps` para
+     * contar as etapas de cada modelo, e o que mudou é a lista de colunas.
+     */
+    multiplicam: EtapaQueMultiplica[];
+  } | null;
 };
 
 export type EtapaDeWorkflow = WorkflowStep & {
@@ -75,8 +96,20 @@ export async function listarWorkflows(clienteId?: string | null): Promise<Workfl
       ? supabase.from("workflow_templates").select("id, nome").in("id", idsDeWorkflows)
       : Promise.resolve({ error: null, data: [] as { id: string; nome: string }[] }),
     idsDeWorkflows.length
-      ? supabase.from("workflow_steps").select("template_id").in("template_id", idsDeWorkflows)
-      : Promise.resolve({ error: null, data: [] as { template_id: string }[] }),
+      ? supabase
+          .from("workflow_steps")
+          .select("template_id, ordem, nome, quantidade")
+          .in("template_id", idsDeWorkflows)
+          .order("ordem")
+      : Promise.resolve({
+          error: null,
+          data: [] as {
+            template_id: string;
+            ordem: number;
+            nome: string;
+            quantidade: number;
+          }[],
+        }),
   ]);
   const clientes = ouFalha("as empresas dos workflows", resposta0);
   const workflows = ouFalha("os workflows", resposta1);
@@ -85,8 +118,22 @@ export async function listarWorkflows(clienteId?: string | null): Promise<Workfl
   const porCliente = new Map(clientes.map((c) => [c.id, c]));
   const porWorkflow = new Map(workflows.map((w) => [w.id, w]));
   const contagem = new Map<string, number>();
+  const multiplicam = new Map<string, EtapaQueMultiplica[]>();
+  // QUEM DECIDE SE A ETAPA MULTIPLICA É `etapasQueMultiplicam()`, e não um
+  // `> 1` escrito aqui: a mesma pergunta é feita na expansão, e duas respostas
+  // para "esta etapa entrega mais de uma peça" divergiriam no dia em que o
+  // piso mudasse de lado.
   for (const etapa of etapas) {
     contagem.set(etapa.template_id, (contagem.get(etapa.template_id) ?? 0) + 1);
+    for (const multiplica of etapasQueMultiplicam([etapa])) {
+      const lista = multiplicam.get(multiplica.template_id) ?? [];
+      lista.push({
+        ordem: multiplica.ordem,
+        nome: multiplica.nome,
+        quantidade: multiplica.quantidade,
+      });
+      multiplicam.set(multiplica.template_id, lista);
+    }
   }
 
   return tipos.map((tipo) => {
@@ -97,7 +144,11 @@ export async function listarWorkflows(clienteId?: string | null): Promise<Workfl
       ...tipo,
       cliente: tipo.client_id ? (porCliente.get(tipo.client_id) ?? null) : null,
       workflow: workflow
-        ? { ...workflow, etapas: contagem.get(workflow.id) ?? 0 }
+        ? {
+            ...workflow,
+            etapas: contagem.get(workflow.id) ?? 0,
+            multiplicam: multiplicam.get(workflow.id) ?? [],
+          }
         : null,
     };
   });
@@ -202,6 +253,15 @@ export async function fluxoDoWorkflow(
   tipoId: string,
   dataInicio: string,
   clienteId?: string | null,
+  /**
+   * Quantas peças cada etapa entrega NESTA aplicação (migration 0140), por
+   * `ordem`. Sem ela vale o que o modelo sugere.
+   *
+   * É aqui e não no modelo porque "em um mês podem ter 50 produtos e no outro
+   * 80": corrigir o modelo a cada mês mudaria a cadeia para toda conta que a
+   * usa, já que `regravarEtapas()` reescreve tudo a cada salvamento.
+   */
+  pecas?: PecasPorEtapa | null,
 ): Promise<FluxoAplicado | null> {
   const supabase = await criarClienteServidor();
 
@@ -218,7 +278,7 @@ export async function fluxoDoWorkflow(
   );
 
   if (!tipo?.workflow_template_id) return null;
-  return etapasDoWorkflow(tipo.workflow_template_id, dataInicio, clienteId);
+  return etapasDoWorkflow(tipo.workflow_template_id, dataInicio, clienteId, pecas);
 }
 
 export type EtapaAplicada = {
@@ -271,6 +331,7 @@ export async function etapasDoWorkflow(
   templateId: string,
   dataInicio: string,
   clienteId?: string | null,
+  pecas?: PecasPorEtapa | null,
 ): Promise<FluxoAplicado | null> {
   const supabase = await criarClienteServidor();
 
@@ -297,9 +358,21 @@ export async function etapasDoWorkflow(
    * **Sem cliente a resolução não acontece**, e é o caso da tela de workflows
    * pré-visualizando a cadeia: ali não há conta de quem herdar nada.
    */
-  const lista = clienteId
+  const cadeia = clienteId
     ? await resolvidasPelaConta(templateId, clienteId)
     : await cruasDoModelo(templateId);
+
+  /**
+   * A QUANTIDADE CONFIRMADA ENTRA NA CADEIA, e não só na expansão.
+   *
+   * É ela que o snapshot guarda, pela razão escrita abaixo: o registro tem de
+   * descrever o fluxo que foi APLICADO. Guardando a quantidade do modelo, o
+   * `workflow_snapshot` de um mês de 80 produtos diria 50.
+   */
+  const lista = cadeia.map((etapa) => ({
+    ...etapa,
+    quantidade: pecasDaEtapa(etapa.ordem, etapa.quantidade, pecas),
+  }));
 
   const posicaoPorOrdem = new Map(lista.map((e, indice) => [e.ordem, indice + 1]));
 
@@ -323,7 +396,15 @@ export async function etapasDoWorkflow(
           .map((etapa) => etapa.funcao_padrao as TeamFuncao),
       ),
     ],
-    etapas: lista.map((etapa) => ({
+    /**
+     * A EXPANSÃO É A ÚLTIMA COISA, e a ordem não é escolha: `parent_de` e
+     * `depende_de` são posições nesta lista, e inserir as peças no meio
+     * empurra todo mundo para baixo. `expandirQuantidades()` renumera os dois
+     * ponteiros; fazer a expansão antes do mapa de posições exigiria um
+     * segundo mapa, e dois mapas da mesma tradução é onde eles divergem.
+     */
+    etapas: expandirQuantidades(lista.map((etapa): EtapaComQuantidade => ({
+      quantidade: etapa.quantidade,
       titulo: etapa.nome,
       prazo:
         etapa.prazo_offset_dias !== null
@@ -346,7 +427,7 @@ export async function etapasDoWorkflow(
         etapa.parent_ordem !== null
           ? (posicaoPorOrdem.get(etapa.parent_ordem) ?? null)
           : null,
-    })),
+    }))),
   };
 }
 
@@ -362,6 +443,8 @@ type EtapaDoModelo = {
   tipo_aprovacao: WorkflowStep["tipo_aprovacao"];
   depende_de_ordem: number | null;
   parent_ordem: number | null;
+  /** Quantas peças iguais esta etapa entrega (migration 0140). */
+  quantidade: number;
 };
 
 async function resolvidasPelaConta(
@@ -404,6 +487,7 @@ async function cruasDoModelo(templateId: string): Promise<EtapaDoModelo[]> {
     tipo_aprovacao: etapa.tipo_aprovacao,
     depende_de_ordem: etapa.depende_de_ordem,
     parent_ordem: etapa.parent_ordem,
+    quantidade: etapa.quantidade,
   }));
 }
 

@@ -2995,6 +2995,16 @@ export interface Database {
            * `depende_de_ordem` ao lado.
            */
           parent_ordem: number | null;
+          /**
+           * Quantas peças iguais esta etapa entrega (migration 0140).
+           *
+           * 1 é a etapa de sempre; 2 ou mais faz ela virar AGRUPADORA ao ser
+           * aplicada, com N filhas "Nome 1".."Nome N" — a forma de
+           * `arvoreDaComposicao()` (0122). **É sugestão e não contrato**: quem
+           * aplica confirma o número, porque "em um mês podem ter 50 produtos
+           * e no outro 80".
+           */
+          quantidade: number;
           created_at: string;
         };
         Insert: {
@@ -3010,6 +3020,7 @@ export interface Database {
           tipo_aprovacao?: TipoAprovacao | null;
           depende_de_ordem?: number | null;
           parent_ordem?: number | null;
+          quantidade?: number;
         };
         Update: {
           nome?: string;
@@ -3022,6 +3033,7 @@ export interface Database {
           tipo_aprovacao?: TipoAprovacao | null;
           depende_de_ordem?: number | null;
           parent_ordem?: number | null;
+          quantidade?: number;
         };
         Relationships: [];
       };
@@ -4157,6 +4169,15 @@ export interface Database {
            * tela.
            */
           parent_ordem: number | null;
+          /**
+           * Quantas peças cada etapa entrega (0140), e ela PRECISA estar aqui:
+           * é esta RPC que a tela chama quando há conta — ou seja, sempre que
+           * alguém aplica o workflow numa demanda ou numa campanha. A leitura
+           * crua de `workflow_steps` só atende a pré-visualização, então sem
+           * esta coluna a quantidade existiria na tabela, apareceria no editor
+           * e se perderia na hora de materializar.
+           */
+          quantidade: number;
         }[];
       };
       /**

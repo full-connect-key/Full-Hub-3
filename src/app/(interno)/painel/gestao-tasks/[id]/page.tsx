@@ -153,7 +153,13 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
         clientes={clientes
           .filter((c) => c.ativo)
           .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
-        tipos={tipos.map((t) => ({ id: t.id, nome: t.nome }))}
+        tipos={tipos.map((t) => ({
+          id: t.id,
+          nome: t.nome,
+          // As etapas que entregam mais de uma peça (0140): é por elas que
+          // o seletor sabe se tem o que perguntar antes de aplicar.
+          multiplicam: t.workflow?.multiplicam ?? [],
+        }))}
         vertentes={vertentes}
         podeEditar={podeGerenciar}
         driveLigado={driveConfigurado()}

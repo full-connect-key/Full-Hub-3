@@ -921,7 +921,15 @@ from (
     -- uma colagem que morresse antes dele deixaria as duas tabelas de pe com o
     -- upload sem lugar para onde ir, e um marcador numa das tabelas diria
     -- `ok`.
-    ('0139', 'a biblioteca tem pastas', 'trigger', 'client_files_herda_a_conta')
+    ('0139', 'a biblioteca tem pastas', 'trigger', 'client_files_herda_a_conta'),
+    -- A 0140 CRIA UMA COLUNA, acrescenta quatro recusas a um gatilho e RECRIA
+    -- `etapas_resolvidas_do_workflow` -- e e esta a ULTIMA coisa do arquivo, e
+    -- a unica que uma colagem parcial nao produz. Um marcador na coluna diria
+    -- `ok` sobre o pior banco possivel: a quantidade na tabela, o campo no
+    -- editor, e a RPC que a tela chama ao aplicar devolvendo sem ela -- a
+    -- quantidade perdida exatamente na hora de materializar.
+    ('0140', 'a etapa entrega N pecas', 'no_corpo',
+             'etapas_resolvidas_do_workflow|e.quantidade')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

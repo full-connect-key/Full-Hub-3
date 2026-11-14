@@ -40,6 +40,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { FUNCOES } from "@/lib/dominio/equipe";
 import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
+import { TETO_DE_PECAS } from "@/lib/dominio/workflows";
 import type { TipoComFluxo } from "@/lib/dados/workflows";
 import type { TaskPrioridade, TeamFuncao } from "@/lib/supabase/database.types";
 
@@ -72,6 +73,15 @@ type EtapaEmEdicao = {
    * dependência usa.
    */
   paiChave: string | null;
+  /**
+   * Quantas peças a etapa entrega (migration 0140), como TEXTO.
+   *
+   * É texto e não número pela razão do `offset` ao lado: um `<input
+   * type="number"` controlado por número não deixa o campo ficar vazio
+   * enquanto a pessoa apaga para digitar outro valor — ela apaga o "1" e o
+   * React o devolve.
+   */
+  quantidade: string;
 };
 
 function novaChave() {
@@ -89,6 +99,7 @@ function etapaVazia(paiChave: string | null = null): EtapaEmEdicao {
     aprovacao: SEM_VALOR,
     dependeDe: SEM_VALOR,
     paiChave,
+    quantidade: "1",
   };
 }
 
@@ -211,6 +222,7 @@ export function Workflows({
           etapa.parent_ordem === null
             ? null
             : (chaves[tipo.etapas.findIndex((e) => e.ordem === etapa.parent_ordem)] ?? null),
+        quantidade: String(etapa.quantidade),
       })),
     );
   }
@@ -346,6 +358,10 @@ export function Workflows({
             parent_ordem: etapa.paiChave
               ? (ordemPorChave.get(etapa.paiChave) ?? null)
               : null,
+            // O CAMPO VAZIO É UMA PEÇA, e não zero: o banco recusa zero
+            // (`quantidade between 1 and 200`), e quem apagou o campo para
+            // digitar outro número não está dizendo "nenhuma peça".
+            quantidade: Math.max(1, Number(etapa.quantidade) || 1),
           })),
         }),
       );
@@ -786,6 +802,46 @@ export function Workflows({
                         </Select>
                       </div>
 
+                      {/* QUANTAS PEÇAS (migration 0140), e é o campo mais
+                          consequente da linha: ele decide quantas subtarefas
+                          nascem. Por isso ele fica em linha própria, com a
+                          frase ao lado — num sétimo lugar da grade ele seria
+                          um número de 1 sem nada dizendo o que ele faz.
+
+                          SÓ EM ETAPA DE TOPO SEM SUB-ETAPA, e as duas ausências
+                          têm razão própria: na sub-etapa as peças precisariam
+                          de um terceiro nível, que `subtasks_agrupadora` (0022)
+                          recusa; e numa etapa que já tem sub-etapas as peças
+                          SERIAM as sub-etapas. Nos dois casos não é um passo
+                          que falta, é uma porta que não existe ali — a decisão
+                          do botão de sub-etapa logo acima. */}
+                      {etapa.paiChave === null && !temFilha(etapa.chave) ? (
+                        <div className="flex flex-wrap items-center gap-2 pl-7">
+                          <Label
+                            htmlFor={`pecas-${etapa.chave}`}
+                            className="text-muted-foreground text-xs font-normal"
+                          >
+                            Entrega
+                          </Label>
+                          <Input
+                            id={`pecas-${etapa.chave}`}
+                            type="number"
+                            min={1}
+                            max={TETO_DE_PECAS}
+                            className="w-20"
+                            value={etapa.quantidade}
+                            onChange={(e) =>
+                              mudar(etapa.chave, { quantidade: e.target.value })
+                            }
+                          />
+                          <span className="text-muted-foreground text-xs">
+                            {Number(etapa.quantidade) > 1
+                              ? `peças: a etapa agrupa "${etapa.nome || "ela"} 1" até "${etapa.nome || "ela"} ${Number(etapa.quantidade)}", cada uma com este responsável, prazo e aprovação. Quem aplicar o workflow confirma o número.`
+                              : "peça. Mais de uma faz a etapa agrupar as peças como sub-etapas."}
+                          </span>
+                        </div>
+                      ) : null}
+
                       {/* A RAZÃO FICA ESCRITA, e os dois seletores desligados
                           em vez de sumirem: é a decisão do "Enviar ao cliente"
                           do Social Media — um botão que some ensina que não
@@ -797,7 +853,9 @@ export function Workflows({
                         <p className="text-text-muted pl-7 text-xs">
                           Esta etapa tem sub-etapas, então ela agrupa em vez de
                           ser trabalho: quem entrega e quem espera são as
-                          sub-etapas. Marque a aprovação e a dependência nelas.
+                          sub-etapas. Marque a aprovação e a dependência nelas —
+                          e a quantidade de peças também é delas, porque as
+                          peças nascem como sub-etapas.
                         </p>
                       ) : null}
                     </li>

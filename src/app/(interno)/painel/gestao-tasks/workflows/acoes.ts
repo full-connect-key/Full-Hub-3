@@ -7,6 +7,7 @@ import { exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { FUNCOES } from "@/lib/dominio/equipe";
+import { TETO_DE_PECAS } from "@/lib/dominio/workflows";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -54,6 +55,15 @@ const esquemaDeEtapa = z.object({
   depende_de_ordem: z.number().int().positive().nullable().optional(),
   /** A POSIÇÃO da etapa de cima, ou null no topo (migration 0108). */
   parent_ordem: z.number().int().positive().nullable().optional(),
+  /**
+   * Quantas peças iguais a etapa entrega (migration 0140).
+   *
+   * O teto sai de `TETO_DE_PECAS` e não de um número escrito aqui: ele é
+   * medido contra o `check` do banco, e dois números para o mesmo limite é
+   * onde eles divergem — a tela recusaria 150 que o banco aceita, ou aceitaria
+   * 300 e a recusa chegaria como erro de constraint.
+   */
+  quantidade: z.number().int().min(1).max(TETO_DE_PECAS).default(1),
 });
 
 const esquemaDeTipo = z.object({
@@ -94,6 +104,7 @@ async function regravarEtapas(
       tipo_aprovacao: etapa.requer_aprovacao ? (etapa.tipo_aprovacao ?? "interna") : null,
       depende_de_ordem: etapa.depende_de_ordem ?? null,
       parent_ordem: etapa.parent_ordem ?? null,
+      quantidade: etapa.quantidade,
     })),
   );
   return error ? error.message : null;
@@ -134,9 +145,60 @@ export async function salvarWorkflow(
         .filter((o): o is number => typeof o === "number"),
     );
 
+    /**
+     * AS ETAPAS ESPERADAS, para a quantidade recusar nos DOIS sentidos.
+     *
+     * `recusar_dependencia_de_agrupadora` (0022) recusa a agrupadora que
+     * espera E a agrupadora que é esperada, e o segundo sentido é o que passa
+     * batido: sem ele o vínculo seria recusado na hora de aplicar, e aquele
+     * `insert` AVISA em vez de derrubar (a decisão da 0052) — a dependência
+     * sumiria com as etapas de pé.
+     */
+    const esperadas = new Map<number, string>();
+    for (const etapa of entrada.etapas) {
+      if (etapa.depende_de_ordem) esperadas.set(etapa.depende_de_ordem, etapa.nome);
+    }
+
     for (const etapa of entrada.etapas) {
       if (etapa.requer_aprovacao && !etapa.tipo_aprovacao) {
         return falha(`Diga de que tipo é a aprovação de "${etapa.nome}": interna ou do cliente.`);
+      }
+
+      /**
+       * AS QUATRO RECUSAS DA QUANTIDADE (migration 0140), e as quatro são a
+       * 0022 um nível acima: a etapa que entrega mais de uma peça vira
+       * AGRUPADORA ao ser aplicada, e `subtasks_agrupadora` recusa a neta, e
+       * `recusar_dependencia_de_agrupadora` recusa a mãe que espera e a mãe
+       * que é esperada.
+       *
+       * **A aprovação NÃO está aqui**, e a ausência é a decisão: ela viaja
+       * para cada peça em vez de ser recusada. Com as sub-etapas escritas à
+       * mão cada uma diz a sua, então a da mãe seria ambígua; com a quantidade
+       * as peças são N cópias da MESMA etapa, e o que ela diz é o que cada
+       * peça diz. "50 produtos, cada um com aval do cliente" é uma frase útil.
+       */
+      if (etapa.quantidade > 1) {
+        if (etapa.parent_ordem) {
+          return falha(
+            `A sub-etapa "${etapa.nome}" não pode entregar mais de uma peça: a quantidade é da etapa de topo, e as peças nascem como as sub-etapas dela.`,
+          );
+        }
+        if (comFilha.has(etapa.ordem)) {
+          return falha(
+            `"${etapa.nome}" já tem sub-etapas, então ela não pode também entregar várias peças — as peças nascem como as sub-etapas dela. Escolha uma das duas.`,
+          );
+        }
+        if (etapa.depende_de_ordem) {
+          return falha(
+            `"${etapa.nome}" entrega várias peças e por isso não pode esperar outra etapa. A espera é de cada peça.`,
+          );
+        }
+        const quemEspera = esperadas.get(etapa.ordem);
+        if (quemEspera) {
+          return falha(
+            `"${quemEspera}" não pode esperar "${etapa.nome}": ela entrega várias peças, e o produto não tem como dizer "espere todas".`,
+          );
+        }
       }
 
       if (!comFilha.has(etapa.ordem)) continue;
@@ -315,6 +377,13 @@ export async function duplicarWorkflow(
           requer_aprovacao: etapa.requer_aprovacao,
           tipo_aprovacao: etapa.tipo_aprovacao,
           depende_de_ordem: etapa.depende_de_ordem,
+          // O PAI E A QUANTIDADE VIAJAM NA CÓPIA, e as duas estavam faltando:
+          // `parent_ordem` desde a 0108 e `quantidade` desde a 0140.
+          // Duplicar um workflow de dois níveis devolvia a cadeia reta, com as
+          // sub-etapas soltas no topo — e sem a quantidade a cópia entregaria
+          // uma peça onde o original entrega cinquenta.
+          parent_ordem: etapa.parent_ordem,
+          quantidade: etapa.quantidade,
         })),
       );
     }

@@ -467,6 +467,24 @@ const TELAS = [
   // -- ele abre com uma etapa de topo e nenhum filho.
   { nome: "45b-workflow-arvore", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1500, role: "socio",
     clicar: 'button:has-text("Campanha com enxoval")' },
+  // O EDITOR COM O CAMPO DE PECAS (migration 0140): abre o workflow que
+  // multiplica e fotografa o "Entrega 50" nas duas etapas, a frase que diz o
+  // que o numero faz, e as etapas de uma peca SEM o campo -- que e a metade
+  // que prova que ele nao aparece onde nao decide nada. O `45b` nao serve: a
+  // "Campanha com enxoval" nao tem etapa que multiplica, e a `45` abre o
+  // editor vazio, onde o campo sai com o default 1.
+  { nome: "45c-workflow-pecas", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1400, role: "socio",
+    clicar: 'button:has-text("Catálogo de produtos")' },
+  // E O DIALOGO QUE PERGUNTA O NUMERO AO APLICAR, que e a metade do pedido que
+  // o editor nao mostra: *"em um mes podem ter 50 produtos e no outro 80"*.
+  //
+  // A DEMANDA E A SEM ETAPA, de proposito: com etapas o seletor chama
+  // `window.confirm` antes, e o Playwright dispensa dialogo nativo por padrao
+  // -- a imagem sairia com o seletor fechado e nada mais, com a cara de que o
+  // clique nao fez nada. "Catalogo de verao" e da Mundo Verde, que e a conta
+  // que alcanca este workflow.
+  { nome: "45d-workflow-pecas-ao-aplicar", rota: "/painel/gestao-tasks/7a000000-0000-0000-0000-000000000001", largura: 1600, altura: 1000, role: "socio",
+    clicar: ['[aria-label="Workflow"]', '[role="option"]:has-text("Catálogo de produtos")'] },
   // O MES ABERTO PRECISA DO RECORTE NA URL, desde que a aba Posts saiu: sem
   // `mes` e `cliente` a secao Social desenha o INDICE, que e outra tela. O mes
   // e o corrente porque os posts de exemplo sao datados a partir do dia 1 de

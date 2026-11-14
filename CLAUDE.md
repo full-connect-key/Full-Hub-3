@@ -2948,6 +2948,156 @@ para criar o modelo sem a cadeia (a task nascia vazia) ou a cadeia sem o modelo
 - "Salvar as subtarefas desta task como workflow" grava o **modelo** junto com
   a cadeia. Gravar só a cadeia deixava o resultado inalcançável.
 
+#### A ETAPA ENTREGA N PEÇAS, E O NÚMERO É CONFIRMADO AO APLICAR (0140)
+
+Decisão do usuário: *"Preciso conseguir no Workflow, quando monto uma etapa,
+definir quantas peças vão precisar ser entregues, já que por exemplo, em um
+mês, podem ter 50 produtos e no outro 80 produtos"*.
+
+**A SEGUNDA METADE DA FRASE DECIDE O DESENHO, como a da 0130 decidiu o
+aniversário.** A leitura óbvia do *"definir quantas"* é um número gravado no
+modelo — e o *"já que"* mostra por que ele estaria errado em metade dos meses.
+Pior: corrigi-lo a cada mês mudaria a cadeia de **toda conta que usa aquele
+workflow**, porque `regravarEtapas()` apaga e reinsere a cadeia inteira a cada
+salvamento. Então a coluna é a **sugestão** e quem aplica confirma — a forma
+de `periodosSugeridosDoFluxo()` e a decisão da 0122 palavra por palavra: *o
+modelo é ponto de partida, não contrato*.
+
+##### ISTO REVERTE UMA PREMISSA DECLARADA, e ela estava escrita em DOIS lugares
+
+O cabeçalho da 0108 diz que *"`workflow_steps` não tem coluna para isso nem
+deve ter — a etapa de um workflow é UM trabalho"*, e o seletor de modelo da
+nova campanha repete a frase em comentário: *"a quantidade de Feed/Storys que
+`workflow_steps` não tem coluna para expressar"*.
+
+**A premissa era "a etapa é UM trabalho", e foi a PRÓPRIA 0108 que a desfez**
+ao dar ao modelo um segundo nível: desde ela uma etapa PODE agrupar, e uma
+etapa que agrupa é a agrupadora da 0022 — o relógio não corre nela, o status
+vem das filhas, ela não pede aval e não entra em dependência. A quantidade não
+inventa um conceito novo: ela é o atalho para montar N filhas iguais à mão.
+
+**`campaign_templates` FICA, com a razão trocada.** Ele não guarda mais "a
+quantidade que o workflow não expressa": guarda o **tipo de material**
+(estático, carrossel, vídeo), que é propriedade da PEÇA desde a 0122 e não do
+passo de trabalho — e é por ele que o relatório agrupa. São duas perguntas
+diferentes sobre a mesma campanha.
+
+##### QUANTIDADE 1 NÃO VIRA GRUPO
+
+É a decisão da 0122 letra por letra: um grupo "Landing page" com um filho
+"Landing page 1" é um nível de recuo que não diz nada — e aqui ele é pior que
+ruído, porque faz a etapa virar agrupadora, e **o relógio de uma agrupadora
+não corre**. Uma peça é a etapa ela mesma.
+
+**As filhas se chamam "Nome 1".."Nome N"**, o nome que a pessoa escreveu com o
+número atrás. Não há singular a derivar, que é a armadilha do "Carrossei 1"
+que `SINGULAR_DO_TIPO` existe para evitar.
+
+##### O QUE A MÃE PERDE É O QUE ELA PASSA ÀS PEÇAS
+
+**A aprovação viaja para as filhas e sai da mãe, e isso é obrigatório e não
+estilo:** `subtasks_agrupadora` (0022) **recusa o insert** de uma filha sob uma
+etapa que exige aprovação. Marcar "aprovação do cliente" numa etapa que entrega
+50 peças quer dizer que **cada peça** passa pelo cliente, que é o que a agência
+quer dizer — e é o que a expansão escreve.
+
+*É diferente do caso de `parent_ordem`, onde as filhas são escritas à mão:* lá
+cada uma declara a aprovação dela e a da mãe seria ambígua; aqui as N filhas
+são cópias da MESMA etapa, então o que a etapa diz **é** o que cada peça diz.
+
+**E a dependência é recusada nos DOIS sentidos**, que é a metade que escapa:
+`recusar_dependencia_de_agrupadora` (0022) recusa a agrupadora que espera **e**
+a que é esperada. A segunda é a cara: o `insert` de dependência de
+`aplicarWorkflowNaTask` **avisa em vez de falhar** (0052), então o vínculo
+sumiria com as etapas de pé e ninguém ligaria uma coisa à outra. Por isso as
+duas recusas moram no modelo — a frase chega a quem montou o workflow, e não a
+quem o aplicou meses depois.
+
+##### O TETO É 200, E O NÚMERO TEM RAZÃO
+
+`abrir_mes_de_social` recusa acima de 60 *"porque o número é digitado, e um
+zero a mais é erro de digitação"*, e 60 recusaria os 80 que o usuário nomeou.
+200 aceita os 80 com folga e ainda pega o 800. **Não há teto para a soma do
+workflow**, e a ausência é dita: dois modelos de 150 peças são dois meses de
+trabalho de verdade, e um teto total recusaria o caso que a migration existe
+para resolver.
+
+##### A EXPANSÃO É DE DOMÍNIO, e as posições são renumeradas
+
+`expandirQuantidades()` em `lib/dominio/workflows.ts`, e ela mora lá porque são
+**dois** chamadores: `lib/dados/workflows.ts` e o stub do protótipo — uma
+segunda tradução seria o lugar onde elas divergiriam, e a imagem passaria a
+conferir o stub em vez do produto.
+
+**Ela renumera `parent_de` e `depende_de` numa passada ANTES de emitir
+qualquer linha**, porque as duas são POSIÇÕES na lista (nada está gravado
+ainda) e inserir N filhas no meio empurra tudo o que vem depois. Um ponteiro
+pode apontar para a frente, então o mapa precisa estar inteiro antes.
+
+##### `etapas_resolvidas_do_workflow` CARREGA A COLUNA, e é a ponte que quase ficou
+
+Aquela RPC é a que a tela chama **sempre que há cliente** — ou seja, em toda
+aplicação de verdade, porque ela é quem resolve o responsável pelos padrões da
+conta (0064); a leitura crua só serve à prévia. Sem a coluna no `returns
+table`, a quantidade existiria na tabela, apareceria no editor e **se perderia
+na materialização**: a ponte construída e nunca atravessada, no meio do
+caminho.
+
+`drop function` antes do `create`, porque `create or replace` não troca a forma
+de um `returns table`; e o `revoke`/`grant` repetido inteiro atrás, senão ela
+renasce com o `execute` que o Postgres concede a `public` sozinho — a lição da
+0097.
+
+##### Na tela: o campo no editor, e o diálogo ao aplicar
+
+**O campo só aparece na etapa de TOPO sem filha**, que são as duas condições
+que o banco recusa — e a frase embaixo dele muda com o valor: com 1 ela diz o
+que mais de uma faria, e com N ela nomeia a primeira e a última peça
+("agrupa 'Fotografar 1' até 'Fotografar 50'") e diz que quem aplica confirma o
+número. Na etapa que já tem sub-etapas, a frase que já explicava por que ela
+não pede aval nem espera outra etapa ganhou a terceira metade: **a quantidade
+também é delas, porque as peças nascem como sub-etapas**.
+
+**O valor é TEXTO no rascunho do editor**, pela razão do `offset`: um
+`<input type="number">` controlado por número não deixa o campo ficar vazio
+enquanto a pessoa apaga para digitar outro — ela apaga o "50" e o React o
+devolve na mesma tecla.
+
+**O DIÁLOGO SÓ EXISTE QUANDO HÁ O QUE PERGUNTAR** (`etapasQueMultiplicam()`):
+num workflow em que toda etapa entrega uma peça não há escolha a fazer, e um
+diálogo com a lista vazia seria um passo a mais entre o clique e o resultado.
+Ele é **montado quando a escolha acontece e desmontado na resposta**, e é isso
+que faz o rascunho nascer na sugestão daquele workflow em vez de um
+`useEffect` ressincronizando estado — que o `react-hooks/set-state-in-effect`
+do projeto reprova, e que é a decisão do editor de post, que se remonta por
+`key`.
+
+**E ele vem DEPOIS do `window.confirm` que avisa que as etapas de agora serão
+substituídas**, que é a ordem da 0128: perguntar o número e só então avisar que
+isto apaga o trabalho de agora seria pedir uma escolha para em seguida
+descobrir que ela pode ser cancelada.
+
+**A ABERTURA DE CAMPANHA NÃO PERGUNTA**, e a ausência é decisão: lá a árvore é
+plantada EDITÁVEL e o número se ajusta nela — a frase da 0122 outra vez. De
+quebra aquela tela já tem o `EditorDaComposicao` perguntando quantos materiais
+de cada tipo, e um segundo diálogo de quantidade ao lado dele seriam duas
+perguntas de número na mesma tela, em duas dimensões diferentes.
+
+##### E `duplicarWorkflow` NUNCA COPIOU O SEGUNDO NÍVEL
+
+Achado de passagem, e ele é da 0108: a ação copiava nome, função, prioridade,
+offset, aprovação e dependência — e **não `parent_ordem`**. Duplicar um
+workflow de dois níveis devolvia uma cadeia RETA, com as sub-etapas soltas no
+topo, sem erro em lugar nenhum. As duas colunas entraram na mesma linha.
+
+***O que fica dito em vez de escondido:*** **a bateria não foi rodada** — não
+há Docker nem Postgres local neste ambiente —, então as quatro recusas novas de
+`conferir_etapas_do_workflow()` não têm cenário de SQL; o que existe no lugar é
+o `select` de conferência no fim da migration. E o exemplo do protótipo ganhou
+um quarto workflow, "Catálogo de produtos", com **duas** etapas que multiplicam
+e não uma: com uma, a imagem do diálogo provaria que ele aparece e não que ele
+pergunta **um número por etapa**.
+
 #### E A CAMPANHA MANDAVA O ID DA CADEIA ONDE O WORKFLOW É PEDIDO
 
 Relato do usuário: *"quando aplico um workflow aparece que o workflow não foi

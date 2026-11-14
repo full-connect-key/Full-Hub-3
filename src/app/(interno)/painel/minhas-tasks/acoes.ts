@@ -7,6 +7,7 @@ import { driveConfigurado } from "@/lib/drive/config";
 import { listarClientes } from "@/lib/dados/clientes";
 import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import type { Vertente } from "@/lib/dominio/vertentes";
+import type { EtapaQueMultiplica } from "@/lib/dominio/workflows";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { listarWorkflows } from "@/lib/dados/workflows";
@@ -24,7 +25,12 @@ export type DetalheParaOPainel = {
   task: TaskCompleta;
   clientes: { id: string; nome_empresa: string }[];
   equipe: { id: string; nome: string; avatar_url: string | null }[];
-  tipos: { id: string; nome: string }[];
+  /**
+   * Os workflows da conta, com as etapas que entregam mais de uma peça
+   * (migration 0140): é por `multiplicam` que o seletor sabe se tem o que
+   * perguntar antes de aplicar.
+   */
+  tipos: { id: string; nome: string; multiplicam: EtapaQueMultiplica[] }[];
   /** As vertentes da conta desta demanda (0118) — todas, inclusive as inativas. */
   vertentes: Vertente[];
   urls: Record<string, string>;
@@ -87,7 +93,11 @@ export async function carregarDetalheDaTask(
         .filter((c) => c.ativo)
         .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa })),
       equipe: equipe.map((p) => ({ id: p.id, nome: p.nome, avatar_url: p.avatar_url })),
-      tipos: tipos.map((t) => ({ id: t.id, nome: t.nome })),
+      tipos: tipos.map((t) => ({
+        id: t.id,
+        nome: t.nome,
+        multiplicam: t.workflow?.multiplicam ?? [],
+      })),
       vertentes,
       urls,
       usuarioId: sessao.usuarioId,
