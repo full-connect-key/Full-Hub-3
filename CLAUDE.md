@@ -18737,6 +18737,50 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   primeiro quebra quando alguém acrescenta, e acrescentar é o que as migrations
   fazem. Onde der, aponte para uma coisa que nasceu; onde não der, prefira a
   isenção declarada à checagem que mente.
+
+  **E A TERCEIRA FORMA DE MENTIR É A COLAGEM QUE PULA O MEIO, que é o ponto
+  cego da própria convenção.** A regra escrita é apontar para a ÚLTIMA coisa
+  que o arquivo cria, para uma colagem que MORRE no caminho responder FALTA — e
+  ela protege exatamente contra isso. Ela é cega para a colagem que SALTA: a
+  0138 tem três passos independentes, o PASSO 1 e o PASSO 3 entraram, o PASSO 2
+  não, e o marcador no fim do arquivo dizia `ok` sobre um banco onde a trava
+  não existe.
+
+  **O que aquele passo carrega é a trava inteira da migration**, e foi medido:
+  a função no banco ainda trazia o comentário da 0137 e o gatilho tinha quatro
+  colunas no `update of` em vez de sete — então um pedido classificado como
+  Social carregava período e lista de materiais **em silêncio**, que é
+  precisamente o que a 0138 existe para recusar. **A colagem parcial não dá
+  erro em lugar nenhum**, porque os três passos não dependem um do outro: cada
+  um roda sozinho e o banco fica coerente com dois terços da regra.
+
+  Então a 0138 tem **duas linhas**, e duas por migration já era o padrão — a
+  0096 e a 0097 têm duas cada. A régua que sai disto: **passo de que nenhum
+  outro depende precisa da linha dele**; onde o objeto de um passo é
+  pré-requisito do seguinte, o marcador do fim já o cobre.
+
+  **E a linha da 0134 dizia FALTA num banco com a migration inteira
+  aplicada**, pelo motivo oposto: ela carregava a forma `tabela|gatilho` contra
+  o ramo `trigger`, que compara `tgname` com o nome EXATO e não parte no `|`.
+  **Uma linha que manda recolar uma migration já aplicada custa o mesmo que
+  uma que esconde a que falta** — nas duas o script responde com confiança
+  sobre um estado que não é o do banco, e `check:migrations` confere que a
+  linha EXISTE, nunca que ela diz a verdade.
+
+  **E A VERIFICAÇÃO QUE ENCONTROU ISSO NÃO FOI O MARCADOR, e é a lição que
+  sobra para o próximo pacote:** rodando só o script, as oito diziam `ok`
+  depois do conserto da 0134. Quem achou o PASSO 2 foi o inventário objeto por
+  objeto, PASSO a PASSO. **O marcador por migration responde se a colagem
+  chegou ao fim; quem responde se ela foi inteira é o inventário por passo** —
+  e é ele que se roda quando alguém diz que colou um pacote.
+
+  ***E um passo daquele pacote não dá para medir, o que fica dito em vez de
+  escondido:*** o PASSO 1 da 0136 converte o briefing estruturado em prosa, e
+  **nenhuma campanha do banco jamais teve qualquer uma das sete colunas
+  preenchida** — ele rodou sobre zero linha, e o banco tem a mesma cara com a
+  conversão aplicada e sem ela. É o `where` da capacidade da 0081 outra vez: o
+  zero é o que prova que a frase é verdadeira, e quem o confere é a leitura do
+  diff.
 - **O que verifica antes do deploy é o mesmo arquivo que roda no dia a dia.**
   `deploy.yml` chama `verificar.yml` por `workflow_call` em vez de repetir os
   passos. Uma cópia da checagem envelhece em silêncio, e a que protege a

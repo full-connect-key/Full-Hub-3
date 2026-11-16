@@ -875,8 +875,17 @@ from (
     -- um dos dois diria `ok` sobre uma colagem que morreu antes do fim -- e o
     -- PASSO 3 e justamente o que impede a policy nova de virar a porta para
     -- trocar o arquivo de uma entrega ja carimbada.
+    -- O MARCADOR E O NOME DO GATILHO E NADA MAIS, e a forma `tabela|gatilho`
+    -- que estava aqui dizia FALTA num banco com a 0134 inteira aplicada: o
+    -- ramo `trigger` compara `tgname` com o nome EXATO, sem partir no `|`.
+    -- Quem a encontrou foi a conferencia dos oito marcadores depois de o
+    -- usuario colar a 0133 a 0140 -- a 0134 foi a unica a responder FALTA, e
+    -- o gatilho estava de pe. E uma linha que manda recolar uma migration que
+    -- JA esta aplicada, que e o custo que o CLAUDE.md escreve para as cinco
+    -- linhas quebradas do pacote da 3K: `check:migrations` confere que a
+    -- linha EXISTE, nunca que ela diz a verdade.
     ('0134', 'a observacao da entrega', 'trigger',
-             'subtask_entregas|subtask_entregas_so_a_observacao'),
+             'subtask_entregas_so_a_observacao'),
 
     -- A FUNCAO NASCE NA 0135 e nao existia antes, entao `funcao` basta -- nao
     -- e o caso da 0132 nem da 0133, onde o objeto ja existia com outra regra
@@ -913,7 +922,25 @@ from (
     -- onde o cliente consegue pedir a campanha e o pedido dele fica parado em
     -- "Em analise" para sempre, porque a demanda de campanha nasce publicada
     -- e o vinculo e escrito depois.
-    ('0138', 'o cliente pede uma campanha', 'no_corpo',
+    -- SAO DUAS LINHAS PARA A 0138, e e a unica do arquivo cuja razao e um
+    -- estrago medido: o marcador apontava so para o PASSO 3 -- a ULTIMA coisa
+    -- que o arquivo cria, que e a convencao -- e disse `ok` num banco onde o
+    -- PASSO 2 nao havia entrado. Os tres passos sao independentes: a colagem
+    -- nao morreu no fim, ela PULOU o meio, e nenhum marcador no fim tem como
+    -- ver isso.
+    --
+    -- Quem a encontrou foi a conferencia por objeto depois de os oito serem
+    -- colados: as tres colunas de pe (PASSO 1), o ramo do meio de
+    -- `tasks_espelha_no_pedido` de pe (PASSO 3), e a funcao da classificacao
+    -- ainda com o comentario da 0137 -- ou seja o ramo 5 e o `update of` das
+    -- tres colunas faltando, com o pedido de social podendo carregar periodo e
+    -- lista de materiais em silencio.
+    --
+    -- Entao a 0138 responde por PASSO: um marcador no 2 e um no 3. Duas linhas
+    -- por migration ja e a forma da 0096 e da 0097.
+    ('0138', 'o cliente pede uma campanha (PASSO 2, a trava)', 'no_corpo',
+             'client_requests_classificacao|campanha_inicio'),
+    ('0138', 'o cliente pede uma campanha (PASSO 3, o espelho)', 'no_corpo',
              'tasks_espelha_no_pedido|old.request_id is null'),
     -- A 0139 CRIA DUAS TABELAS, UM BUCKET E DOIS GATILHOS, e o marcador e o
     -- gatilho que faz o arquivo herdar a conta da pasta -- a ULTIMA coisa que
