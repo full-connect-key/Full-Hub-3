@@ -52,12 +52,31 @@ select teste.cenario('Desenvolvedor tambem registra', :DIEGO,
     values (%L, %L)
   $fmt$, :OPTICA, :DIEGO), 'ok', 1);
 
--- O ponto da auditoria: registro que qualquer um forja nao registra nada.
-select teste.cenario('Colaboradora NAO registra visita -- ela nem alcanca o portal', :CARLA,
+-- A COLABORADORA REGISTRA, E ISTO ESTA VIRADO DO AVESSO PELA 0133.
+--
+-- Ela recusava, e o cenario dizia *"ela nem alcanca o portal"* -- verdade ate
+-- a 0133, que levou `/painel/portais` para a Principal e abriu a rota para
+-- `EQUIPE` por decisao do usuario: quem produz a peca tem a mesma pergunta de
+-- quem a distribui, *como isto chegou ao cliente?*.
+--
+-- E A MIGRATION E UMA LINHA, E ELA E SOBRE O RASTRO. Deixada em `is_gestor()`,
+-- a visita do colaborador voltaria SEM ERRO E SEM LINHA -- a escrita e
+-- `.select()`ada e o erro vai para o log --, a tela abriria do mesmo jeito, e
+-- o bloco "quem abriu o portal deste cliente" da ficha passaria a mentir POR
+-- OMISSAO. Uma trilha mais curta que a verdade e pior que trilha nenhuma: ela
+-- e consultada exatamente na conversa em que o cliente pergunta *"voces viram
+-- o que eu comentei?"*.
+--
+-- O QUE CONTINUA RECUSADO E O QUE A AUDITORIA PROTEGE, e sao os dois cenarios
+-- logo abaixo: forjar a visita de outra pessoa (`staff_user_id = auth.uid()`
+-- ficou) e o cliente registrar qualquer coisa. E LER continua `is_gestor()`,
+-- que e a assimetria inteira da 0133 -- escrever a propria visita e registrar
+-- o que eu fiz, ler a lista e saber quem andou vendo o portal de quem.
+select teste.cenario('A colaboradora registra a visita dela (0133)', :CARLA,
   format($fmt$
     insert into public.client_portal_views (client_id, staff_user_id)
     values (%L, %L)
-  $fmt$, :VERDE, :CARLA), 'recusa');
+  $fmt$, :VERDE, :CARLA), 'ok', 1);
 
 select teste.cenario('Ninguem registra visita em nome de outra pessoa', :DIEGO,
   format($fmt$
@@ -74,8 +93,9 @@ select teste.cenario('Cliente NAO registra visita', :JOANA,
 
 -- --- Quem le o registro ----------------------------------------------------
 
+-- TRES E NAO DUAS: a terceira e a visita da Carla, que a 0133 passou a gravar.
 select teste.cenario('Gestao le o registro inteiro', :ANA,
-  'select 1 from public.client_portal_views', 'ok', 2);
+  'select 1 from public.client_portal_views', 'ok', 3);
 
 select teste.cenario('Colaboradora nao le registro de visita', :CARLA,
   'select 1 from public.client_portal_views', 'ok', 0);

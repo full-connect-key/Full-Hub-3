@@ -270,8 +270,33 @@ select teste.cenario('Ninguem apaga nota paga -- nem a socia', :ANA,
   format($fmt$delete from public.team_invoices where user_id = %L and status = 'paga'$fmt$, :BRUNO),
   'ok', 0);
 
-select teste.cenario('Nem a recusada, que e o historico', :BRUNO,
+-- A RECUSADA SE APAGA DESDE A 0117, e este cenario esta virado do avesso.
+--
+-- Ele dizia *"nem a recusada, que e o historico"* -- a policy fechava em
+-- `status = 'enviada'`, com o argumento de que nota conferida e registro de
+-- uma decisao. A 0117 e decisao do usuario: *"permitir que o usuario que
+-- enviou uma NF possa exclui-la, apenas enquanto ela nao estiver como
+-- 'Paga'"*, e quem responde por esse registro e quem o emitiu.
+--
+-- O CORTE EM `paga` NAO E ARBITRARIO: E ONDE O DINHEIRO ENTRA. A transicao
+-- para paga grava em `finance_entries`, e a chave estrangeira mora do lado da
+-- NOTA -- apagar uma nota paga deixaria a despesa sozinha no Financeiro, um
+-- gasto que ninguem tem mais como explicar. E o cenario de cima que guarda
+-- isso, e ele continua recusando.
+--
+-- *O que isto custa, e a 0117 diz:* com a recusada sai o motivo que o socio
+-- escreveu. O caminho que guarda os dois e "Substituir", que grava a nova ao
+-- lado da antiga.
+select teste.cenario('A recusada se apaga, porque ela nao foi paga (0117)', :BRUNO,
   format($fmt$delete from public.team_invoices where user_id = %L and status = 'recusada'$fmt$, :BRUNO),
+  'ok', 1);
+
+-- E O QUE A 0117 NAO ABRIU: apagar continua sendo de quem emitiu, e so dele.
+-- A policy fecha em `user_id = auth.uid()`, entao nem a socia tira a nota de
+-- outra pessoa -- ela recusa ou paga, que sao as duas coisas que a tela dela
+-- faz. Sem este, afrouxar a policy para `is_socio()` passaria em branco.
+select teste.cenario('E nem a socia apaga a nota de outra pessoa', :ANA,
+  format($fmt$delete from public.team_invoices where user_id = %L$fmt$, :CARLA),
   'ok', 0);
 
 

@@ -18781,6 +18781,48 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   conversão aplicada e sem ela. É o `where` da capacidade da 0081 outra vez: o
   zero é o que prova que a frase é verdadeira, e quem o confere é a leitura do
   diff.
+- **HÁ POSTGRES NESTE AMBIENTE, E ISSO DESMENTE UMA FRASE REPETIDA EM VINTE
+  ENTREGAS.** Está escrito quatro vezes neste arquivo que *"não há Docker nem
+  Postgres local neste ambiente"*, e em cada uma delas a consequência declarada
+  é a mesma: a bateria não foi rodada, e o que existe no lugar é a medição
+  contra o Postgres de produção. **O Docker está aqui sem daemon, e o
+  PostgreSQL 16 está instalado inteiro** — `initdb`, `postgres` e `pg_ctl` em
+  `/usr/lib/postgresql/16/bin`, que não está no `PATH`, e é só isso que fazia a
+  frase parecer verdadeira. O cluster da bateria vive em
+  `/var/lib/postgresql/bateria`, na porta 5433, porque o usuário `postgres` do
+  sistema não atravessa o caminho do scratchpad — e é como `postgres` que ele
+  precisa subir.
+
+  **O QUE A PRIMEIRA RODADA ENCONTROU É A RAZÃO DE ISTO FICAR ESCRITO:** a
+  bateria **abortava na migration 0120 de 140**, nove entregas atrás, e a
+  Action vinha vermelha em dez rodadas seguidas — com `publicar-hostinger`
+  tendo `needs: verificar`, o webhook nunca era chamado e **o site não
+  atualizava**, por mais que a `main` andasse. Quatro causas, e nenhuma era do
+  produto: a `storage.buckets` do fixture sem as duas colunas que a 0120
+  escreve; `teste.limpar()` apagando as entregas antes das rodadas, contra a
+  trava da 0121; o schema `teste` sem `usage` para `authenticated`, o que fazia
+  **trinta e tantos cenários** reprovarem com *"permission denied for schema
+  teste"* desde que a 0128 pôs `teste.aprovador_de()` nos inserts; e dezoito
+  cenários velhos — a 0116, a 0117, a 0120, a 0128, a 0132 e a 0133 viraram do
+  avesso regras que ninguém tinha virado no arquivo de teste, mais quatro
+  cenários do arquivo da 0128, que nasceu e nunca rodou. **Hoje são 2391
+  cenários, todos passando**, e nenhuma linha de `src/` ou de
+  `supabase/migrations/` mudou para isso: o produto estava certo e a bateria
+  estava velha.
+
+  **E A LIÇÃO É O CUSTO DE UM TESTE QUE NÃO RODA.** Três dos quatro achados
+  são de cenários que afirmavam sem provar — inclusive um que media a parede
+  errada (a campanha de outra empresa em vez da frente) e outro escrito contra
+  uma frase que a função nunca escreveu (*"2 materiais"* num título que nomeia
+  o portão). *"Um teste que não separa a resposta certa da errada é um teste
+  que afirma sem provar"* está escrito aqui desde a idempotência da
+  recorrência; uma bateria que não roda é a mesma coisa, de uma vez, para todos
+  os cenários dela.
+
+  **Daqui para a frente toda migration pode ser medida de verdade**, e as
+  quatro ocorrências daquela frase ficam como estão: elas descrevem o que
+  aconteceu naquelas entregas, e reescrevê-las seria afirmar que a bateria
+  rodou quando ela não rodou. O que muda é a frase valer para a próxima.
 - **O que verifica antes do deploy é o mesmo arquivo que roda no dia a dia.**
   `deploy.yml` chama `verificar.yml` por `workflow_call` em vez de repetir os
   passos. Uma cópia da checagem envelhece em silêncio, e a que protege a

@@ -477,15 +477,34 @@ select teste.conferir(
     where tipo = 'aprovacao' and user_id = :ANA),
   '0');
 
--- E A OUTRA METADE, que e a entrega da 0098: quem decide aquela rodada e o
--- cliente, e e ele que recebe o aviso. A conta sai de `client_users` em vez de
--- um numero literal -- com `2` escrito aqui, acrescentar uma pessoa ao portal
--- da Mundo Verde derrubaria este cenario sem nada ter mudado de regra.
+-- E A OUTRA METADE, VIRADA DO AVESSO PELA 0128: o aviso e de UMA pessoa.
+--
+-- A 0098 fez a rodada de cliente percorrer `client_users` e tocar o sino de
+-- toda a empresa -- *"se eles receberam um mes de social, preciso que isso
+-- apareca"* --, e este cenario contava exatamente isso, lendo a tabela em vez
+-- de um literal. A 0128 nomeou quem recebe (`approval_rounds.aprovador_id`),
+-- e o aviso passou a ser dele: *nomear um aprovador e continuar cobrando todos
+-- seria um campo que nao decide nada*. Os outros continuam VENDO a peca no
+-- portal; o que eles deixam de receber e a cobranca.
+--
+-- E O CENARIO NAO VIROU O LITERAL `1`, que mediria menos do que o de cima
+-- media: a conta continua saindo do banco, e quem a responde agora e a propria
+-- rodada. Assim ele continua certo no dia em que alguem acrescentar uma pessoa
+-- ao portal da Mundo Verde -- e falha, dizendo qual, se o aviso voltar a ser
+-- da empresa inteira.
 select teste.conferir(
-  'E as pessoas da empresa sao avisadas (0098)',
+  'E quem recebe o aviso e a pessoa nomeada (0128)',
   (select count(*)::text from public.notifications
     where tipo = 'aprovacao' and user_id <> :ANA),
-  (select count(*)::text from public.client_users where client_id = :VERDE));
+  '1');
+
+select teste.conferir(
+  'E ela e a aprovadora da rodada, e nao outra pessoa da empresa',
+  (select n.user_id::text from public.notifications n
+    where n.tipo = 'aprovacao' and n.user_id <> :ANA),
+  (select r.aprovador_id::text from public.approval_rounds r
+    where r.content_id = 'dddddddd-0064-0000-0000-000000000001'
+      and r.numero_rodada = 2 and r.escopo = 'cliente'));
 
 -- ---------------------------------------------------------------------------
 -- SEM APROVADOR CONFIGURADO A ESCRITA PASSA, e este e o cenario que a 0062

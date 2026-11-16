@@ -145,10 +145,17 @@ select 'post', p.id, 1, 'interna', :BRUNO, 'aprovada', :DIEGO
   from public.posts p
  where p.client_id = :VERDE and p.tema = 'Instagram 1 de 3 · Novembro/2026';
 
+-- OS TRES INSERTS ABAIXO LEVAM `aprovador_id`, e e a 0128 alcancando este
+-- arquivo. Sem ele a trava daquela migration recusa PRIMEIRO -- *"Escolha quem
+-- vai aprovar este material"* --, e os tres cenarios passavam a medir a
+-- pergunta errada: dois recusavam pelo motivo de outra trava e o terceiro, que
+-- espera `ok`, simplesmente falhava. O aprovador sai de `teste.aprovador_de()`
+-- com o id da propria linha, porque aqui o `content_id` vem de um `select` e
+-- nao de um literal.
 select teste.recusa_com('Post sem data nao vai ao cliente', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    select 'post', p.id, 1, 'cliente', %L, 'pendente'
+    (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+    select 'post', p.id, 1, 'cliente', %L, 'pendente', teste.aprovador_de(p.id)
       from public.posts p
      where p.client_id = %L and p.tema = 'Instagram 1 de 3 · Novembro/2026'$fmt$,
     :DIEGO, :VERDE),
@@ -159,8 +166,8 @@ select teste.recusa_com('Post sem data nao vai ao cliente', :DIEGO,
 -- checagem que so le a mensagem.
 select teste.recusa_com_dica('E a recusa diz para escolher o dia antes', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    select 'post', p.id, 1, 'cliente', %L, 'pendente'
+    (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+    select 'post', p.id, 1, 'cliente', %L, 'pendente', teste.aprovador_de(p.id)
       from public.posts p
      where p.client_id = %L and p.tema = 'Instagram 1 de 3 · Novembro/2026'$fmt$,
     :DIEGO, :VERDE),
@@ -175,8 +182,8 @@ select teste.cenario('Quem produz escolhe o dia', :BRUNO,
 
 select teste.cenario('E agora ele vai ao cliente', :DIEGO,
   format($fmt$insert into public.approval_rounds
-    (content_type, content_id, numero_rodada, escopo, solicitado_por, status)
-    select 'post', p.id, 1, 'cliente', %L, 'pendente'
+    (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
+    select 'post', p.id, 1, 'cliente', %L, 'pendente', teste.aprovador_de(p.id)
       from public.posts p
      where p.client_id = %L and p.tema = 'Instagram 1 de 3 · Novembro/2026'$fmt$,
     :DIEGO, :VERDE),

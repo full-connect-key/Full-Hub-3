@@ -801,19 +801,40 @@ on conflict (id) do nothing;
 \set VERT_OPTICA '''ee110000-0000-0000-0000-000000000002'''
 
 -- ---------------------------------------------------------------------------
--- 1. A frente e exigida na abertura
--- ---------------------------------------------------------------------------
-select teste.recusa_com(
-  'Pedido sem classificacao e recusado', :JOANA,
+-- 1. A frente NAO e mais exigida na abertura (0137)
+--
+-- ESTES DOIS ESTAO VIRADOS DO AVESSO, e a propria 0137 escreveu que eles
+-- teriam de virar. Ela e uma reversao declarada da 0124 -- do mesmo usuario --,
+-- e de um ramo so: *"a nova solicitacao dentro do portal do cliente nao precisa
+-- ser social ou campanha necessariamente, o cliente deve poder especificar o
+-- que ele quer sem colocar em alguma categoria"*. O que saiu de
+-- `client_requests_classificacao` e o ramo que recusava o `insert` sem frente;
+-- a coluna, o enum, as duas coerencias, o indice, o chip da fila, a acao de
+-- classificar e o bloco do relatorio ficam inteiros.
+--
+-- E A FRENTE CONTINUA SENDO UMA DECLARACAO E NAO UMA CONTA, que e a linha
+-- central daquela migration: `campaign_id is not null ? 'campanha' : 'social'`
+-- continua errado, porque campanha nula nao quer dizer social. O que mudou e
+-- QUEM declara -- antes era sempre o cliente, na abertura; agora e o cliente OU
+-- o Atendimento, pela acao que a 0124 criou para o pedido anterior a ela.
+--
+-- OS RAMOS QUE FICARAM TEM CENARIO ABAIXO: a frente nao se ESVAZIA depois
+-- (secao 2), a campanha escolhida obriga a frente campanha (secao 4), e a
+-- vertente e da conta (secao 3). E a quinta recusa, a da 0138, tambem.
+select teste.cenario(
+  'Pedido sem classificacao PASSA desde a 0137', :JOANA,
   format($fmt$insert into public.client_requests (client_id, titulo)
               values (%L, 'Pedido sem frente')$fmt$, :VERDE),
-  'Social ou de Campanha');
+  'ok', 1);
 
-select teste.recusa_com_dica(
-  'E a dica diz por que ela importa', :JOANA,
-  format($fmt$insert into public.client_requests (client_id, titulo)
-              values (%L, 'Pedido sem frente, de novo')$fmt$, :VERDE),
-  'relatório');
+-- E ELE NASCE COM A FRENTE NULA, que e o estado que a fila pinta em ambar e
+-- que o bloco do Resumo da Agencia conta a parte. Sem esta linha, um default
+-- devolvido a coluna passaria em branco -- e o relatorio somaria o padrao em
+-- vez da resposta.
+select teste.conferir('E ele nasce sem frente nenhuma',
+  (select coalesce(frente::text, '(nula)') from public.client_requests
+    where client_id = :VERDE and titulo = 'Pedido sem frente'),
+  '(nula)');
 
 -- ---------------------------------------------------------------------------
 -- 2. Ela nao se esvazia, e TROCAR continua valendo
@@ -848,12 +869,30 @@ select teste.recusa_com(
 -- ---------------------------------------------------------------------------
 -- 3. Campanha escolhida obriga frente Campanha
 -- ---------------------------------------------------------------------------
+-- A CAMPANHA E DESTA SECAO, e ela nao reaproveita a `:OUTRA`: aquela e apagada
+-- de proposito la em cima, para provar que apagar a campanha deixa o pedido de
+-- pe -- com ela aqui, a recusa seria *"essa campanha nao existe"* e nao a desta
+-- secao. E tambem nao pode ser a `:CAMP`, que e da Mundo Verde: ali quem
+-- recusaria e a coerencia de conta da 0112. Entao e uma terceira, da Optica e
+-- viva, para a unica parede que sobra ser a frente.
+insert into public.campaigns (id, client_id, nome, data_inicio, data_fim, criado_por, status)
+values ('c1120000-0000-0000-0000-000000000003', :OPTICA, 'Wave da Optica II',
+        current_date, current_date + 10, :DIEGO, 'ativa')
+on conflict (id) do nothing;
+
+\set DELA '''c1120000-0000-0000-0000-000000000003'''
+-- A CAMPANHA E A DA PROPRIA CONTA, e esta troca e um achado de rodar a
+-- bateria: estava `:CAMP`, que e a Wave do Mundo Verde, num pedido da Optica
+-- -- entao o que recusava era a trava da 0112 (*"essa campanha e de outra
+-- empresa"*) e nao a desta secao. O cenario passava afirmando o que nao media,
+-- que e a licao da funcao do Rafael escrita vinte linhas acima. Com `:OUTRA`,
+-- que e a Wave da Optica, a unica parede que sobra e esta.
 select teste.recusa_com(
   'Pedido de social com campanha dentro e recusado', :OTTO,
   format($fmt$
     insert into public.client_requests (client_id, criado_por, titulo, campaign_id, frente)
     values (%L, %L, 'Social com campanha', %L, 'social')
-  $fmt$, :OPTICA, :OTTO, :CAMP),
+  $fmt$, :OPTICA, :OTTO, :DELA),
   'a frente é Campanha');
 
 -- O CONTRARIO NAO E TRAVA, e e o caso comum: o cliente pede uma acao nova, e

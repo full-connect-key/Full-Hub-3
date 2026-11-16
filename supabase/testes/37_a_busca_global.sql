@@ -207,17 +207,24 @@ select teste.conferir_como(
   '0');
 
 -- ---------------------------------------------------------------------------
--- O GRUPO "EQUIPE" SO RESPONDE PARA A GESTAO, e isto NAO e escolha da busca.
+-- O GRUPO "EQUIPE" RESPONDE PARA A EQUIPE INTEIRA DESDE A 0132, e isto NAO e
+-- escolha da busca -- continua nao sendo.
 --
--- `profiles_select` e `own or is_gestor()` desde o Sprint 2: um colaborador le
--- exatamente UM perfil, o dele. Entao buscar o nome de um colega devolve nada
--- para quem nao e gestao -- e a busca herda isso sem uma linha a respeito,
--- porque quem decide e a policy.
+-- O cenario dizia o contrario, e ele estava certo ate aquela migration:
+-- `profiles` tinha DUAS policies de SELECT, `own` e `is_gestor()`, entao um
+-- colaborador lia exatamente UM perfil -- o dele -- e buscar o nome de um
+-- colega devolvia nada. Estava escrito aqui que, se a regra tivesse de mudar,
+-- ela mudaria **na policy, num lugar, para as vinte telas que leem
+-- `profiles`**. Foi exatamente isso: a 0132 acrescentou
+-- `is_staff() and role <> 'cliente'`, e a busca acompanhou SEM UMA LINHA DE
+-- CODIGO -- porque `busca_global()` nao e `security definer`, justamente para
+-- a policy valer dentro dela.
 --
--- O cenario existe para o dia em que alguem achar que a busca esta quebrada e
--- "consertar" com `security definer`: isso nao consertaria a busca, abriria a
--- tabela de perfis da agencia inteira. Se a regra tiver que mudar, muda na
--- policy -- num lugar, para as vinte telas que leem `profiles`.
+-- E O CENARIO QUE IMPORTA CONTINUA EXISTINDO, virado: o colaborador acha o
+-- COLEGA e nao acha o CONTATO DE CLIENTE, que e o que a 0132 deixou de fora de
+-- proposito. Sem a segunda metade, trocar o recorte por um `is_staff()` solto
+-- -- ou "consertar" a busca com `security definer`, que era o medo original --
+-- passaria em branco entregando a carteira de contatos das contas.
 -- ---------------------------------------------------------------------------
 select teste.conferir_como(
   'a gestao acha a pessoa da equipe pelo nome',
@@ -226,16 +233,25 @@ select teste.conferir_como(
   '1');
 
 select teste.conferir_como(
-  'o colaborador NAO acha o colega -- e a policy de profiles, nao a busca',
+  'e o colaborador acha o colega tambem (0132)',
   :CARLA,
   'select count(*)::text from public.busca_global(''Marina'') where tipo = ''pessoa''',
-  '0');
+  '1');
 
 select teste.conferir_como(
-  'mas acha o proprio nome, que e o unico perfil que ele le',
+  'e o proprio nome, que ele sempre leu',
   :CARLA,
   'select count(*)::text from public.busca_global(''Carla'') where tipo = ''pessoa''',
   '1');
+
+-- O QUE A 0132 NAO ABRIU: o contato de CLIENTE. O recorte dela e
+-- `role <> 'cliente'`, e e esta linha que impede a equipe de ler a carteira de
+-- contatos das contas pela paleta de busca.
+select teste.conferir_como(
+  'mas NAO acha o contato de cliente -- o recorte da 0132',
+  :CARLA,
+  'select count(*)::text from public.busca_global(''Joana'') where tipo = ''pessoa''',
+  '0');
 
 -- O CLIENTE NAO ACHA NINGUEM DA EQUIPE. Duas travas independentes: a policy de
 -- `profiles` nao lhe da a linha, e o ramo filtra `role <> 'cliente'`, que tira

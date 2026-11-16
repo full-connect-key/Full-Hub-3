@@ -71,8 +71,23 @@ language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), 'authenticated')
 $$;
 
+-- AS DUAS ULTIMAS COLUNAS SAO O QUE A 0120 ESCREVE, e elas faltavam aqui:
+-- `allowed_mime_types` e `file_size_limit` existem na `storage.buckets` de
+-- verdade, e o `do $$` daquela migration guarda a TABELA
+-- (`to_regclass('storage.buckets') is null`) e nao as colunas -- entao num
+-- banco com a tabela simplificada ele estourava com *"column
+-- allowed_mime_types of relation buckets does not exist"*, derrubando a
+-- bateria inteira na migration 0120 de 140.
+--
+-- O CONSERTO E AQUI E NAO LA, e a direcao e a regra: este arquivo existe para
+-- SIMULAR o schema que o Supabase serve, e a migration esta certa sobre o
+-- banco de verdade. Alargar a guarda dela para tolerar uma tabela sem as
+-- colunas seria dobrar a trava de producao para caber no fixture -- e aí ela
+-- passaria calada no dia em que o Supabase renomeasse uma delas, que e
+-- exatamente o que ela existe para nao fazer.
 create table if not exists storage.buckets (
-  id text primary key, name text not null, public boolean not null default false
+  id text primary key, name text not null, public boolean not null default false,
+  allowed_mime_types text[], file_size_limit bigint
 );
 
 create table if not exists storage.objects (

@@ -191,7 +191,14 @@ select teste.cenario('Um post da conta sem portal', :ANA,
            '2027-04-12', '{instagram}', 'imagem', %L, %L, 'semp/arte.png')$fmt$,
     :SEMP, :ANA, :BRUNO), 'ok', 1);
 
-select teste.cenario('Com o aval interno aprovado', :ANA,
+-- QUEM PEDE O AVAL INTERNO E O BRUNO, e nao a Ana -- este cenario rodava como
+-- ela gravando `solicitado_por = :BRUNO`, e `approval_rounds_insert` e
+-- `is_staff() and solicitado_por = auth.uid()`: a RLS recusava, com razao, e a
+-- secao inteira caia atras dele. Era o ator errado e nao a regra: no produto
+-- quem abre a rodada interna e quem produziu (`dono_do_post()` desde a 0042),
+-- e o Bruno e o `responsavel_id` do post logo acima. Achado rodando a bateria
+-- -- este arquivo nasceu com a 0128 e nunca tinha rodado.
+select teste.cenario('Com o aval interno aprovado', :BRUNO,
   format($fmt$insert into public.approval_rounds
     (content_type, content_id, numero_rodada, escopo, status, solicitado_por,
      decidido_por, decidido_em)
@@ -448,10 +455,31 @@ select teste.conferir('As duas rodadas do lote nasceram no nome da Joana',
 -- E O AVISO DO LOTE E UM SO, para a aprovadora -- e nao um por peca, que e o
 -- ruido que a 0090 existiu para nao produzir, nem um por pessoa da empresa,
 -- que e o que a 0128 desfez. O gatilho de linha se cala quando ha `lote_id`.
+-- O TITULO NOMEIA O PORTAO E O CORPO CONTA AS PECAS, e os dois ficam em
+-- cenarios separados porque sao dois fatos. Este procurava `'2 materiais%'` no
+-- TITULO -- campo errado e palavra errada: `enviar_mes_ao_cliente()` escreve
+-- *"Pauta esta pronta para a sua aprovacao"* no titulo e *"2 pecas aguardando
+-- a sua decisao em ..."* no corpo. Nunca houve "materiais" ali. Era um cenario
+-- escrito contra uma frase imaginada, e ele contava zero afirmando que o aviso
+-- do lote nao sai.
 select teste.conferir('Um aviso do mes, e so para a Joana',
   (select count(*)::text from public.notifications
-    where user_id = :JOANA and titulo like '%para a sua aprovação'
-      and titulo like '2 materiais%'), '1');
+    where user_id = :JOANA and titulo like '%para a sua aprovação'), '1');
+
+select teste.conferir('E ele nomeia o portao, nao a peca',
+  (select titulo from public.notifications
+    where user_id = :JOANA and titulo like '%para a sua aprovação'),
+  'Pauta está pronta para a sua aprovação');
+
+-- E A CONTAGEM VIVE NO CORPO, que e o que separa o aviso do LOTE do aviso de
+-- uma peca: um por mes dizendo quantas, e nao dois dizendo uma cada. E a frase
+-- que criou o lote na 0090 -- *dezoito avisos para um envio e o caminho mais
+-- curto para o sino virar ruido*.
+select teste.conferir('E o corpo dele conta as duas pecas',
+  (select (corpo like '2 peças aguardando a sua decisão em %')::text
+     from public.notifications
+    where user_id = :JOANA and titulo like '%para a sua aprovação'),
+  'true');
 
 select teste.conferir('E o Paulo nao foi cobrado do mes',
   (select count(*)::text from public.notifications

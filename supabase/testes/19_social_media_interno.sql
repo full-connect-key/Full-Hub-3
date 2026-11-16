@@ -207,11 +207,16 @@ values ('post', :VIDEO, 1, 'interna', :BRUNO, 'aprovada', :DIEGO);
 
 -- O cliente abriria a tela para decidir sobre uma arte que nao existe -- e
 -- decidiria, porque o botao de aprovar estaria la.
-select teste.recusa_com('Video sem link nao vai ao cliente', :DIEGO,
+-- A FRASE MUDOU NA 0120, e com ela o nome do cenario: o video do post passou a
+-- poder ser ARQUIVO e nao so link (`posts.video_caminho` ao lado de
+-- `video_url`), entao a recusa deixou de nomear uma das duas saidas. Ela dizia
+-- *"este post e video e ainda nao tem o link"*, e dizer isso a quem acabou de
+-- subir um MP4 manda a pessoa procurar um campo que ela nao precisa preencher.
+select teste.recusa_com('Video sem video nenhum nao vai ao cliente', :DIEGO,
   format($fmt$insert into public.approval_rounds
   (content_type, content_id, numero_rodada, escopo, solicitado_por, status, aprovador_id)
   values ('post', %1$L, 1, 'cliente', %L, 'pendente', teste.aprovador_de(%1$L))$fmt$, :VIDEO, :DIEGO),
-  'ainda não tem o link');
+  'ainda não tem o vídeo');
 
 -- A DICA, E NAO SO A MENSAGEM. E o mesmo criterio de `tasks_sem_cancelada`:
 -- `atualizarPost` concatena o `hint` do Postgres na tela, e uma trava com a

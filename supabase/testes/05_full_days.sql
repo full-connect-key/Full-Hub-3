@@ -195,8 +195,13 @@ select teste.cenario('Bruno le os proprios pedidos', :BRUNO,
 select teste.cenario('Carla NAO le o pedido do Bruno', :CARLA,
   format('select 1 from public.hr_requests where user_id = %L', :BRUNO), 'ok', 0);
 
+-- SEIS E NAO QUATRO, e os dois a mais sao os cenarios que a 0116 acrescentou
+-- logo acima: o segundo e o terceiro periodo da Carla, que ate ali eram
+-- recusados pela trava de parcelas. A contagem ficou para tras porque a
+-- bateria nao foi rodada naquela entrega -- um numero escrito a mao num
+-- cenario de contagem envelhece a cada insert novo do arquivo.
 select teste.cenario('A gestao le todos', :DIEGO,
-  'select 1 from public.hr_requests', 'ok', 4);
+  'select 1 from public.hr_requests', 'ok', 6);
 
 
 -- --- Quem decide -----------------------------------------------------------
@@ -481,7 +486,15 @@ declare
     'O descanso pode ser partido',
     'O descanso e conquistado',
     'Saldo de descanso',
-    'then ''Descanso'''
+    'then ''Descanso''',
+    -- A TRAVA DE PARCELAS SAIU NA 0116, por decisao do usuario: *"nao vamos
+    -- trabalhar nesse esquema de parcelas, o periodo de 15 dias e corrido
+    -- durante o periodo de 1 ano"*. A frase era de uma trava de verdade --
+    -- `validar_solicitacao` recusava o terceiro pedido de um ciclo --, e ela
+    -- estava na lista do que TEM de estar, logo abaixo. Mudou de lista, que e
+    -- a forma desta casa: o que saiu do produto nao volta, e quem o garante e
+    -- a varredura e nao a lembranca de ninguem.
+    'O day off pode ser partido'
   ];
 begin
   foreach frase in array antigas loop
@@ -519,7 +532,6 @@ declare
     -- E A DICA QUE ELA GANHOU. Quem leva a recusa precisa saber QUANDO os dias
     -- voltam, senao a regra nova se lê como a antiga com um número menor.
     'O day off nao acumula',
-    'O day off pode ser partido',
     -- A FRASE DO PRIMEIRO CICLO (0074). Ela e a unica recusa do modulo que
     -- nomeia uma DATA em vez de contar numeros, e e o que separa "voce nao
     -- pode" de "voce ainda nao pode, e e em tal dia". Sem esta linha, alguem

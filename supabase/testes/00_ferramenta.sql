@@ -104,8 +104,31 @@ create or replace function teste.limpar() returns void language plpgsql as $$
 begin
   delete from public.task_history;
   delete from public.task_comentarios;
-  delete from public.subtask_entregas;
+  -- A RODADA SAI ANTES DA ENTREGA, e esta ordem e um achado da 0121.
+  --
+  -- `entrega_carimbada_nao_se_apaga()` recusa apagar uma entrega que ja
+  -- viajou numa rodada, e com a entrega saindo PRIMEIRO a limpeza levava a
+  -- recusa daquela trava -- a bateria inteira morria no segundo arquivo, com
+  -- uma mensagem sobre o historico de um material, dentro da propria
+  -- ferramenta de teste.
+  --
+  -- E O CARIMBO SE DESARMA SOZINHO QUANDO A RODADA SAI, que e por que a
+  -- ordem basta e nao ha nada a contornar: `subtask_entregas.approval_round_id`
+  -- e `on delete set null` desde a 0007, entao apagar `approval_rounds` zera
+  -- a coluna em toda entrega -- e o primeiro ramo do gatilho
+  -- (`old.approval_round_id is null then return old`) as deixa passar. Nao e
+  -- a trava sendo furada: e ela respondendo a verdade, porque a rodada de que
+  -- o carimbo falava nao existe mais.
+  --
+  -- E O `set null` NAO ESBARRA NA TRAVA DE UPDATE da 0134:
+  -- `entrega_so_muda_a_observacao()` deixa `approval_round_id` FORA da lista
+  -- de colunas protegidas, de proposito, e o comentario dela diz por que.
+  --
+  -- E a mesma mecanica do post do mes logo abaixo, vista do outro lado: la a
+  -- ordem tira o material antes da casca, aqui ela tira a casca antes do
+  -- material.
   delete from public.approval_rounds;
+  delete from public.subtask_entregas;
   delete from public.subtask_dependencies;
   delete from public.subtasks;
   -- O POST DE UM MES DE SOCIAL SAI ANTES DA DEMANDA, e esta linha e um achado
@@ -345,10 +368,39 @@ $$;
 -- que é o caminho que a equipe usa de verdade. Então é a MESMA função, com um
 -- `coalesce` a mais.
 -- ===========================================================================
+-- ELA E `security definer`, E E A UNICA DA FERRAMENTA QUE PRECISA SER.
+--
+-- Os cenarios rodam `set local role authenticated` (veja `teste.cenario`), e
+-- por dois motivos a funcao nao respondia nada dali:
+--
+--   1. o schema `teste` nao tinha `usage` para `authenticated`, entao a
+--      chamada morria em *"permission denied for schema teste"* -- e, como ela
+--      vive DENTRO do `insert` do cenario, a recusa era contada como se fosse
+--      a trava do produto. A bateria passou a reprovar trinta e tantos
+--      cenarios com uma mensagem sobre permissao de schema;
+--
+--   2. ela le `client_users` e `profiles`, que tem RLS. Como `invoker`, uma
+--      cliente ou um colaborador nao enxerga as linhas e o `select` devolve
+--      nulo -- a funcao levantaria *"a empresa nao tem ninguem com acesso ao
+--      portal"* sobre uma empresa que tem.
+--
+-- E ISSO NAO AFROUXA NADA DO QUE A BATERIA MEDE, que e a pergunta a fazer
+-- antes de escrever `security definer`: ela nao decide acesso nenhum -- ela
+-- CALCULA o uuid que o autor do cenario escreveria a mao, e as travas da 0128
+-- continuam inteiras do outro lado do `insert` (o nulo e a pessoa de outra
+-- conta sao recusados, e os cenarios do arquivo 47 medem as duas direto).
+--
+-- E A PORTA E UMA SO, que e a licao da 0071: `grant usage` no schema deixaria
+-- TODA funcao daqui ao alcance de um cenario -- inclusive `teste.limpar()`, e
+-- uma limpeza disparada no meio de um arquivo e a conveniencia de fixture
+-- ocupando o lugar do cenario, com o estado sumindo sem ninguem entender por
+-- que. O `revoke`/`grant` do fim do arquivo fecha tudo e abre esta.
 create or replace function teste.aprovador_de(p_id uuid)
 returns uuid
 language plpgsql
 stable
+security definer
+set search_path = public
 as $$
 declare
   conta uuid := coalesce(
@@ -377,3 +429,23 @@ begin
   return quem;
 end;
 $$;
+
+
+-- ===========================================================================
+-- A PORTA DO SCHEMA `teste`, E ELA E UMA SO
+--
+-- `teste.cenario` roda `set local role authenticated`, entao o comando do
+-- cenario precisa alcancar `teste.aprovador_de()` -- e so ela. O Postgres
+-- concede `execute` de toda funcao nova a `public` sozinho, entao `grant usage`
+-- no schema abriria as nove de uma vez: o `revoke` vem primeiro e o `grant`
+-- nomeia a unica que um cenario chama.
+--
+-- E a forma da 0071, onde `limpar_rascunhos_abandonados()` era `security
+-- definer` sem `revoke` e apagava todo rascunho da agencia para quem tivesse a
+-- chave anon. Aqui o estrago seria menor e da mesma familia: um cenario
+-- chamando `teste.limpar()` por engano, ou `teste.conferir()` forjando um
+-- resultado que ninguem conferiu.
+-- ===========================================================================
+grant usage on schema teste to authenticated;
+revoke all on all functions in schema teste from public, authenticated;
+grant execute on function teste.aprovador_de(uuid) to authenticated;
