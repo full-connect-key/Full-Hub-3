@@ -39,7 +39,11 @@ export type ResumoDaHome = {
   fora_hoje?: { nome: string; estado: string }[];
   /** Só para gestão — a função não devolve as duas para o resto. */
   pulso?: {
-    etapas_abertas?: number;
+    /* `etapas_abertas` SAIU (0141): o cartão passou a mostrar as etapas de
+       HOJE de quem olha, por `meu_dia.hoje`, e a contagem da agência inteira
+       ficou sem leitor — então ela saiu da função também, pela 0023. Um campo
+       declarado aqui que o banco não devolve é a deriva que `check:tipos`
+       existe para pegar um andar abaixo. */
     atrasadas?: number;
     concluidas_semana?: number;
     posts_com_cliente?: number;

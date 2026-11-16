@@ -220,7 +220,7 @@ export function DemonstracaoDeComponentes({
         descricao="Um número em destaque, com quatro tons. O tom é o par nomeado (fundo soft + texto), nunca opacidade — e o cartão inteiro vira o alvo quando tem link."
       >
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <CartaoDeNumero rotulo="Etapas abertas" valor={38} apoio="em demandas publicadas" />
+          <CartaoDeNumero rotulo="Minhas etapas de hoje" valor={2} apoio="previstas para hoje" />
           <CartaoDeNumero
             rotulo="Atrasadas"
             valor={5}

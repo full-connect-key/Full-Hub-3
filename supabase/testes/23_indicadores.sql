@@ -144,6 +144,48 @@ select teste.conferir_como('Nem os clientes em atencao', :BRUNO,
 select teste.conferir_como('A gestao recebe o pulso', :DIEGO,
   $q$select case when public.home_summary() ? 'pulso' then 'veio' else 'nao veio' end$q$, 'veio');
 
+
+-- --- 2b. CLIENTE PARADO E DE ATENDIMENTO E SOCIO (0141) -------------------
+--
+-- Decisao do usuario: "restringir o bloco do Dashboard aos perfis de
+-- Atendimento e Socio; os demais nao veem".
+--
+-- OS TRES CENARIOS SAO UM SO EM TRES PESSOAS, e e o conjunto que prova a
+-- regra: a CARLA ganhou (colaboradora do Atendimento, que antes nunca
+-- recebia o bloco porque ele morava depois do `if not gestao`), o DIEGO
+-- perdeu (desenvolvedor, que e exatamente quem o pedido tira), e a ANA
+-- continua. Medindo um so, `ve_clientes_parados()` podia estar devolvendo
+-- `is_atendimento()` -- que acerta a Carla e a Ana e erra o Diego -- ou
+-- `is_gestor()`, que acerta os dois ultimos e erra a primeira.
+
+select teste.conferir_como('O Atendimento passou a ver o cliente parado', :CARLA,
+  $q$select case when public.home_summary() ? 'clientes_em_atencao'
+               then 'veio' else 'nao veio' end$q$, 'veio');
+
+-- VIRADO DO AVESSO: ate a 0141 este dizia 'veio'. Se alguem devolver
+-- `is_gestor()` ao predicado, e este cenario que cai e diz quem voltou.
+select teste.conferir_como('E o desenvolvedor deixou de ver', :DIEGO,
+  $q$select case when public.home_summary() ? 'clientes_em_atencao'
+               then 'veio' else 'nao veio' end$q$, 'nao veio');
+
+select teste.conferir_como('O socio continua vendo', :ANA,
+  $q$select case when public.home_summary() ? 'clientes_em_atencao'
+               then 'veio' else 'nao veio' end$q$, 'veio');
+
+-- A CHAVE MORTA SAIU DO PULSO, e este cenario e o que impede o `select
+-- count(*)` de voltar: com o cartao mostrando as etapas de HOJE de quem olha
+-- (`meu_dia.hoje`, que a 0049 ja calculava), a contagem da agencia inteira
+-- ficou sem leitor -- e `export`/chave sem leitor e o que a 0023 apaga.
+select teste.conferir_como('O pulso nao devolve mais a contagem da agencia', :ANA,
+  $q$select case when (public.home_summary() -> 'pulso') ? 'etapas_abertas'
+               then 'veio' else 'nao veio' end$q$, 'nao veio');
+
+-- E O NUMERO QUE O CARTAO PASSOU A MOSTRAR CONTINUA LA. Sem este, apagar
+-- `meu_dia` inteiro tambem passaria pelos quatro de cima.
+select teste.conferir_como('E continua devolvendo as etapas de hoje de quem olha', :ANA,
+  $q$select case when (public.home_summary() -> 'meu_dia') ? 'hoje'
+               then 'veio' else 'nao veio' end$q$, 'veio');
+
 -- E A FILA DE APROVACAO E DE QUEM DECIDE. Para o colaborador o numero e zero
 -- porque a policy de `approval_rounds` nao devolve a linha -- nao porque um
 -- `if` a escondeu.

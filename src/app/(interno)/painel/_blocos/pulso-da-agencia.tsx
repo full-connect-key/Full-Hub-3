@@ -12,15 +12,30 @@ import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
 import type { ResumoDaHome } from "@/lib/dados/home";
 
 /**
- * O panorama da agência, só para a gestão.
+ * O panorama da agência, só para a gestão — e o primeiro cartão é de quem olha.
  *
  * ---------------------------------------------------------------------------
- * CINCO NÚMEROS, E TODOS CONTAM SÓ AS FOLHAS
+ * CINCO NÚMEROS, E QUATRO SÃO DA AGÊNCIA
  *
- * A agrupadora fica de fora de "etapas abertas" e de "atrasadas" pela mesma
- * razão de sempre: quem tem filha para de ser unidade de trabalho, e contá-la
- * faria a agência parecer ter mais trabalho aberto do que tem. Quem aplica o
- * filtro é `home_summary()`, num lugar só — este bloco desenha o que recebe.
+ * O primeiro deixou de ser (0141), por decisão do usuário: *"somente etapas
+ * do usuário logado, somente as previstas para o dia atual"*. Ele contava as
+ * etapas abertas da agência inteira em qualquer data, e 38 etapas de todo
+ * mundo em todas as datas não pedem ação de ninguém.
+ *
+ * ***E ISSO DEIXA A FILEIRA MISTA, o que é dito em vez de escondido:*** um
+ * cartão pessoal ao lado de quatro da agência. A alternativa era um sexto
+ * cartão, e aí a fileira teria o número da agência que ninguém usava mais; ou
+ * pôr o pessoal noutro lugar da tela, e aí ele não estaria onde ele foi
+ * pedido. O que mantém a leitura honesta é o RÓTULO de cada um: "Minhas
+ * etapas de hoje" não se confunde com "Atrasadas".
+ *
+ * ---------------------------------------------------------------------------
+ * E TODOS CONTAM SÓ AS FOLHAS
+ *
+ * A agrupadora fica de fora pela razão de sempre: quem tem filha para de ser
+ * unidade de trabalho, e contá-la faria a agência parecer ter mais trabalho
+ * aberto do que tem. Quem aplica o filtro é `home_summary()`, num lugar só —
+ * este bloco desenha o que recebe.
  *
  * **E rascunho não entra em nenhum deles.** Um rascunho é um pensamento pela
  * metade, e se ele contasse aqui o número mudaria quando alguém desistisse de
@@ -39,9 +54,31 @@ import type { ResumoDaHome } from "@/lib/dados/home";
  */
 export function PulsoDaAgencia({
   dados,
+  minhasDeHoje,
   alertasDeCarga = [],
 }: {
   dados: ResumoDaHome["pulso"];
+  /**
+   * AS ETAPAS DE HOJE DE QUEM ESTÁ OLHANDO — decisão do usuário: *"somente
+   * etapas do usuário logado, somente as previstas para o dia atual, sem
+   * etapas de outras pessoas nem de datas futuras. O clique abre a relação
+   * dessas etapas."*
+   *
+   * **O número já era calculado e ninguém o desenhava.** `home_summary()`
+   * devolve `meu_dia.hoje` desde a 0049, com exatamente este recorte — só as
+   * minhas, só `prazo = hoje`, só folha, rascunho fora. A tela lia dali
+   * apenas `semana`, para a frase do "e mais N"; `hoje` e `atrasadas`
+   * atravessavam a consulta e morriam. É a ponte construída e nunca
+   * atravessada, e é por isso que esta entrega não tem migration.
+   *
+   * ***E ISTO CUSTA O NÚMERO DA AGÊNCIA, que é dito em vez de escondido:***
+   * o cartão contava as etapas abertas da agência inteira, em qualquer data.
+   * Aquele número deixa de aparecer aqui — ele continua respondido pelo board
+   * de Gestão de Tasks e pelo "o que ficou para trás" do Resumo da Agência.
+   * O que se ganha é um cartão que decide alguma coisa para quem o lê: 38
+   * etapas de todo mundo em todas as datas não pedem ação de ninguém.
+   */
+  minhasDeHoje: number;
   /**
    * OS SINAIS DE DISTRIBUIÇÃO DE TRABALHO (Sprint 3H), e eles vêm ANTES dos
    * cinco cartões — não como um sexto.
@@ -92,11 +129,22 @@ export function PulsoDaAgencia({
       </h2>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {/* O RÓTULO TROCOU JUNTO COM A CONTA, e não podia não trocar:
+            "Etapas abertas" contando só as de hoje seria o cartão mentindo
+            sobre o próprio número — quem lesse 2 ali concluiria que a agência
+            tem duas etapas em aberto.
+
+            E O CLIQUE VAI PARA A LISTA, não para o board. "O clique abre a
+            relação dessas etapas" é a segunda metade do pedido, e o board de
+            Gestão de Tasks lista DEMANDAS: era a mesma troca de unidade que o
+            cartão de "Atrasadas" já documenta logo abaixo. `?foco=hoje` é o
+            filtro que Minhas Tasks já tem na URL, então o número e a lista
+            saem da mesma pergunta — nenhuma conta nova. */}
         <CartaoDeNumero
-          rotulo="Etapas abertas"
-          valor={dados.etapas_abertas ?? 0}
-          apoio="em demandas publicadas"
-          href="/painel/gestao-tasks"
+          rotulo="Minhas etapas de hoje"
+          valor={minhasDeHoje}
+          apoio="previstas para hoje"
+          href="/painel/minhas-tasks?foco=hoje"
         />
         {/* O CARTAO LEVA O FILTRO, e nao o board inteiro (decisao do
             usuario: "quero que ao clicar no botao de atrasadas, ele me mostre

@@ -241,13 +241,33 @@ export default async function PaginaInicialDoPainel() {
             quantosAnteriores={Math.max(0, meusFeedbacks_lista.length - 1)}
           />
 
+          {/* "CLIENTE PARADO" SAIU DE DENTRO DO PORTÃO DA GESTÃO (0141).
+
+              Decisão do usuário: *"restringir o bloco do Dashboard aos
+              perfis de Atendimento e Sócio; os demais não veem"*. Aqui ele
+              estava dentro do `{gestao ? …}`, então alcançava o
+              desenvolvedor — que é quem o pedido tira — e **nunca** alcançou
+              o colaborador do Atendimento, que é quem liga para a conta
+              parada.
+
+              **E a tela não pergunta o perfil**, de propósito: quem decide é
+              `ve_clientes_parados()`, dentro de `home_summary()`, e o
+              componente já devolve `null` quando a lista não vem. Repetir a
+              pergunta aqui seria o segundo lugar onde ela pode divergir — e o
+              que divergiria é este, porque ninguém o relê ao mexer no
+              predicado. É a 0060 pelo lado bom. */}
+          <ClientesEmAtencao clientes={resumo.clientes_em_atencao} />
+
           {gestao ? (
             <>
               <PulsoDaAgencia
                 dados={resumo.pulso}
+                /* AS ETAPAS DE HOJE DE QUEM OLHA, e não as da agência (0141).
+                   O número já vinha na mesma resposta desde a 0049 e nenhuma
+                   tela o abria — a ponte construída e nunca atravessada. */
+                minhasDeHoje={resumo.meu_dia?.hoje ?? 0}
                 alertasDeCarga={alertasDeCargaAbertos}
               />
-              <ClientesEmAtencao clientes={resumo.clientes_em_atencao} />
 
               {/* A GRADE DE PORTAIS DE CLIENTES SAIU DAQUI, e virou um item
                   da barra lateral — decisão do usuário: *"tire a lista de

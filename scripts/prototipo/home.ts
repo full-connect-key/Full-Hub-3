@@ -52,7 +52,6 @@ export async function resumoDaHome(): Promise<ResumoDaHome> {
   return {
     ...base,
     pulso: {
-      etapas_abertas: 38,
       atrasadas: 5,
       concluidas_semana: 17,
       posts_com_cliente: 6,

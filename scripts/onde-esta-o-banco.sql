@@ -956,7 +956,19 @@ from (
     -- editor, e a RPC que a tela chama ao aplicar devolvendo sem ela -- a
     -- quantidade perdida exatamente na hora de materializar.
     ('0140', 'a etapa entrega N pecas', 'no_corpo',
-             'etapas_resolvidas_do_workflow|e.quantidade')
+             'etapas_resolvidas_do_workflow|e.quantidade'),
+    -- A 0141 CRIA UMA FUNCAO e reescreve `home_summary` -- e e a reescrita a
+    -- ULTIMA coisa do arquivo. Um marcador em `ve_clientes_parados` diria `ok`
+    -- sobre o banco em que ela existe e ninguem a chama: o Inicio continuaria
+    -- mandando as etapas abertas da agencia e continuaria escondendo o cliente
+    -- parado do colaborador do Atendimento, que sao as duas metades do pedido.
+    --
+    -- E e por PRESENCA e nao por ausencia: a chamada E a coisa nova, e
+    -- marcador por ausencia envelhece quando alguem acrescenta -- e
+    -- acrescentar e o que as migrations fazem (a licao das cinco linhas
+    -- quebradas do pacote da 3K).
+    ('0141', 'o inicio responde sobre quem olha', 'no_corpo',
+             'home_summary|ve_clientes_parados')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

@@ -4704,6 +4704,91 @@ bloco existe. Uma entrada ali reprovaria o vocabulário do próprio projeto, que
 Pulse" de pé e "Pulso da agência" fora. Medido com mutação: devolvendo o nome
 antigo ao dump, ele falha e diz qual.
 
+##### E O PRIMEIRO CARTÃO DO PULSO PASSOU A SER DE QUEM OLHA (0141)
+
+Decisão do usuário: *"o campo Etapas Abertas deve considerar somente etapas do
+usuário logado, somente as previstas para o dia atual, sem etapas de outras
+pessoas nem de datas futuras. O clique abre a relação dessas etapas."*
+
+**O NÚMERO JÁ ERA CALCULADO E NINGUÉM O DESENHAVA.** `home_summary()` devolve
+`meu_dia` com `{atrasadas, hoje, semana}` desde a 0049, e o recorte de `hoje` é
+exatamente o que ele descreve — só as minhas (`s.responsavel_id = eu`), só
+`prazo = hoje`, só folha, rascunho fora. A tela lia dali apenas `semana`, para
+a frase do *"e mais N esta semana"*; `hoje` e `atrasadas` atravessavam a
+consulta e morriam. **É a ponte construída e nunca atravessada pela vigésima
+segunda vez**, e é por isso que o lado da TELA desta entrega não precisava de
+migration nenhuma.
+
+***E O QUE A MIGRATION FAZ É O CONTRÁRIO: ela APAGA a conta antiga.***
+`pulso.etapas_abertas` contava as etapas abertas da agência inteira em qualquer
+data, e com o cartão trocado ela ficou **sem leitor** — a 0023 em uma linha. E
+não é só economia de consulta: um campo que nenhuma tela lê é o que alguém
+reaproveita três sprints depois achando que ele ainda diz a verdade sobre o
+cartão daquele nome. Ele saiu do `jsonb`, do tipo em `lib/dados/home.ts` e do
+stub do protótipo **no mesmo commit** — um campo declarado que o banco não
+devolve é a deriva que o `check:tipos` existe para pegar.
+
+**O RÓTULO TROCOU JUNTO, e não podia não trocar:** "Etapas abertas" contando só
+as de hoje seria o cartão mentindo sobre o próprio número — quem lesse 2 ali
+concluiria que a agência tem duas etapas em aberto. Ele é **"Minhas etapas de
+hoje"**, que é a frase que o pedido descreve.
+
+***E ISSO DEIXA A FILEIRA MISTA, o que é dito em vez de escondido:*** um cartão
+pessoal ao lado de quatro da agência. As duas alternativas eram piores — um
+sexto cartão deixaria na fileira o número da agência que ninguém mais usa, e pôr
+o pessoal noutro lugar da tela o tiraria de onde ele foi pedido. O que mantém a
+leitura honesta é o RÓTULO de cada um: "Minhas etapas de hoje" não se confunde
+com "Atrasadas".
+
+**E O CLIQUE VAI PARA A LISTA, não para o board**, que é a segunda metade do
+pedido: `/painel/minhas-tasks?foco=hoje`. O board de Gestão de Tasks lista
+DEMANDAS — era a mesma troca de unidade que o cartão de "Atrasadas" já
+documenta logo ao lado dele —, e `?foco=hoje` é o filtro que Minhas Tasks já
+tem na URL desde o Sprint 4: **o número e a lista saem da mesma pergunta**,
+nenhuma conta nova. *De quebra isso conserta um beco:* o cartão não levava a
+lugar nenhum.
+
+##### E O CLIENTE PARADO PASSOU A SER DO ATENDIMENTO TAMBÉM (0141)
+
+Decisão do usuário, na mesma lista: *"os clientes parados devem aparecer e
+notificar somente o Atendimento e os Sócios"*.
+
+**METADE NÃO TINHA REFERENTE, E A OUTRA ESTAVA NO LUGAR ERRADO.** O bloco
+`clientes_em_atencao` era montado DEPOIS do `if not gestao then return r;` de
+`home_summary()` — ou seja, ele chegava ao desenvolvedor e ao sócio, e **nunca
+ao colaborador do Atendimento**, que é justamente quem o pedido nomeia. Com o
+bloco movido para antes daquela linha, a pergunta passou a ser própria.
+
+**É `ve_clientes_parados()` E NÃO UM `if` NO CORPO, porque vale nos DOIS
+lugares:** o banco decide quem recebe o bloco e a tela decide se o desenha, e
+duas respostas para *"quem vê cliente parado"* divergiriam no dia em que
+alguém mexesse numa — é a lição da 0029. **E ela NÃO é `is_atendimento()`**,
+que é a função pronta e a tentação óbvia: aquela é verdadeira para a gestão
+inteira desde a 0003, **o desenvolvedor incluído — que é precisamente quem este
+pedido tira**. A nova é `is_socio() or (funcao = 'Atendimento' and p.ativo)`.
+
+**E A PERGUNTA DA TELA NÃO É UM SEGUNDO PORTÃO.** `page.tsx` desenha
+`ClientesEmAtencao` sem perguntar perfil nenhum: quem decide é a função, e o
+bloco simplesmente não vem no `jsonb` de quem não o alcança — então a lista
+vazia já não é desenhada pela regra dos blocos de exceção desta tela. É a 0060
+pelo lado bom: a primeira pergunta já barra todo mundo que deve ser barrado, e
+uma segunda embaixo dela não barraria ninguém e seria o lugar onde as duas
+divergem.
+
+***E A NOTIFICAÇÃO NÃO EXISTE, o que é dito em vez de inventado:***
+`notification_tipo` tem oito valores e nenhum deles é cliente parado — nenhuma
+migration jamais criou um, e `notificar()` nunca foi chamada com isso. "Parado"
+é uma pergunta sobre uma DATA que passou, não um evento com instante: não há
+escrita que a dispare, então ela seria uma varredura diária, dependente do
+`pg_cron` (0072) e de uma decisão de cadência que ninguém tomou. O que a 0141
+entrega é a metade que a tela responde, e esta frase é a outra.
+
+**Medido por perfil contra o Postgres**, antes e depois: a Carla (colaboradora
+do Atendimento) **ganhou** o bloco, o Diego (desenvolvedor) **perdeu**, a Ana
+(sócia) manteve, e os outros colaboradores continuam sem. **E os seis cenários
+da bateria medem os três juntos**, mais as duas chaves: medindo só um, uma
+função que devolvesse `is_atendimento()` ou `is_gestor()` passaria.
+
 #### A seta de voltar, e as nove cópias que ela desfez
 
 `components/shared/voltar.tsx`. Decisão do usuário: *"adicionar uma seta de
