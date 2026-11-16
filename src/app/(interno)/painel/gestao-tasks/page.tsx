@@ -4,8 +4,7 @@ import { Suspense } from "react";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { filaDeAprovacoes, type FilaDeAprovacoes } from "@/lib/dados/aprovacoes";
-import { listarClientes } from "@/lib/dados/clientes";
-import { assinarArquivos, enderecoDaArte } from "@/lib/dados/conteudo";
+import { listarClientes, logosDasContas } from "@/lib/dados/clientes";
 import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import { pastasPadraoDasContas } from "@/lib/dados/fluxo-do-cliente";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
@@ -85,37 +84,27 @@ async function clientesAtivos() {
 }
 
 /**
- * AS CONTAS COM A FOTO DE CADA UMA — o seletor de cliente da barra de filtros.
+ * AS CONTAS COM O LOGO DE CADA UMA — o seletor de cliente da barra de filtros.
  *
  * Decisão do usuário: *"no filtro de clientes apareça a foto deles"*. É o
  * mesmo pedido que pôs o rosto no seletor de Responsável, um filtro ao lado —
  * e a resposta é a mesma peça: `FilterBar` já desenha `avatar` por opção.
  *
- * ---------------------------------------------------------------------------
- * **A COLUNA JÁ EXISTIA E PRECISA SER ASSINADA.** `clients.logo_url` nasceu na
- * 0002 e `listarClientes()` faz `select("*")`, então ela já chega aqui — o que
- * falta é o endereço: o logo mora no bucket PRIVADO `campanhas-arquivos`, e
- * caminho de bucket num `src` é o navegador pedindo ao próprio site e levando
- * 404. Quem assina é `assinarArquivos`, numa ida só para a lista inteira.
- *
- * **ELA É SEPARADA DE `clientesAtivos()` pela razão escrita ali embaixo:**
- * aquela serve três abas, e a assinatura é uma ida ao Storage que duas delas
- * não precisam — o seletor de Workflows e o editor de recorrência não desenham
- * foto nenhuma. É a mesma decisão de `clientesComPasta()`.
- *
- * E ela parte de `listarClientes()`, que é `cache`: a aba já a chama, então
- * não há segunda ida ao banco — só a do Storage.
+ * **A ASSINATURA SAIU DAQUI e virou `logosDasContas()`**, em
+ * `lib/dados/clientes.ts`: ela nasceu aqui para uma tela e hoje são quatro —
+ * a lista de Clientes, o índice do Social e a grade de Portais fazem a mesma
+ * pergunta —, e a terceira cópia é onde elas divergem. O que fica aqui é o
+ * casamento com `clientesAtivos()`, que é desta tela.
  */
 async function contasComFoto() {
-  const clientes = (await listarClientes()).filter((c) => c.ativo);
-  const assinadas = await assinarArquivos(
-    "campanhas-arquivos",
-    clientes.map((c) => c.logo_url),
-  );
+  const [clientes, logos] = await Promise.all([
+    clientesAtivos(),
+    logosDasContas(),
+  ]);
   return clientes.map((c) => ({
     id: c.id,
     nome_empresa: c.nome_empresa,
-    fotoAssinada: enderecoDaArte(c.logo_url, assinadas),
+    fotoAssinada: logos.get(c.id) ?? null,
   }));
 }
 

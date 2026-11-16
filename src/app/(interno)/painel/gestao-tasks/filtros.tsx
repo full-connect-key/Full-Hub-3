@@ -244,18 +244,27 @@ export function BarraDeFiltrosDeTask({
           // na lista, o logo é o que faz achar sem ler, que é o argumento do
           // rosto no seletor de Responsável logo abaixo.
           //
-          // **E O CÍRCULO APARECE MESMO SEM LOGO, com as iniciais da
+          // **E O LADRILHO APARECE MESMO SEM LOGO, com as iniciais da
           // empresa** — ao contrário da capa do portal, que não desenha nada
           // quando a conta não subiu nenhum. A diferença é que lá é UMA
-          // identidade num cabeçalho, onde um círculo a menos não custa nada,
-          // e aqui são vinte e oito opções numa coluna: metade com círculo e
+          // identidade num cabeçalho, onde um ladrilho a menos não custa nada,
+          // e aqui são vinte e oito opções numa coluna: metade com marca e
           // metade sem deixa a margem esquerda irregular, e é justamente por
           // ela que o olho desce a lista. "MV" é um signo de verdade, que é o
           // que o produto já faz com quem não tem foto.
+          //
+          // **E `forma: "conta"` É O QUE TIRA O RECORTE**: até aqui o logo
+          // vinha num CÍRCULO com `object-cover`, igual ao rosto da pessoa, e
+          // um wordmark ali perde 45% da largura — o recorte que o pedido do
+          // logo proíbe. A régua inteira está em `LogoDaConta`.
           options: clientes.map((c) => ({
             value: c.id,
             label: c.nome_empresa,
-            avatar: { nome: c.nome_empresa, src: c.fotoAssinada },
+            avatar: {
+              nome: c.nome_empresa,
+              src: c.fotoAssinada,
+              forma: "conta" as const,
+            },
           })),
         },
         // A VERTENTE SÓ APARECE COM O CLIENTE ESCOLHIDO E A CONTA TENDO

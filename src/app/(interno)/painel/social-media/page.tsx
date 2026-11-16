@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
-import { listarClientes } from "@/lib/dados/clientes";
+import { listarClientes, logosDasContas } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import {
@@ -161,12 +161,17 @@ async function Indice({ parametros }: { parametros: Parametros }) {
   // virado tela: clientes, equipe e fluxos alimentavam o diálogo, e o índice
   // as carregava em toda visita para um diálogo que quase ninguém abria. Agora
   // elas são de `/painel/social-media/abrir`, que é quem as usa.
-  const [meses, podeAbrirMes] = await Promise.all([
+  const [meses, podeAbrirMes, logos] = await Promise.all([
     mesesDeSocialDaAgencia(situacao, conta ?? undefined),
     // QUEM ABRE O MÊS É `is_atendimento()` desde a 0046, e a pergunta vai ao
     // BANCO pela mesma função que a policy usa — perfil de acesso e função na
     // agência são coisas diferentes, e o colaborador do Atendimento abre o mês.
     souDoAtendimento(),
+    // O LOGO DE CADA CONTA, assinado — o ladrilho do cartão desenhava as
+    // INICIAIS, por uma função própria que era a mesma conta de `iniciaisDe()`
+    // escrita duas vezes. A assinatura é uma ida ao Storage a mais nesta aba,
+    // e é por isso que ela não mora dentro de `listarClientes()`.
+    logosDasContas(),
   ]);
 
   return (
@@ -175,6 +180,7 @@ async function Indice({ parametros }: { parametros: Parametros }) {
       situacao={situacao}
       contaFixada={conta}
       podeAbrirMes={podeAbrirMes}
+      logos={Object.fromEntries(logos)}
     />
   );
 }

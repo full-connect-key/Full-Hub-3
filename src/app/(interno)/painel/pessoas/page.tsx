@@ -5,7 +5,7 @@ import { Plus, UserPlus } from "lucide-react";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { Button } from "@/components/ui/button";
 import { exigirAcessoARota } from "@/lib/auth/dal";
-import { listarClientes } from "@/lib/dados/clientes";
+import { listarClientes, logosDasContas } from "@/lib/dados/clientes";
 import { listarEquipe, listarEquipeAtiva } from "@/lib/dados/equipe";
 
 import { AbasDePessoas } from "./abas";
@@ -43,8 +43,22 @@ async function Conteudo({ aba }: { aba: Aba }) {
     return <ListaDaEquipe equipe={equipe} />;
   }
 
-  const [clientes, equipe] = await Promise.all([listarClientes(), listarEquipeAtiva()]);
-  return <ListaDeClientes clientes={clientes} equipe={equipe} />;
+  // O LOGO DE CADA CONTA vem assinado daqui (`logosDasContas`): ele mora no
+  // bucket privado, e caminho de bucket num `src` e o navegador pedindo ao
+  // proprio site. E ele e uma ida ao Storage a mais nesta aba — a razao de a
+  // assinatura nao morar dentro de `listarClientes()`, que serve seis telas.
+  const [clientes, equipe, logos] = await Promise.all([
+    listarClientes(),
+    listarEquipeAtiva(),
+    logosDasContas(),
+  ]);
+  return (
+    <ListaDeClientes
+      clientes={clientes}
+      equipe={equipe}
+      logos={Object.fromEntries(logos)}
+    />
+  );
 }
 
 export default async function PaginaDePessoas({

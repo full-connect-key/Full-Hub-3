@@ -9585,6 +9585,68 @@ Sem capa, a faixa cai para `--brand-navy` — o mesmo fundo da barra lateral e d
 painel do login, escuro nos dois temas. Sem foto, o ícone genérico. **Tirar
 não apaga o arquivo**, como na capa da campanha: apagar não é desfazer.
 
+##### E O LOGO ERA RECORTADO EM TODA TELA QUE O DESENHAVA
+
+Decisão do usuário: *"quero que apareça o logo do cliente, no lugar das
+iniciais, sem recorte nem distorção"*.
+
+**O PEDIDO TEM DUAS METADES, E A MEDIÇÃO MOSTROU QUE A SEGUNDA É A CARA.**
+`clients.logo_url` existe desde a 0002 e era desenhada em TRÊS lugares — a capa
+do portal, a grade de Portais e o seletor de cliente da Gestão de Tasks —, e
+**os três cortavam**: `object-cover` num círculo. Numa marca deitada de
+833 × 454 dentro de um disco de 32px, o que sobra é o quadrado do meio — **45%
+da largura fora**, e "Mundo Verde" vira "do Ve". Então "pôr o logo em mais
+telas" é a metade pequena: a grande é **como ele já vinha sendo desenhado**.
+
+**`LogoDaConta` É UM COMPONENTE PORQUE SÃO CINCO TELAS**, e duas delas
+desenhavam OUTRA coisa — a lista de Clientes não tinha marca nenhuma, e o
+ladrilho do índice do Social tinha a própria `sigla()`, uma segunda cópia das
+iniciais ao lado de `iniciaisDe()`. É a história das sete cópias de `abas.tsx`
+em miniatura, e aquela `sigla()` saiu com ele.
+
+**É `object-contain` E A CAIXA É QUADRADA, e as duas decisões se pagam.**
+`contain` cabe a marca inteira e custa uma faixa vazia em cima e embaixo — num
+logo de 3,4:1 dentro de 24px, a marca ocupa uns 24 × 7. **O quadrado é o que
+torna isso suportável:** a caixa inscrita num círculo é 0,707× o lado, então o
+disco devolveria **41% menos largura útil** para a mesma altura de linha — num
+wordmark, largura é tudo o que há. A marca sai pequena e INTEIRA, com o nome da
+empresa encostado nela; o recorte saía grande e ilegível.
+
+**E O CHÃO DO LADRILHO É `--muted`, nunca o do cartão — foi a imagem que
+mandou.** Com `bg-card` o ladrilho é branco sobre um cartão branco, e **logo de
+cliente chega quase sempre em PNG ou SVG transparente**: a marca deitada ficava
+FLUTUANDO na grade de Portais, e um risco fino sem nada em volta lê como imagem
+quebrada, não como logo. Pior, as duas respostas do componente eram dois
+objetos: a conta com logo ganhava ladrilho branco e a sem logo ladrilho cinza,
+na mesma coluna. Com um chão só, o logo e as iniciais são o MESMO ladrilho.
+
+**E ELE REUSA `ImagemAssinada` E `iniciaisDe()`**, que são os dois lugares
+únicos de duas regras que este produto já pagou: *URL assinada não passa por
+`next/image`* e *o `object-cover` que desentorta a foto achatada*. Uma terceira
+forma de desenhar a marca seria onde as duas se perdem.
+
+**`logosDasContas()` é UMA ida ao Storage para a lista inteira**, e mora em
+`lib/dados/clientes.ts` porque são quatro telas que perguntam. Ela é separada
+de `listarClientes()` pela decisão de `clientesComPasta()` — aquela serve abas
+que não desenham logo nenhum —, e **inclui a conta INATIVA**: um cliente
+desativado não perde a marca dele.
+
+***O que NÃO sai em imagem, e é dito em vez de escondido:*** a capa do portal.
+O stub de `identidadeDoPortal` fixa a foto em NULO de propósito — o círculo
+vazio sobre a faixa é o estado do dia um e o caso que quebra —, e a conta que o
+portal abre carrega o logo QUADRADO, onde `cover` e `contain` saem idênticos.
+Fotografar a troca ali exigiria remanejar o conjunto de exemplo, e isso custaria
+o par quadrado/deitado que prova o conserto na lista. **A troca é de uma linha e
+é a mesma medição; o que falta é a foto dela.**
+
+***E a imagem achou um id que tinha derivado***, que é a lição da duplicata do
+Cronograma pelo avesso: o índice do Social desenhava **o logo da Mundo Verde em
+cima do nome da Óptica Visão** — aquele stub carregava ids literais de uma
+geração anterior a `CLIENTES_EXEMPLO`, e o ladrilho antigo tirava as iniciais do
+NOME, então um id errado era invisível. Hoje ele aponta pelas constantes do
+próprio módulo, e a terceira conta fica fora do mapa de propósito, para as
+iniciais aparecerem.
+
 #### O que o cliente edita, e o que ele não edita
 
 Contato, e-mail, telefone e logo. **Nome da empresa e slug, nunca.** A policy

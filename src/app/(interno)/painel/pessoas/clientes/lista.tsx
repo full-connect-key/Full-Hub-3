@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { FilterBar, SEM_FILTRO } from "@/components/shared/filter-bar";
+import { LogoDaConta } from "@/components/shared/logo-da-conta";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ClienteComResumo } from "@/lib/dados/clientes";
@@ -19,9 +20,25 @@ import { FormularioDeCliente } from "./formulario-de-cliente";
 export function ListaDeClientes({
   clientes,
   equipe,
+  logos,
 }: {
   clientes: ClienteComResumo[];
   equipe: { id: string; nome: string }[];
+  /**
+   * O LOGO DE CADA CONTA, por id, já assinado — decisão do usuário: *"utilizar
+   * o logo do cliente em todos os locais onde hoje aparecem apenas as
+   * iniciais"*.
+   *
+   * **Esta lista não tinha NEM as iniciais**, e é o caso mais extremo do
+   * pedido: a coluna Empresa era o nome e mais nada, numa tela que existe
+   * para achar uma conta entre vinte e oito. Quem assina é o servidor
+   * (`logosDasContas`), porque `clients.logo_url` mora no bucket privado.
+   *
+   * **É um objeto e não um `Map`** porque esta é a fronteira servidor →
+   * cliente: um `Map` não atravessa a serialização do React e chegaria aqui
+   * vazio, sem erro em lugar nenhum.
+   */
+  logos: Record<string, string | null>;
 }) {
   const [status, setStatus] = useState("ativos");
   const [responsavel, setResponsavel] = useState(SEM_FILTRO);
@@ -56,8 +73,16 @@ export function ListaDeClientes({
       id: "empresa",
       header: "Empresa",
       cell: (cliente) => (
-        <Link href={`/painel/pessoas/clientes/${cliente.id}`} className="font-medium hover:underline">
-          {cliente.nome_empresa}
+        <Link
+          href={`/painel/pessoas/clientes/${cliente.id}`}
+          className="flex min-w-0 items-center gap-2 font-medium hover:underline"
+        >
+          <LogoDaConta
+            tamanho="sm"
+            nome={cliente.nome_empresa}
+            src={logos[cliente.id] ?? null}
+          />
+          <span className="truncate">{cliente.nome_empresa}</span>
         </Link>
       ),
       sortValue: (cliente) => cliente.nome_empresa,

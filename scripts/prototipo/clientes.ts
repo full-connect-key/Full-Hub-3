@@ -116,3 +116,19 @@ export async function vinculosDoCliente(clientId: string) {
     impedeExclusao: total > 0,
   };
 }
+
+/**
+ * O LOGO DE CADA CONTA, por id — e aqui ele sai da COLUNA do exemplo, ao
+ * contrário de `identidadeDoPortal` logo acima, que fixa o nulo.
+ *
+ * A diferença é o que cada imagem precisa provar: lá é o círculo VAZIO sobre a
+ * faixa, que é o caso que quebra; aqui são os três estados do ladrilho — a
+ * marca quadrada, a marca deitada (que é a que distingue `contain` de `cover`)
+ * e as iniciais da conta sem logo nenhum.
+ *
+ * E os caminhos são de `public/` e não do bucket, então não há o que assinar:
+ * é a mesma razão pela qual o stub da grade de Portais devolve `logo_url` cru.
+ */
+export async function logosDasContas(): Promise<Map<string, string | null>> {
+  return new Map(CLIENTES_EXEMPLO.map((c) => [c.id, c.logo_url ?? null]));
+}

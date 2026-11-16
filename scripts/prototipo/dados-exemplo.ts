@@ -217,11 +217,17 @@ export const CLIENTES_EXEMPLO = [
   {
     id: "c0000000-0000-0000-0000-00000000000a",
     nome_empresa: "Mundo Verde",
-    // O LOGO VAI PARA UMA DAS TRÊS, e as outras duas ficam nulas de propósito:
-    // com as três preenchidas a imagem provaria que o círculo do filtro
+    // SÃO TRÊS CONTAS E TRÊS ESTADOS, um por conta — e a terceira fica NULA
+    // de propósito: com as três preenchidas a imagem provaria que o ladrilho
     // aparece, e não que ele ESCOLHE entre o logo e as iniciais da empresa. É
     // a razão escrita de `retrato-1.svg` ir para a Ana e não para a equipe
     // inteira, e a do evento de cada par da legenda do calendário.
+    //
+    // **E O SEGUNDO É DEITADO, que é o estado que o pedido do logo criou.**
+    // `logo-1.svg` é quadrado, então nele `object-cover` e `object-contain`
+    // saem IDÊNTICOS: sem uma marca deitada, o recorte que a entrega existe
+    // para tirar não apareceria em imagem nenhuma — a lição da duplicata do
+    // Cronograma.
     logo_url: "/exemplos/logo-1.svg",
     nome_contato: "Caio Alves",
     email_contato: "contato@mundoverde.com.br",
@@ -237,7 +243,7 @@ export const CLIENTES_EXEMPLO = [
   {
     id: "c0000000-0000-0000-0000-00000000000b",
     nome_empresa: "Óptica Visão",
-    logo_url: null,
+    logo_url: "/exemplos/logo-2.svg",
     nome_contato: "Marcos Vieira",
     email_contato: "contato@opticavisao.com.br",
     telefone: "(11) 98888-0002",

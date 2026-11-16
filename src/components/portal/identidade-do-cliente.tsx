@@ -86,11 +86,27 @@ export function IdentidadeDoCliente({
       <div className="flex items-end gap-3 px-4">
         <div className="ring-surface-page bg-surface-card relative z-10 -mt-10 size-20 shrink-0 overflow-hidden rounded-full ring-4 sm:-mt-12 sm:size-24">
           {fotoAssinada ? (
+            /* `object-contain` E NÃO `cover`, e aqui é o lugar onde o recorte
+               mais custava — decisão do usuário: *"sem recorte nem
+               distorção"*. Num círculo de 80px, `cover` escala um wordmark de
+               833 × 454 até cobrir e **corta 45% da largura**: o logo da conta
+               saía pela metade na primeira dobra do portal dela.
+
+               **O CÍRCULO FICA**, ao contrário das outras telas, e é decisão
+               de layout: esta composição — a foto redonda com o anel, subindo
+               por cima da capa — foi escolhida pelo usuário entre três
+               propostas na 0063, e trocá-la por um quadrado desfaria aquela
+               escolha por causa do recorte. O que muda é só o recorte.
+
+               **E O RESPIRO É O QUE FAZ `contain` VALER AQUI:** a caixa
+               inscrita num círculo tem 0,707 do lado, então sem o `p-3` a
+               marca encostaria na borda curva e pareceria cortada mesmo
+               estando inteira. */
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={fotoAssinada}
               alt={`Logo de ${nome}`}
-              className="size-full object-cover"
+              className="size-full object-contain p-3"
             />
           ) : (
             <div className="text-text-secondary flex size-full items-center justify-center">

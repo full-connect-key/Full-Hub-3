@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ExternalLink, Search } from "lucide-react";
 
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { LogoDaConta } from "@/components/shared/logo-da-conta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { PortalDeCliente } from "@/lib/dados/portais-de-clientes";
@@ -104,18 +104,17 @@ export function PortaisDeClientes({
                   sem deixaria a margem esquerda irregular — e é por ela que o
                   olho desce a lista. "MV" é um signo de verdade.
 
-                  **E é `UserAvatar` e não um `Avatar` montado à mão**, porque
-                  é este componente que carrega o `object-cover` do
-                  `AvatarImage`: uma segunda forma de desenhar o círculo é onde
-                  o conserto da foto achatada se perde. `tooltip={false}`
-                  porque o nome está escrito ao lado — um `TooltipTrigger`
-                  seria uma parada de Tab para ler o que já está à vista. */}
-              <UserAvatar
-                name={cliente.nome_empresa}
+                  **E É `LogoDaConta` E NÃO `UserAvatar`, que é o conserto
+                  que o pedido do logo trouxe.** Isto era o círculo do rosto
+                  da pessoa, com `object-cover`: um wordmark de 833 × 454 num
+                  círculo de 40px é escalado até cobrir, e **45% da largura é
+                  cortada** — "Mundo Verde" saía "do Ve". O ladrilho quadrado
+                  com `object-contain` mostra a marca inteira, e a régua
+                  inteira está no cabeçalho dele. */}
+              <LogoDaConta
+                nome={cliente.nome_empresa}
                 src={cliente.fotoAssinada}
-                size="lg"
-                tooltip={false}
-                className="shrink-0"
+                tamanho="lg"
               />
 
               <span className="flex min-w-0 flex-col leading-tight">

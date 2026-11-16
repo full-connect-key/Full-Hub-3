@@ -628,7 +628,7 @@ export async function postsSemData(
 const MESES_DE_SOCIAL: MesDeSocial[] = [
   {
     taskId: "mes-mv-10",
-    clienteId: "c0000000-0000-0000-0000-000000000001",
+    clienteId: VERDE,
     cliente: "Mundo Verde",
     mes: "2026-11-01",
     status: "em_andamento",
@@ -641,7 +641,7 @@ const MESES_DE_SOCIAL: MesDeSocial[] = [
   },
   {
     taskId: "mes-mv-09",
-    clienteId: "c0000000-0000-0000-0000-000000000001",
+    clienteId: VERDE,
     cliente: "Mundo Verde",
     mes: "2026-10-01",
     status: "concluido",
@@ -654,7 +654,7 @@ const MESES_DE_SOCIAL: MesDeSocial[] = [
   },
   {
     taskId: "mes-mv-2025",
-    clienteId: "c0000000-0000-0000-0000-000000000001",
+    clienteId: VERDE,
     cliente: "Mundo Verde",
     mes: "2025-12-01",
     status: "concluido",
@@ -667,7 +667,7 @@ const MESES_DE_SOCIAL: MesDeSocial[] = [
   },
   {
     taskId: "mes-ov-10",
-    clienteId: "c0000000-0000-0000-0000-00000000000a",
+    clienteId: OPTICA,
     cliente: "Óptica Visão",
     mes: "2026-10-01",
     status: "em_andamento",
@@ -680,6 +680,11 @@ const MESES_DE_SOCIAL: MesDeSocial[] = [
   },
   {
     taskId: "mes-mz-10",
+    // ELA FICA FORA DE `CLIENTES_EXEMPLO`, de propósito: é o terceiro estado
+    // do ladrilho da conta — sem logo, iniciais. Os dois de cima apontam para
+    // as contas de verdade, pelas CONSTANTES do módulo e não por literal: era
+    // um literal que tinha derivado, e a Óptica desenhava o logo da Mundo
+    // Verde porque carregava o id dela.
     clienteId: "c0000000-0000-0000-0000-000000000002",
     cliente: "Matriz Comunicação",
     mes: "2026-10-01",

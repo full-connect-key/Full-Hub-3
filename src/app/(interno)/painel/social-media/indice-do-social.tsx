@@ -7,6 +7,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { EmptyState } from "@/components/shared/empty-state";
+import { LogoDaConta } from "@/components/shared/logo-da-conta";
 import { Button } from "@/components/ui/button";
 import { porContaEAno, type MesNaArvore } from "@/lib/dominio/posts";
 import type { MesDeSocial, SituacaoDoMes } from "@/lib/dados/social-media";
@@ -69,6 +70,7 @@ export function IndiceDoSocial({
   situacao,
   contaFixada,
   podeAbrirMes,
+  logos,
 }: {
   meses: MesDeSocial[];
   situacao: SituacaoDoMes;
@@ -84,6 +86,16 @@ export function IndiceDoSocial({
    * que ficou para trás foi a guarda da action, aqui foi o botão.
    */
   podeAbrirMes: boolean;
+  /**
+   * O LOGO DE CADA CONTA, por id, já assinado — decisão do usuário: *"utilizar
+   * o logo do cliente em todos os locais onde hoje aparecem apenas as
+   * iniciais"*. O ladrilho do cartão era a sigla da empresa, e é um dos dois
+   * lugares do produto onde a INICIAL aparecia no lugar da marca.
+   *
+   * **É um objeto e não um `Map`**, que é a fronteira servidor → cliente: um
+   * `Map` não atravessa a serialização e chegaria vazio, sem erro nenhum.
+   */
+  logos: Record<string, string | null>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -182,12 +194,15 @@ export function IndiceDoSocial({
                 className="bg-surface-card rounded-card shadow-cartao space-y-3 border p-4"
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    aria-hidden
-                    className="bg-muted text-text-secondary grid size-8 shrink-0 place-items-center rounded-lg text-[11px] font-bold"
-                  >
-                    {sigla(conta.cliente)}
-                  </span>
+                  {/* O LADRILHO É O LOGO DA CONTA, com as iniciais atrás dele
+                      quando ela não subiu nenhum — e as iniciais saem de
+                      `iniciaisDe()`, dentro de `LogoDaConta`. A `sigla()`
+                      daqui era a MESMA conta escrita duas vezes, que é a
+                      história das sete cópias de `abas.tsx` em miniatura. */}
+                  <LogoDaConta
+                    nome={conta.cliente}
+                    src={logos[conta.clienteId] ?? null}
+                  />
                   <h2 className="text-text-primary text-base font-semibold">
                     {conta.cliente}
                   </h2>
@@ -389,12 +404,3 @@ function comInicialMaiuscula(texto: string): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-/** As duas primeiras iniciais do nome da empresa, para o ladrilho do cartão. */
-function sigla(nome: string): string {
-  return nome
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p.charAt(0).toUpperCase())
-    .join("");
-}

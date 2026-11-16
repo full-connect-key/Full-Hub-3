@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LogoDaConta } from "@/components/shared/logo-da-conta";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
 
@@ -46,10 +47,26 @@ export type SelectFilter = {
      * iniciais de "Urgente" não é signo de coisa alguma.
      *
      * `src` nulo desenha as INICIAIS, e não nada: numa coluna de opções,
-     * metade com círculo e metade sem deixa a margem esquerda irregular, e é
+     * metade com marca e metade sem deixa a margem esquerda irregular, e é
      * por ela que o olho desce a lista.
+     *
+     * **E `forma` DECIDE O DESENHO, porque uma conta não se desenha como uma
+     * pessoa.** Um rosto num círculo com `object-cover` é o certo — é por isso
+     * que aquele conserto existe; um wordmark no mesmo círculo perde 45% da
+     * largura, que é o recorte que o pedido do logo proíbe. `"pessoa"` é o
+     * padrão porque foi o primeiro caso; `"conta"` desenha o ladrilho
+     * quadrado de `LogoDaConta`, inteiro.
+     *
+     * **É UM CAMPO E NÃO DOIS** (`avatar` e `logo` lado a lado): dois
+     * opcionais deixariam passar a opção que traz os dois, que é um estado
+     * que nada recusa — a decisão de `SeloDaRede` não ter ganhado um
+     * `plataformas` opcional ao lado do `plataforma`.
      */
-    avatar?: { nome: string; src: string | null };
+    avatar?: {
+      nome: string;
+      src: string | null;
+      forma?: "pessoa" | "conta";
+    };
   }[];
   onChange: (value: string) => void;
   /** Rótulo da opção que não filtra nada. */
@@ -98,16 +115,26 @@ export function FilterBar({
               <SelectItem key={opcao.value} value={opcao.value} textValue={opcao.label}>
                 {opcao.avatar ? (
                   <span className="flex items-center gap-2">
-                    {/* `tooltip={false}` porque o item do Select já é
-                        interativo, e um `TooltipTrigger` dentro dele é
-                        `nested-interactive` — crítico no axe. O nome está
-                        escrito do lado, então nada se perde. */}
-                    <UserAvatar
-                      size="xs"
-                      tooltip={false}
-                      name={opcao.avatar.nome}
-                      src={opcao.avatar.src}
-                    />
+                    {opcao.avatar.forma === "conta" ? (
+                      <LogoDaConta
+                        tamanho="xs"
+                        nome={opcao.avatar.nome}
+                        src={opcao.avatar.src}
+                      />
+                    ) : (
+                      /* `tooltip={false}` porque o item do Select já é
+                         interativo, e um `TooltipTrigger` dentro dele é
+                         `nested-interactive` — crítico no axe. O nome está
+                         escrito do lado, então nada se perde. (O ladrilho da
+                         conta não tem tooltip nenhum, então ali a pergunta
+                         não existe.) */
+                      <UserAvatar
+                        size="xs"
+                        tooltip={false}
+                        name={opcao.avatar.nome}
+                        src={opcao.avatar.src}
+                      />
+                    )}
                     {opcao.label}
                   </span>
                 ) : (

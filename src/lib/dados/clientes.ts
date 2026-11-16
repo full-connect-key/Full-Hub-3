@@ -110,6 +110,51 @@ export const listarClientes = cache(async (): Promise<ClienteComResumo[]> => {
   }));
 });
 
+/**
+ * O LOGO DE CADA CONTA, assinado, por id.
+ *
+ * Decisão do usuário: *"utilizar o logo do cliente em todos os locais onde
+ * hoje aparecem apenas as iniciais"*. O logo mora no bucket PRIVADO
+ * `campanhas-arquivos`, então o endereço tem de ser assinado no servidor —
+ * caminho de bucket num `src` é o navegador pedindo ao próprio site e levando
+ * 404, que é o bug que `ImagemAssinada` existe para não deixar voltar.
+ *
+ * **ELA MORA AQUI PORQUE SÃO QUATRO TELAS**, e não mais uma: ela nasceu dentro
+ * de `gestao-tasks/page.tsx` como `contasComFoto()` para o filtro de contas, e
+ * a lista de Clientes, o índice do Social e a grade de Portais fazem a mesma
+ * pergunta. A terceira cópia é onde elas divergem — a história das sete cópias
+ * de `abas.tsx`, e a de `ICONE_DA_AREA`, que tinha três e duas já divergidas.
+ *
+ * **E ELA DEVOLVE UM MAPA E NÃO UMA LISTA**, porque cada uma das quatro telas
+ * já tem a conta em mãos com a forma dela: a lista de Clientes tem a linha
+ * inteira, o índice do Social tem o `clienteId` de cada mês, o filtro tem a
+ * lista ativa. Uma segunda lista de contas obrigaria cada uma a casar duas
+ * coleções pelo id — e quem não casasse desenharia o ladrilho vazio.
+ *
+ * **E ELA É SEPARADA DE `listarClientes()`**, que é a decisão de
+ * `clientesComPasta()` palavra por palavra: aquela serve seis telas, e a
+ * assinatura é uma ida ao Storage que a maioria não precisa — o seletor de
+ * Workflows e o editor de recorrência não desenham logo nenhum. Ela parte de
+ * `listarClientes()`, que é `cache`, então não há segunda ida ao BANCO: só a
+ * do Storage, numa chamada para a lista inteira.
+ *
+ * **As INATIVAS entram**, e isso não é zelo: a lista de Clientes as mostra com
+ * o selo delas, e um ladrilho que some justamente na conta desativada seria a
+ * tela dizendo que ela perdeu a marca junto com o acesso.
+ */
+export const logosDasContas = cache(
+  async (): Promise<Map<string, string | null>> => {
+    const clientes = await listarClientes();
+    const assinadas = await assinarArquivos(
+      "campanhas-arquivos",
+      clientes.map((c) => c.logo_url),
+    );
+    return new Map(
+      clientes.map((c) => [c.id, enderecoDaArte(c.logo_url, assinadas)]),
+    );
+  },
+);
+
 export const obterCliente = cache(
   async (id: string): Promise<Client | null> => {
     const supabase = await criarClienteServidor();
