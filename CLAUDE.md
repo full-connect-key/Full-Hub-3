@@ -4704,6 +4704,182 @@ bloco existe. Uma entrada ali reprovaria o vocabulário do próprio projeto, que
 Pulse" de pé e "Pulso da agência" fora. Medido com mutação: devolvendo o nome
 antigo ao dump, ele falha e diz qual.
 
+##### O ACESSO RÁPIDO APRENDE O QUE CADA PESSOA USA (0142)
+
+Decisão do usuário: *"o Acesso Rápido deve ser baseado na frequência de uso de
+cada pessoa, e não uma lista fixa"*, com o recorte: *"registrar o uso numa
+tabela nova, por pessoa e por rota, com RLS fechada no dono da linha. O Acesso
+Rápido ordena por frequência e só oferece o que o perfil alcança."*
+
+**ELE TINHA TRÊS ATALHOS ESCRITOS À MÃO, e eles descrevem o dia de quem os
+escreveu.** Minhas Tasks, Notas Fiscais e Meu Perfil — e quem vive no Social
+Media abre o Social Media todo dia e tem, num cartão chamado "Acesso rápido",
+três caminhos que não são os dele.
+
+##### É UMA LINHA POR ROTA, e o número é um PESO e não uma contagem
+
+`route_visits (user_id, href, peso, visto_em)`, com a chave primária no par: um
+log de cada abertura de página cresce em milhares de linhas por semana para
+responder uma pergunta que é uma CONTA.
+
+**E as duas leituras do pedido levam a schemas diferentes.** Uma contagem de
+vida inteira responde *quanto eu já usei*, e nunca esquece: quem passou um ano
+na Gestão de Tasks e trocou de função continua com ela em primeiro **para
+sempre**. O pedido diz FREQUÊNCIA, que é *com que frequência eu uso HOJE*.
+
+Então o peso decai no próprio `update`, com meia-vida de 30 dias —
+`peso * 0.5 ^ (dias desde a última / 30) + 1`. **Medido contra o Postgres**,
+em transação revertida, com 60 visitas de cada padrão: quem abre todo dia
+chega a **32,84** (o limite da série é 43,8); quem abre uma vez por semana
+estaciona em **6,70**; e a rota aberta todo dia por dois meses e largada há
+120 dias cai para **3,05** — abaixo da semanal, que é o caso que a decisão
+existe para resolver.
+
+**E ELE ESQUECE SEM DEGRAU**, que é a razão de não ser uma janela que zera: uma
+janela faria o bloco inteiro se reembaralhar no dia da virada, e **um "acesso
+rápido" que troca de ordem debaixo de quem o usa é pior que uma lista fixa** —
+o cartão existe justamente para o caminho estar sempre no mesmo lugar.
+
+**A coluna se chama `peso` e não `visitas` de propósito:** ninguém lê 43,8 como
+"quarenta e três aberturas" e vai procurar o número que falta.
+
+##### O F5 NÃO CONTA, e ele também não reancora
+
+Recarregar a mesma tela cinco vezes em um minuto é uma visita. Dentro de dez
+minutos a função não faz **nada** — nem move `visto_em`: reancorar sem contar
+apagaria o decaimento acumulado desde a última visita de verdade, e o acesso
+seguinte decairia de menos. **A âncora é sempre a última visita CONTADA**, e é
+essa metade que a mutação do respiro mede sozinha.
+
+##### NEM O SÓCIO LÊ, e não há policy de DELETE
+
+As três policies fecham em `auth.uid()`. **Saber quais rotas um colega abre
+mais é vigilância, não gestão** — é a régua de `client_notification_prefs` e de
+`academy_anotacoes` —, e o que esta tabela guarda não decide nada sobre o
+trabalho de ninguém: ela decide três atalhos num cartão.
+
+**E não há DELETE** pela razão de sempre: não há o que apagar. A lista é
+derivada, e a rota que a pessoa deixa de abrir cai sozinha conforme as outras
+crescem — que é exatamente o que o decaimento faz.
+
+##### A FUNÇÃO NÃO É `security definer`, e ela existe por MECÂNICA
+
+Ela escreve a PRÓPRIA linha de quem chama, então a RLS vale dentro dela — é a
+forma de `busca_global()` (0073). **O que a faz existir não é permissão:** o
+`upsert` do PostgREST não sabe escrever `peso = peso * … + 1`, e um `select`
+seguido de `update` é a corrida da 0040 — duas abas passam pelas duas consultas
+antes de qualquer uma gravar. `insert … on conflict do update` é UMA instrução.
+
+**E o `revoke … from anon` não é redundante com o de `public`**, o que foi
+medido: com os dois primeiros sozinhos, `anon` continuava executando a função.
+É a lição da 0071 — o Supabase deixa um `alter default privileges` ligado no
+schema `public`, e `revoke all from public` não alcança um grant que veio por
+ele.
+
+##### A TRAVA DE VERDADE É A NORMALIZAÇÃO, e ela mora na ACTION
+
+Quem decide o que pode ser gravado é `findMenuItem()`: a action só manda o
+`href` de um item do `MENU`, então `/painel/gestao-tasks/<uuid>` vira
+`/painel/gestao-tasks` e **o que não casa com rota nenhuma não é gravado**. Sem
+ela a tabela viraria um depósito de endereço digitado, e o cartão ofereceria um
+atalho para uma rota que não existe.
+
+**E não há uma segunda pergunta de perfil na ESCRITA**, que é a 0060: quem não
+alcança a rota leva 403 ao abri-la e nunca chega a registrar nada, e o bloco
+filtra por `canAccess()` na LEITURA de qualquer forma. Pior, ela ficaria ao
+lado de uma segunda lista de perfis para divergir da do `MENU`.
+
+##### O GRAVADOR MORA NO LAYOUT, e é cliente por mecânica
+
+`GravadorDeVisitas` não desenha nada. Ele está no layout pela razão de
+`AtualizacaoAoVivo` e do convite de micro-tour — o que não é específico de tela
+não se escreve por tela, e a vigésima primeira tela nasceria sem registrar
+nada, **sem nada quebrar**: o cartão simplesmente nunca ofereceria aquele
+módulo.
+
+**E ele é `"use client"` por mecânica e não por gosto:** o layout do App Router
+**não** é remontado ao navegar entre as telas dele, então um registro no corpo
+dele gravaria a primeira rota da sessão e mais nenhuma. Quem sabe que a rota
+mudou é `usePathname`.
+
+**O RESULTADO É DESCARTADO, e é a exceção declarada a "nada falha em
+silêncio".** Aquela regra é sobre escrita que alguém PEDIU: um toast vermelho
+dizendo que a visita não foi anotada apareceria em cima de uma tela que abriu
+normalmente, sobre uma coisa que ninguém clicou. O erro vai para o log pelo
+`executarAcao`, e o preço de uma visita perdida é um peso que não subiu.
+
+**E não há `revalidatePath`**, pela mesma conta: a action roda em TODA navegação
+do painel, e revalidar `/painel` a cada uma remontaria a tela Início de quem
+está em outro módulo. A ordem nova aparece na próxima visita ao Início, que é
+quando ela decide alguma coisa.
+
+##### A LEITURA DEVOLVE A ORDEM, nunca o peso
+
+`minhasRotasMaisUsadas()` devolve `string[]`, e é a assinatura estreita de
+`nivelDaCarga()`: o peso é COMO a ordem é calculada, e a ORDEM é a informação —
+ninguém no produto desenha o número, e devolvê-lo obrigaria todo chamador a
+carregar um campo que ele não lê.
+
+**E a ordenação é do Postgres e não um `sort` na tela**, o que não é preguiça:
+`peso` é `numeric`, e o PostgREST o entrega como **string** para não perder
+precisão — um `sort` em JavaScript ordenaria `"9"` acima de `"32"`. Ordenando
+no banco, o número nunca chega à tela.
+
+**O TETO DA CONSULTA É DOZE E O DO CARTÃO É TRÊS**, e quem corta em três é o
+bloco, depois de filtrar por perfil: com o corte na consulta, um colaborador
+cuja rota mais usada fosse uma que ele deixou de alcançar receberia duas linhas
+em vez de três — e o cartão encolheria sem nada dizendo.
+
+**E `ouFalha` não vale aqui**, que é a exceção declarada: aquela regra existe
+porque uma lista vazia é indistinguível da verdade, e aqui ela não é — o cartão
+tem FALLBACK, então uma leitura quebrada mostra os três atalhos de sempre em
+vez de derrubar a tela Início inteira.
+
+##### OS TRÊS ATALHOS ANTIGOS VIRARAM O FALLBACK
+
+Eles não foram apagados, e a razão é o primeiro dia de alguém: **um "Acesso
+rápido" sem nenhuma linha, na primeira tela que a pessoa abre, é uma seção que
+ensina que o produto não funciona.** Eles preenchem o que a frequência não
+preenche — no dia um, numa conta nova, e quando a leitura falha.
+
+**E o filtro de perfil é na LEITURA**, por `canAccess()` mais `exigeAtendimento`
+— que é a pergunta que `canAccess` não responde, porque função na agência não é
+perfil. Sem ele, o cartão ofereceria um atalho que termina em 403, que é o chip
+de "Demandas" de Minhas Tasks pela segunda vez.
+
+**O ÍCONE É O DO `MENU`**, e é o que faz o atalho e o item da barra lateral
+serem a mesma coisa para quem olha — sem um segundo mapa de ícone, que é a
+história de `ICONE_DA_AREA` em miniatura: ele tinha três cópias e duas já
+tinham divergido. **A frase, essa é por ROTA e não do `MenuItem`:** aquele tipo
+carrega o que a BARRA desenha, e a barra não tem segunda linha; uma `frase` ali
+seria um campo que dezenove das vinte telas não usam. **E a ausência é
+desenhada**, não é defeito: o módulo sem frase sai com o rótulo só, que é o que
+a barra mostra de qualquer forma — o que não se faz é inventar uma, porque
+"Gestão de Tasks: gestão de tasks" é a mesma palavra duas vezes.
+
+**Medido com cinco mutações**, sobre 2410 cenários: sem decaimento derruba 3,
+sem respiro derruba 3, o respiro reancorando derruba 1, a RLS do SELECT aberta
+para `is_staff()` derruba 2 — e devolver o `execute` ao `anon` **faz a migration
+recusar aplicar**, com a frase do PASSO 3, antes de a bateria chegar a rodar.
+***A quinta não derrubar cenário nenhum é o resultado certo:*** uma trava de
+privilégio que só aparecesse num cenário seria uma trava que depende de alguém
+ter escrito o cenário; aqui quem a confere é o próprio arquivo, em toda
+colagem.
+
+***E o segundo stub de _action_ do gerador nasceu aqui***, pela razão dos stubs
+da busca e do tour: o gravador mora no LAYOUT, então sem ele as cento e
+cinquenta telas da rodada fariam um POST de Server Action ao Supabase num
+domínio `.invalid`. O primeiro, o de `quemPodeAprovar`, escreveu que não era *"a
+abertura de uma série"* — e continua não sendo: este é pelo NÚMERO DE TELAS, que
+é o mesmo argumento daqueles dois, e não por uma imagem.
+
+***E o stub de leitura devolve uma ordem FIXA e não `[]`***, pela lição da
+duplicata do Cronograma: com lista vazia o cartão cai no fallback, que é
+exatamente a tela de antes — a entrega nova não sairia em imagem nenhuma. São
+cinco rotas para três linhas, e as duas a mais existem para ser cortadas; a
+primeira **não** é `/painel/minhas-tasks` de propósito, porque ela é a primeira
+do fallback e com ela no topo as duas respostas dariam a mesma imagem.
+
 ##### E O PRIMEIRO CARTÃO DO PULSO PASSOU A SER DE QUEM OLHA (0141)
 
 Decisão do usuário: *"o campo Etapas Abertas deve considerar somente etapas do

@@ -27,6 +27,7 @@ import {
 } from "@/lib/dados/feedback";
 
 import { MeuDia } from "./minhas-tasks/meu-dia";
+import { minhasRotasMaisUsadas } from "@/lib/dados/visitas";
 import { AcessoRapido } from "./_blocos/acesso-rapido";
 import { ClientesEmAtencao } from "./_blocos/clientes-em-atencao";
 import { EmAndamentoAgora } from "./_blocos/em-andamento-agora";
@@ -88,6 +89,7 @@ export default async function PaginaInicialDoPainel() {
     podeAbrirDemanda,
     primeirosPassos,
     ehAtendimento,
+    rotasMaisUsadas,
   ] = await Promise.all([
     resumoDaHome(),
     meuDia(usuarioId, prazosDeHoje()),
@@ -132,6 +134,15 @@ export default async function PaginaInicialDoPainel() {
     // botão que o começa. É a MESMA pergunta que o layout faz — e a resposta
     // é a mesma RPC, que o React cacheia por requisição.
     souDoAtendimento(),
+    // A ORDEM APRENDIDA DO ACESSO RÁPIDO (0142). Ela vai aqui dentro, e não
+    // num `await` do bloco: o cartão é o último da coluna da direita, e uma
+    // consulta própria lá serializaria uma ida ao banco atrás das outras onze
+    // — para decidir a ordem de três linhas.
+    //
+    // E ela devolve lista vazia quando falha, de propósito: o cartão tem
+    // fallback, então uma leitura quebrada mostra os três atalhos de sempre em
+    // vez de derrubar a tela Início inteira. A razão está em `lib/dados/`.
+    minhasRotasMaisUsadas(),
   ]);
 
   // A CONVERSA DO FEEDBACK MAIS RECENTE, e só dele: os anteriores viram
@@ -300,7 +311,11 @@ export default async function PaginaInicialDoPainel() {
 
           <QuemEstaForaHoje pessoas={resumo.fora_hoje} />
 
-          <AcessoRapido />
+          <AcessoRapido
+            role={profile.role}
+            ehAtendimento={ehAtendimento}
+            maisUsadas={rotasMaisUsadas}
+          />
         </aside>
       </div>
     </div>

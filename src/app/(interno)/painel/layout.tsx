@@ -1,4 +1,5 @@
 import { BuscaGlobal } from "@/components/painel/busca-global";
+import { GravadorDeVisitas } from "@/components/painel/gravador-de-visitas";
 import { MenuDoUsuario } from "@/components/painel/menu-do-usuario";
 import { MenuGaveta } from "@/components/painel/menu-gaveta";
 import { MenuLateral } from "@/components/painel/menu-lateral";
@@ -237,6 +238,16 @@ export default async function LayoutDoPainel({
           não em nove páginas — a décima, a que alguém criar depois, nasceria
           sem micro-tour sem nada dizendo. */}
       <ConviteDeMicroTour tours={tours} />
+
+      {/* O QUE FAZ O ACESSO RÁPIDO APRENDER (0142). Ele não desenha nada: o
+          que ele faz é anotar qual módulo esta pessoa abriu, para o cartão da
+          tela Início ordenar pela frequência dela em vez de uma lista fixa.
+
+          **Aqui e não em cada tela**, pela razão de `AtualizacaoAoVivo` e do
+          convite acima — e com uma segunda, que é mecânica: o layout do App
+          Router não é remontado ao navegar entre as telas dele, então quem
+          sabe que a rota mudou é o `usePathname` dentro dele. */}
+      <GravadorDeVisitas />
     </ProvedorDoTour>
   );
 }

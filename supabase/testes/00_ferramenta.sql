@@ -99,6 +99,36 @@ begin
 end;
 $$;
 
+-- MONTAR ESTADO COMO UMA PESSOA, sem gravar resultado nenhum.
+--
+-- `teste.cenario` tambem roda um comando como alguem, e ele AFIRMA: cada
+-- chamada vira uma linha em `teste.resultado`. Quando o que se quer e so
+-- CONSTRUIR o estado -- sessenta visitas num laco para medir o decaimento --,
+-- sessenta afirmacoes de "passou" afogam o cenario que de fato mede.
+--
+-- E ela e necessaria porque nem toda escrita deste produto e alcancavel pela
+-- chave de servico: `registrar_visita()` (0142) nao e `security definer`, e
+-- escreve a linha de `auth.uid()` -- rodada por `teste.como_a_rotina`, ela
+-- devolve na primeira linha sem gravar nada.
+--
+-- Uma falha aqui ESTOURA, em vez de virar uma linha vermelha: isto e
+-- montagem, e montagem que falha calada deixa o cenario seguinte medindo
+-- outro estado -- que e a armadilha do fixture da 0062.
+create or replace function teste.montar_como(p_uid uuid, p_comando text)
+returns void
+language plpgsql
+as $$
+begin
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claim.sub', p_uid::text, true);
+  execute p_comando;
+  execute 'reset role';
+exception when others then
+  execute 'reset role';
+  raise;
+end;
+$$;
+
 -- Atalhos de leitura, para nao repetir o uuid no texto dos cenarios.
 create or replace function teste.limpar() returns void language plpgsql as $$
 begin

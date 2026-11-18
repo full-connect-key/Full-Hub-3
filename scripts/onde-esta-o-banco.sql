@@ -968,7 +968,14 @@ from (
     -- acrescentar e o que as migrations fazem (a licao das cinco linhas
     -- quebradas do pacote da 3K).
     ('0141', 'o inicio responde sobre quem olha', 'no_corpo',
-             'home_summary|ve_clientes_parados')
+             'home_summary|ve_clientes_parados'),
+    -- A 0142 CRIA UMA TABELA, tres policies, um indice e UMA FUNCAO -- e a
+    -- funcao e a ultima coisa do arquivo. Um marcador em `route_visits` diria
+    -- `ok` sobre o banco em que a tabela existe e ninguem escreve nela: o
+    -- Acesso Rapido continuaria mostrando os tres atalhos de sempre, que e
+    -- exatamente o fallback -- a tela nao quebra, ela so nao aprende, e
+    -- ninguem liga uma coisa a outra.
+    ('0142', 'o acesso rapido aprende', 'funcao', 'registrar_visita')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

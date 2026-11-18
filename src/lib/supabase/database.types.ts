@@ -3990,6 +3990,39 @@ export interface Database {
         Update: Record<string, never>;
         Relationships: [];
       };
+      /**
+       * O PESO DE CADA ROTA, por pessoa (0142).
+       *
+       * A chave primária é `(user_id, href)` e não um `id` — é a forma que faz
+       * o `on conflict` de `registrar_visita` existir, e não há segunda linha
+       * da mesma rota para um `id` distinguir.
+       *
+       * **`peso` É `string` E NÃO `number`, e isso não é descuido:** a coluna
+       * é `numeric`, e o PostgREST entrega `numeric` como STRING para não
+       * perder precisão em JavaScript. Declará-la `number` compila, passa no
+       * lint, e ordena `"9"` acima de `"32"` na primeira vez que alguém
+       * reordenar isto na tela. Quem converte é `lib/dados/visitas.ts`, num
+       * lugar só.
+       */
+      route_visits: {
+        Row: {
+          user_id: string;
+          href: string;
+          peso: string;
+          visto_em: string;
+        };
+        /**
+         * SEM `Insert` E SEM `Update`, pela razão de `subtasks.andando_desde`:
+         * quem escreve as duas colunas é `registrar_visita`, que faz a conta
+         * do decaimento a partir do que já está gravado — um `insert` daqui
+         * seria a segunda implementação da mesma conta, e a que divergiria é
+         * esta, porque ninguém a relê. Tentar gravar é erro de tipo antes de
+         * ser recusa do banco.
+         */
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       tour_progresso: {
         Row: {
           id: string;
@@ -4420,6 +4453,22 @@ export interface Database {
       reenviar_aviso_da_rodada: {
         Args: { p_round_id: string };
         Returns: number;
+      };
+      /**
+       * SOMA UMA VISITA À ROTA DE QUEM CHAMA (0142), com decaimento de
+       * meia-vida de 30 dias e um respiro de 10 minutos em que nada muda.
+       *
+       * `Returns: undefined` porque ela é `returns void`: o que interessa é o
+       * efeito, e quem a chama descarta o resultado de propósito — a razão
+       * está no gravador do layout.
+       *
+       * **E ela NÃO recebe `user_id`:** a pessoa sai de `auth.uid()` dentro da
+       * função. Um parâmetro aqui seria a porta para registrar visita no nome
+       * de outra pessoa, e a policy o recusaria depois do clique.
+       */
+      registrar_visita: {
+        Args: { p_href: string };
+        Returns: undefined;
       };
       // A FASE DA VEZ do mes -- o primeiro portao do cliente ainda nao
       // concluido. `returns public.subtasks` e nao `returns table`, entao o

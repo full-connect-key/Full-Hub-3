@@ -1513,6 +1513,13 @@ const SUBSTITUICOES = {
   // sairiam com um dialogo de boas-vindas por cima.
   "@/lib/dados/tour": ["./scripts/prototipo/tour.ts"],
   "@/lib/dados/primeiros-passos": ["./scripts/prototipo/primeiros-passos.ts"],
+  // O ACESSO RAPIDO (0142), e sao DOIS caminhos num arquivo so: a LEITURA, que
+  // a tela Inicio faz, e a ACTION, que o gravador do layout chama em toda
+  // tela. A action e o segundo stub de _action_ do gerador, e a razao e a dos
+  // stubs da busca e do tour -- ela mora no LAYOUT, entao sem ele as cento e
+  // cinquenta telas fariam um POST ao Supabase num dominio `.invalid`.
+  "@/lib/dados/visitas": ["./scripts/prototipo/visitas.ts"],
+  "@/app/(interno)/painel/_actions/visitas": ["./scripts/prototipo/visitas.ts"],
 };
 
 const log = (msg) => console.log(`  ${msg}`);
