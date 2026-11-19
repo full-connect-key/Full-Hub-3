@@ -72,6 +72,7 @@ export function PautaDaEquipe({
   prazos,
   usuarioId,
   souGestor,
+  assumeAoMexer,
 }: {
   /** Nulo quando a leitura da carga falhou — a grade diz isso em vez de mentir. */
   carga: CargaDaEquipe | null;
@@ -82,6 +83,14 @@ export function PautaDaEquipe({
   prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
+  /**
+   * QUEM MEXE NUMA ETAPA DAQUI PASSA A SER O DONO DELA? É a GUARDA 3 da 0144
+   * do lado de cá: o gatilho `quem_mexe_na_pauta_assume` não faz a passagem
+   * para a gestão nem para o Atendimento — eles alteram e a alteração fica
+   * registrada, que é o pedido em quantas palavras. A tela só escreve a frase
+   * que o banco vai cumprir.
+   */
+  assumeAoMexer: boolean;
 }) {
   const router = useRouter();
   const caminho = usePathname();
@@ -121,10 +130,22 @@ export function PautaDaEquipe({
             <CalendarClock aria-hidden className="text-text-secondary size-4" />
             A semana da equipe
           </h2>
-          {/* A LEGENDA É A DA FAIXA DE DISPONIBILIDADE, pelos mesmos quatro
+          {/* A LEGENDA É A DA FAIXA DE DISPONIBILIDADE, pelos mesmos
               degraus — e ela é a amostra de verdade, nunca um quadradinho de
               outra cor: uma legenda que mostra outra coisa que a tela é uma
-              legenda que ensina errado. */}
+              legenda que ensina errado.
+
+              E "FORA" ENTRA NELA, o que só a imagem pegou. A grade desenhava
+              QUATRO coisas e a legenda nomeava três: a célula de quem está
+              fora é tracejada — o sinal de FORMA, o único que sobrevive ao
+              daltonismo — e ela não tinha nome em lugar nenhum visível. Quem
+              visse a quinta-feira da Marina não tinha como distingui-la de um
+              dia sem etapa, que é a célula vazia ao lado. O `sr-only` de cada
+              célula dizia; a tela, não.
+
+              O DIA SEM ETAPA FICA DE FORA, e a ausência é decisão: ele é "com
+              folga" levado ao limite, e uma quarta linha dizendo isso seria a
+              mesma informação com outro nome. Estar FORA é outro fato. */}
           <ul className="text-text-secondary flex flex-wrap items-center gap-3 text-[11px]">
             {(["folgado", "cheio", "estourado"] as const).map((nivel) => (
               <li key={nivel} className="flex items-center gap-1.5">
@@ -135,6 +156,13 @@ export function PautaDaEquipe({
                 {ROTULOS_DE_NIVEL[nivel]}
               </li>
             ))}
+            <li className="flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="border-text-muted size-3 rounded-sm border border-dashed"
+              />
+              fora
+            </li>
           </ul>
         </header>
 
@@ -152,10 +180,28 @@ export function PautaDaEquipe({
             Ninguém com ficha ativa na equipe.
           </p>
         ) : (
-          /* ROLA DENTRO DE SI, nunca a página: seis colunas mais a de nomes
-             passam da largura num celular, e a regra desta casa é que o corpo
-             da página não rola para o lado. */
-          <div className="overflow-x-auto">
+          /* ROLA DENTRO DE SI, nunca a página: cinco colunas de dia mais a
+             de nomes passam da largura num celular, e a regra desta casa é que
+             o corpo da página não rola para o lado.
+
+             E ELA É UMA REGIÃO FOCÁVEL, que é a decisão da tabela de
+             composição da campanha palavra por palavra — e a legenda do
+             Calendário Full é o contrário dela, pela diferença do que está
+             dentro: lá a saída foi NÃO ROLAR, porque a fileira era estática e
+             cabia quebrando de linha, e um `tabIndex` numa lista que não
+             decide nada é uma parada de teclado para ler o que já estava à
+             vista. Aqui o conteúdo é a COMPARAÇÃO entre cinco colunas de
+             número, e empilhá-la por pessoa destruiria a coluna — que é
+             justamente o que faz esta grade responder *a equipe aguenta?* de
+             relance. Quando rolar é o conteúdo, a resposta do axe é dar ao
+             teclado como chegar nele, com NOME: sem ele o leitor de tela
+             anuncia uma região sem dizer de quê. */
+          <div
+            className="focus-visible:ring-ring overflow-x-auto rounded-md focus-visible:ring-2 focus-visible:outline-none"
+            tabIndex={0}
+            role="region"
+            aria-label="A carga da equipe nos cinco dias úteis desta semana"
+          >
             <table className="w-full min-w-[34rem] border-collapse text-sm">
               <caption className="sr-only">
                 Minutos comprometidos de cada pessoa da equipe em cada dia útil
@@ -277,10 +323,24 @@ export function PautaDaEquipe({
                 quem lê isto está a um clique de mexer numa etapa que não é
                 dele, e a consequência precisa estar encostada no lugar onde
                 ela acontece. É a decisão da linha de saldo do Day Off, que
-                desceu da caixa do topo para a coluna ao lado do botão. */}
+                desceu da caixa do topo para a coluna ao lado do botão.
+
+                E SÃO DUAS FRASES PORQUE SÃO DUAS CONSEQUÊNCIAS, o que só a
+                imagem pegou: a GUARDA 3 do gatilho da 0144 diz que a gestão e
+                o Atendimento alteram **sem** assumir — é o pedido em quantas
+                palavras —, e a frase única estava prometendo a eles uma
+                passagem de responsabilidade que o banco não faz. Numa tela que
+                a pessoa do Atendimento abre todo dia, ela era a tela
+                afirmando o que não vai acontecer.
+
+                A OUTRA NÃO É "nada acontece": a alteração deles FICA
+                REGISTRADA, por `editou_a_etapa`, e é isso que ela diz. Uma
+                linha a menos aqui faria a seção prometer silêncio onde há
+                rastro. */}
             <p className="text-text-secondary text-xs">
-              Mexer numa etapa daqui faz a responsabilidade dela passar a ser
-              sua.
+              {assumeAoMexer
+                ? "Mexer numa etapa daqui faz a responsabilidade dela passar a ser sua."
+                : "Mexer numa etapa daqui fica registrado no seu nome, sem trocar o responsável."}
             </p>
           </div>
 

@@ -3078,6 +3078,68 @@ está a um clique de mexer numa etapa que não é dele, e a consequência precis
 estar onde ela acontece — é a decisão da linha de saldo do Day Off, que desceu da
 caixa do topo para a coluna ao lado do botão.
 
+##### E ELA ERA FALSA PARA METADE DE QUEM A LÊ, o que só a imagem pegou
+
+A primeira versão escrevia a passagem para todo mundo — *"Mexer numa etapa daqui
+faz a responsabilidade dela passar a ser sua."* —, e **a GUARDA 3 do gatilho não
+faz a passagem para a gestão nem para o Atendimento**: eles alteram SEM assumir,
+que é o pedido em quantas palavras. Quer dizer que a tela prometia uma
+consequência que o banco recusa, justamente a quem mais mexe em pauta alheia.
+
+**A pergunta não é uma segunda lista de perfis**, que é onde as duas verdades
+começariam a divergir: quem responde é `souDoAtendimento()`, a MESMA
+`is_atendimento()` que o gatilho lê — é a decisão da máquina de estados da
+subtarefa ao lado dos gatilhos da 0007. E ela é feita na seção da equipe e não na
+de cima porque a função é `cache`ada: a ida ao banco é uma só por visita.
+
+**São DUAS frases e não uma com um `if` apagando a segunda metade**, porque o que
+sobra é informação: *"fica registrado no seu nome, sem trocar o responsável"* é o
+que a GUARDA 3 garante, e a linha de histórico (`editou_a_etapa`) existe para
+isso. Uma frase que some deixaria quem é do Atendimento sem saber que a alteração
+dela fica registrada.
+
+**E a conferência precisou de DUAS telas**, que é a mão-dupla de sempre: medindo
+só a frase da passagem, uma tela que a escrevesse para todo mundo passaria — foi
+exatamente o que aconteceu. `39b` abre como a Social Media, que assume, e `39d`
+como a pessoa do Atendimento, que não assume; as duas juntas provam que a tela
+**escolhe**.
+
+##### E A LEGENDA NOMEAVA TRÊS ESTADOS NUMA GRADE QUE DESENHA QUATRO
+
+A célula de quem está fora é um travessão com borda tracejada, e **ela não tinha
+nome em lugar nenhum**: a legenda listava os três degraus de carga e parava ali.
+Numa grade cuja única informação é a cor, um quarto desenho sem entrada é o chip
+sem legenda — a pessoa procura o que ele quer dizer, não acha, e passa a
+desconfiar dos outros três. A entrada nova carrega **a amostra de verdade**, com
+a mesma borda tracejada, pela razão escrita da legenda do calendário: uma legenda
+que mostra outra coisa que a tela é uma legenda que ensina errado.
+
+**E A GRADE É UMA REGIÃO FOCÁVEL E NOMEADA**, pelo precedente que a tabela da
+composição da campanha já pagou: um `overflow-x-auto` cujo conteúdo é a
+comparação entre colunas precisa que o teclado chegue nele — e com nome, senão o
+leitor de tela anuncia uma região sem dizer de quê. Ao contrário da legenda do
+Calendário Full, **aqui a resposta não é não rolar**: empilhar a semana por
+pessoa destruiria a coluna, que é por onde o olho desce.
+
+##### E A SEÇÃO SUBIU COM A BARRA DENTRO DO `page.tsx`, o que derrubou a tela
+
+As três primeiras imagens saíram como **a página de erro**, e o log do servidor
+dizia *"Functions cannot be passed directly to Client Components"* — duas vezes,
+uma para o `limparAoSair` e outra para o `Icone`. A `BarraDeContexto` era montada
+dentro do `page.tsx`, que é de SERVIDOR: uma função não atravessa a fronteira, e
+um ícone do lucide é um objeto `forwardRef`, que também não.
+
+**O padrão da casa já existia em sete módulos e eu não o segui:** cada um tem o
+`abas.tsx` dele (`"use client"`) e um `vocabulario.ts` sem diretiva com o tipo da
+seção e o leitor dela. Minhas Tasks passou a ter os dois.
+
+***E nenhuma das dez verificações pegaria:*** o `tsc`, o `lint` e o
+`npm run build` passaram os três no código quebrado — `check:fronteira` varre o
+caminho CONTRÁRIO (servidor importando valor de arquivo cliente), e aqui o
+arquivo cliente é que recebia o valor. **Quem pegou foi a imagem**, e é a mesma
+família do 500 que o gerador passou a reprovar quando `ehAba` morava no
+`abas.tsx` da Gestão de Pessoas.
+
 ***O que fica dito em vez de escondido:*** a grade não tem navegação de semana, e
 não há como abrir a pauta de alguém sem passar pela grade — se a carga falhar, a
 seção diz isso e não oferece a pauta de ninguém. Os dois são decisão própria.

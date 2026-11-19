@@ -454,6 +454,35 @@ const TELAS = [
   { nome: "36b-minhas-tasks-painel-colaborador", rota: "/painel/minhas-tasks", largura: 1600, altura: 1100, role: "colaborador", clicar: 'button:has-text("Impressão")' },
   { nome: "37-minhas-tasks-sem-criar", rota: "/painel/minhas-tasks", largura: 1600, altura: 900, role: "colaborador-social" },
   { nome: "38-concluir-pede-tempo", rota: "/painel/minhas-tasks", largura: 1400, altura: 900, role: "socio", clicar: 'button:has-text("Concluir")' },
+  // A SEÇÃO "Da equipe" (0144, itens 22 e 23), e a grade é a peça que só a
+  // imagem confere: cor de célula não é tipo, não é árvore de acessibilidade e
+  // o `check:cores` mede o PAR e não se ele aparece.
+  //
+  // O STUB MOSTRA OS CINCO DEGRAUS DE UMA VEZ, mais o dia de ausência — uma
+  // grade só com folga provaria que a célula sabe existir e não que ela
+  // DISTINGUE, que é a razão do evento de cada par da legenda do calendário.
+  { nome: "39-pauta-da-equipe", rota: "/painel/minhas-tasks?aba=equipe", largura: 1600, altura: 1000, role: "colaborador" },
+  // E A PAUTA DE OUTRA PESSOA, que é a outra metade e a que prova o item 23: a
+  // `39` mostra a grade com a frase "Escolha uma pessoa", e sem este clique a
+  // lista de etapas alheias — com o botão de ação que `souDaEquipe` destravou
+  // e a frase que diz o que mexer nela faz — não sai em imagem nenhuma.
+  //
+  // E A PESSOA É A MARINA, que é SOCIAL MEDIA, nunca a Carla: a GUARDA 3 do
+  // gatilho não faz a passagem para a gestão nem para o ATENDIMENTO, e a
+  // Carla é do Atendimento — fotografada com ela, esta tela sairia com a
+  // frase da passagem para quem o banco não a faz. Foi assim que a primeira
+  // rodada saiu, e é um bug de produto que só a imagem pega: ordem de palavra
+  // não é tipo, não é cor e não é árvore de acessibilidade.
+  { nome: "39b-pauta-da-equipe-pessoa", rota: "/painel/minhas-tasks?aba=equipe", largura: 1600, altura: 1100, role: "colaborador-social", clicar: 'button:has-text("Bruno Lima")' },
+  // E A MESMA PAUTA PARA QUEM ALTERA SEM ASSUMIR, que é a mão dupla: medindo
+  // só a frase da passagem, uma tela que a escrevesse para todo mundo passaria
+  // — foi exatamente o que aconteceu. As duas juntas provam que ela ESCOLHE.
+  { nome: "39d-pauta-da-equipe-atendimento", rota: "/painel/minhas-tasks?aba=equipe", largura: 1600, altura: 1100, role: "colaborador", clicar: 'button:has-text("Bruno Lima")' },
+  // O 375 É DA GRADE, e ela é o único conteúdo desta tela que rola para o
+  // lado: cinco colunas de dia mais a de nomes passam de 34rem, então aqui se
+  // confere que a página NÃO rola junto e que a região focável aparece — é o
+  // achado do axe que a tabela de composição da campanha já pagou uma vez.
+  { nome: "39c-pauta-da-equipe-375", rota: "/painel/minhas-tasks?aba=equipe", largura: 375, altura: 1400, role: "colaborador" },
 
   { nome: "40-aprovacoes-internas", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 1000, role: "desenvolvedor" },
   { nome: "41-aprovacoes-internas-socio", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 1000, role: "socio" },
@@ -1487,6 +1516,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/novidades": ["./scripts/prototipo/novidades.ts"],
   "@/lib/dados/tasks": ["./scripts/prototipo/tasks.ts"],
   "@/lib/dados/minhas-tasks": ["./scripts/prototipo/minhas-tasks.ts"],
+  "@/lib/dados/pauta-da-equipe": ["./scripts/prototipo/pauta-da-equipe.ts"],
   "@/lib/dados/rotinas": ["./scripts/prototipo/rotinas.ts"],
   "@/lib/dados/workflows": ["./scripts/prototipo/workflows.ts"],
   "@/lib/dados/recorrencias": ["./scripts/prototipo/recorrencias.ts"],

@@ -3,9 +3,6 @@ import { Suspense } from "react";
 
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ListChecks, Users } from "lucide-react";
-
-import { BarraDeContexto } from "@/components/shared/barra-de-contexto";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota, primeiroNome } from "@/lib/auth/dal";
@@ -26,41 +23,16 @@ import type { FocoDoDia } from "@/lib/dominio/tasks";
 
 import { saudacaoDaAgencia } from "@/lib/dominio/datas";
 
+import { AbasDeMinhasTasks } from "./abas";
 import { montarLinhas } from "./linhas";
 import { PainelPessoal } from "./painel-pessoal";
 import { PautaDaEquipe } from "./pauta-da-equipe";
+import { lerSecao, type Secao } from "./vocabulario";
 
 export const metadata: Metadata = { title: "Minhas Tasks" };
 
 const VISOES = ["board", "lista", "calendario"] as const;
 const FOCOS = ["atrasadas", "hoje", "semana"] as const;
-
-/**
- * AS DUAS SEÇÕES DA TELA (migration 0144, item 22).
- *
- * Decisão do usuário: *"todos os colaboradores devem poder visualizar as
- * pautas de todos"*.
- *
- * **É UMA SEÇÃO E NÃO UMA QUARTA VISÃO, e a distinção é a que a
- * `BarraDeContexto` existe para fazer:** o seletor de visão troca o DESENHO
- * do mesmo conteúdo — as mesmas etapas em coluna, em linha ou em dia —, e a
- * barra navega entre ASSUNTOS, cada um com outra consulta e outro conteúdo.
- * *O meu dia* e *a semana da equipe* são dois assuntos, então "Da equipe" ao
- * lado de Board/Lista/Calendário leria como um quarto jeito de desenhar as
- * minhas etapas.
- *
- * **E NÃO É UMA ROTA PRÓPRIA**, que era a outra saída: a barra é o mecanismo
- * da casa para as seções de um módulo, e um `/painel/pauta-da-equipe` seria um
- * item a mais na barra lateral — a direção oposta à do sprint que tirou dois
- * de lá. Aqui ela cumpre a frase do pedido com o módulo que já existe.
- *
- * **O SELETOR DE VISÃO FICA DENTRO DE "O meu dia"**, menor que a barra e no
- * tamanho que ele já tinha: com o mesmo peso, a pessoa leria "O meu dia / Da
- * equipe" e "Board / Lista" como duas metades da mesma escolha — é a decisão
- * escrita da Gestão de Tasks, onde os dois também aparecem juntos.
- */
-const SECOES = ["minhas", "equipe"] as const;
-type Secao = (typeof SECOES)[number];
 
 async function Conteudo({
   usuarioId,
@@ -162,7 +134,19 @@ async function ConteudoDaEquipe({
   barra: React.ReactNode;
 }) {
   const prazos = prazosDeHoje();
-  const carga = await cargaDaEquipeNaSemana();
+
+  // QUEM MEXE NUMA ETAPA DAQUI PASSA A SER O DONO DELA? A GUARDA 3 do gatilho
+  // da 0144 não faz a passagem para a gestão nem para o Atendimento — eles
+  // alteram SEM assumir, que é o pedido em quantas palavras. A frase da tela
+  // sai desta pergunta, e não de uma segunda lista de perfis: quem responde é
+  // `souDoAtendimento()`, que é a MESMA `is_atendimento()` que o gatilho lê.
+  //
+  // E ela é feita aqui e não na `Conteudo`: as duas seções chamam a função,
+  // que é `cache`ada, então a ida ao banco é uma só por visita.
+  const [carga, ehDoAtendimento] = await Promise.all([
+    cargaDaEquipeNaSemana(),
+    souDoAtendimento(),
+  ]);
 
   // A PESSOA ESCOLHIDA SE RESOLVE PELA LISTA DA GRADE, e nunca direto do
   // `?pessoa=`. São duas coisas de uma vez: é de lá que sai o NOME do
@@ -200,6 +184,7 @@ async function ConteudoDaEquipe({
         prazos={prazos}
         usuarioId={usuarioId}
         souGestor={souGestor}
+        assumeAoMexer={!souGestor && !ehDoAtendimento}
       />
     </>
   );
@@ -211,10 +196,9 @@ export default async function PaginaDeMinhasTasks({
   const sessao = await exigirAcessoARota("/painel/minhas-tasks");
   const params = await searchParams;
 
-  const abaPedida = typeof params.aba === "string" ? params.aba : "";
-  const aba: Secao = (SECOES as readonly string[]).includes(abaPedida)
-    ? (abaPedida as Secao)
-    : "minhas";
+  const aba: Secao = lerSecao(
+    typeof params.aba === "string" ? params.aba : undefined,
+  );
 
   const visaoPedida = typeof params.visao === "string" ? params.visao : "";
   const visao = (VISOES as readonly string[]).includes(visaoPedida)
@@ -230,24 +214,7 @@ export default async function PaginaDeMinhasTasks({
 
   const nome = primeiroNome(sessao.profile.nome);
 
-  const barra = (
-    <BarraDeContexto<Secao>
-      rotuloAcessivel="Seções de Minhas Tasks"
-      atual={aba}
-      secoes={[
-        { chave: "minhas", rotulo: "O meu dia", Icone: ListChecks },
-        { chave: "equipe", rotulo: "Da equipe", Icone: Users },
-      ]}
-      /* O QUE NÃO FAZ SENTIDO DO OUTRO LADO SAI DA URL. `visao` e `foco`
-         recortam a MINHA lista, e `pessoa` escolhe alguém da equipe —
-         atravessando, eles ficariam na barra de endereço afirmando um recorte
-         que a seção de destino não aplica, e voltariam a valer no clique de
-         volta sem ninguém ter pedido. */
-      limparAoSair={(destino) =>
-        destino === "equipe" ? ["visao", "foco"] : ["pessoa"]
-      }
-    />
-  );
+  const barra = <AbasDeMinhasTasks ativa={aba} />;
 
   return (
     <div className="space-y-6">
