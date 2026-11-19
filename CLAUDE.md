@@ -12709,6 +12709,150 @@ tudo em 2027 sem problema porque para elas a competência é só uma etiqueta de
 mês. Aqui o mês de serviço é um mês que já passou, e passado não volta a ser
 futuro.
 
+#### O PEDIDO ATRAVESSA O PAINEL, E CADA UM O DISPENSA (0143)
+
+Decisão do usuário: *"sempre que o envio de uma Nota Fiscal for solicitado,
+todos os usuários devem receber um aviso (…) em formato de pop-up global,
+independentemente da aba ou página em que o usuário esteja (…) em tempo real,
+sem necessidade de atualizar a página (…) permitir que cada usuário dispense o
+pop-up após visualizar a solicitação, mantendo o registro na central de
+notificações"*.
+
+**METADE JÁ EXISTIA, e ir medir antes de escrever é o que separou o que
+precisava de código do que só precisava ser ligado** — a lição da 0060 e da
+0127:
+
+| o que ele pede | onde já estava |
+| --- | --- |
+| todos os usuários recebem | `quem_deve_nota()`, desde a 0066 |
+| o registro na central | a linha do sino que `solicitar_notas_do_mes` grava |
+| em tempo real | `anunciar()` + `router.refresh()`, desde o Sprint 16 |
+| **o pop-up global** | **não existia** — havia a faixa, dentro de um módulo |
+| **a dispensa** | **não existia** |
+
+**O AVISO EXISTIA E VIVIA EM DOIS LUGARES QUE NÃO ATRAVESSAM O PAINEL:** o
+sino, que se apaga no primeiro clique e depois não existe em tela nenhuma, e a
+faixa de `/painel/notas-fiscais`, que é exatamente a tela que quem está
+devendo não abriu. É o argumento que criou aquela faixa na 0066 — *"o sino não
+basta"* — levado um nível acima.
+
+##### DISPENSAR NÃO É MARCAR COMO LIDO, e é esta frase que decide o schema
+
+O caminho curto era `notifications.lida_em`: o aviso já existe lá, e fechar o
+pop-up escreveria a data. **Ele desfaz as duas metades do pedido de uma vez.**
+
+A primeira é a frase dele: *"mantendo o registro na central"*. `lida_em` tira
+o aviso da contagem do sino — ou seja, apaga justamente o registro que ele
+pediu para guardar.
+
+**A segunda é pior, e é a 0066 de novo:** `lida_em` não sabe QUANDO o pedido
+deixou de importar. Quem anexou a nota continuaria vendo o pop-up em toda tela
+do painel até lembrar de abrir o sino — *"um aviso que cobra o que a pessoa já
+fez é o aviso que ela aprende a ignorar"*. O que sabe isso é
+`meus_pedidos_de_nota()`, que some sozinha quando a nota chega.
+
+Então a dispensa é tabela própria, e **o sino continua marcado como não lido
+depois de alguém fechar o aviso** — que é o pedido, letra por letra.
+
+##### A CHAVE É O PEDIDO, nunca a competência
+
+`invoice_request_dismissals (request_id, user_id)`. Keyada na COMPETÊNCIA ela
+seria mais curta e mataria a segunda cobrança: a 0066 criou uma linha por
+pedido justamente porque *"a cobrança do dia 10 é um fato diferente do pedido
+do dia 5, com outro destinatário e outra contagem"*, e ela existe para quem
+dispensou a primeira e continua devendo. Dispensar o aviso do dia 5 não pode
+calar o do dia 10.
+
+**E `meus_pedidos_de_nota()` passou a devolver o `pedido_id`**, que é o do
+pedido MAIS RECENTE daquele mês — o mesmo que já decidia `pedido_em`. Dois
+critérios dariam a pessoa dispensando o aviso de um pedido lendo o prazo de
+outro, e o pop-up voltaria no clique seguinte sem nada explicando.
+
+##### A FUNÇÃO MARCA, E NÃO FILTRA — e é a assimetria inteira
+
+`dispensado` é uma COLUNA do retorno, e não um `and not exists` no `where`.
+Filtrando, dispensar o pop-up apagaria junto **a faixa de
+`/painel/notas-fiscais`** — e aquela tela é onde a pessoa vai justamente para
+anexar a nota que o aviso cobrou. **O pop-up obedece a coluna; a faixa a
+ignora**, e quem separa os dois é `meuPedidoDeNotaEmAberto()`, um filtro em
+cima da mesma leitura. *Medido com mutação: fazendo a função filtrar, dois
+cenários caem.*
+
+##### SEM UPDATE E SEM DELETE, e `is_staff()` no `with check`
+
+As duas ausências são a regra: *"quero o pop-up de volta"* não existe — o
+caminho é a tela de Notas Fiscais, que continua cobrando — e reescrever a data
+de uma dispensa não responde pergunta de ninguém. **E a afirmação da bateria é
+"zero linhas" e não "recusado"**, porque é isso que o Postgres faz: sem policy,
+o `using` é falso e o comando não acha nada, ele não estoura. Escrever `recusa`
+ali seria um cenário que passa verde no dia em que alguém CRIAR a policy.
+
+**`is_staff()` não é a segunda pergunta embaixo de uma primeira que já barra
+todo mundo**, que é a recusa da 0060: `user_id = auth.uid()` barra quem
+dispensa no nome de outra pessoa e **deixa o cliente passar**, porque ele
+também é dono do próprio uuid. **Medido na bateria** — sem a linha, a Joana
+insere uma dispensa para um pedido que nunca foi dela.
+
+**E NEM O SÓCIO LÊ A DISPENSA DOS OUTROS.** A tabela não decide trabalho
+nenhum — ela diz quem fechou um aviso e quando —, e é a régua de
+`academy_anotacoes` e de `client_notification_prefs`.
+
+##### Em tempo real sem nada novo no fio
+
+`solicitarNotasDoMes` passou a chamar `anunciar("nota-fiscal")`, e é tudo.
+**O que viaja continua sendo a palavra**: quem recebe chama `router.refresh()`,
+o layout do painel é um Server Component, e ele relê `meuPedidoDeNotaEmAberto()`
+na remontagem. O aviso vem DEPOIS dos três `revalidatePath` — pedir a tela de
+novo antes de invalidar o cache devolveria a versão sem o pedido.
+
+**O pop-up mora no layout pela razão do `GravadorDeVisitas` e do convite de
+micro-tour:** o que não é específico de tela não se escreve por tela, e a
+vigésima primeira tela nasceria sem o aviso sem nada quebrar. ***O custo está
+dito:*** é a quinta leitura do `Promise.all` do layout, e ela roda em toda
+navegação do painel.
+
+**E ele some em `/painel/notas-fiscais`**, que é a única tela onde ele seria
+ruído: a faixa está logo abaixo dizendo a mesma coisa, com o campo de anexar
+ao lado.
+
+##### O SINO NÃO GANHA TIPO NOVO, e a ausência é decisão
+
+O óbvio era um `nota_fiscal` em `notification_tipo` — hoje o aviso nasce
+`'sistema'`, que é o balde do que não tem tipo próprio. **Medido:
+`sino-de-notificacoes.tsx` tem 193 linhas e NÃO LÊ `tipo` em lugar nenhum**;
+nenhuma tela do produto lê. O valor não mudaria um pixel, e seria o que alguém
+reaproveita três sprints depois achando que ele decide alguma coisa (0023).
+
+**E ele cobraria caro pelo nada:** um valor de enum só pode ser usado depois do
+commit da transação em que nasce (0028, 0109), então mexer no tipo obrigaria a
+copiar `solicitar_notas_do_mes` INTEIRA — cento e quarenta linhas — para trocar
+uma palavra dentro dela, com o risco da 0030 junto.
+
+##### E O MARCADOR DIZIA FALTA NUM BANCO EM DIA
+
+A primeira versão da linha do `onde-esta-o-banco.sql` era
+`meus_pedidos_de_nota|dispensado`, e `no_corpo` compara `prosrc` — a palavra
+`dispensado` mora no `returns table`, que é `proargnames`. **É a 0134 pela
+segunda vez**, e *uma linha que manda recolar uma migration já aplicada custa
+o mesmo que uma que esconde a que falta*. O trecho passou a ser o nome da
+tabela, que está no corpo, e foi **medido nos dois sentidos**: `ok` no banco
+com a migration, FALTA no mesmo banco com a função devolvida à forma da 0066.
+
+***E o `check:cores` pegou o meu próprio comentário, pela nona vez:*** a
+explicação de por que o hover é par nomeado citava `bg-warning/10` por extenso,
+dentro de um `//` no meio das props — que o leitor não tira, porque ele
+substitui bloco `/* */`. A explicação foi para o `{/* */}` acima do elemento.
+
+***E o stub do protótipo nasce DISPENSADO, que é o contrário do habitual:*** o
+pop-up mora no layout, então com `dispensado: false` ele sairia nas cento e
+cinquenta telas de uma vez, cobrindo o topo de cada uma — a entrega nova
+degradaria cento e quarenta e nove conferências velhas. `PROTOTIPO_PEDIDO_DE_NOTA`
+liga o estado raro numa tela só, que é a forma de `PROTOTIPO_FEED_VAZIO`.
+
+**2424 cenários, todos passando**, com duas mutações medidas: a dispensa
+deixando de ser por pessoa derruba 1, e a função filtrando em vez de marcar
+derruba 2.
+
 #### O bucket é privado, e a pasta é da pessoa
 
 Uma nota fiscal traz CNPJ, endereço e valor. A policy compara

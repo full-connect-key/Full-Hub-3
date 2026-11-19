@@ -42,4 +42,8 @@ export type MotivoDoAviso =
   | "comentario"
   | "aprovacao"
   | "post"
-  | "campanha";
+  | "campanha"
+  // 0143: o Financeiro pediu as notas do mês. É o único motivo desta lista que
+  // não nasce de alguém mexer num trabalho — ele é uma COBRANÇA, e o aviso
+  // existe para o pop-up chegar à tela de quem está noutra aba sem recarregar.
+  | "nota-fiscal";

@@ -194,10 +194,31 @@ export function interpretarValor(texto: string): number | null {
  * classificaria como atrasado um pedido que o contador ainda dá em dia.
  */
 export type PedidoDeNota = {
+  /**
+   * O pedido mais recente daquele mês (0143).
+   *
+   * **É ele, e não a competência, que a dispensa do pop-up guarda.** Cobrar de
+   * novo é um fato próprio desde a 0066 — "a cobrança do dia 10 é um fato
+   * diferente do pedido do dia 5" —, então a segunda cobrança precisa trazer
+   * o aviso de volta para quem fechou a primeira e continua devendo. Guardada
+   * na competência, ela não voltaria, e cobrar de novo deixaria de fazer o que
+   * existe para fazer.
+   */
+  pedidoId: string;
   /** O mês de serviço, no primeiro dia — como a competência é gravada. */
   competencia: string;
   /** O dia em que o pedido saiu, que É o prazo. */
   pedidoEm: string;
+  /**
+   * Se esta pessoa já fechou o pop-up deste pedido (0143).
+   *
+   * **A faixa da tela de Notas Fiscais IGNORA, e o pop-up FILTRA.** As duas
+   * fazem a mesma pergunta — "este pedido ainda me cobra" — e é por isso que
+   * saem da mesma função; o que as separa é o papel de cada uma: a faixa é o
+   * registro permanente na tela onde a nota se manda, e o pop-up é o aviso
+   * que atravessa o painel e que a pessoa fecha depois de ler.
+   */
+  dispensado: boolean;
 };
 
 export function prazoVencido(pedido: PedidoDeNota, hojeISO: string): boolean {

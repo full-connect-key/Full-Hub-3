@@ -372,7 +372,8 @@ export type NotificationTipo =
   // 0068: o pedido que o cliente abriu pelo Portal, e o que acontece com ele.
   | "solicitacao"
   // 0069: o equipamento que passou para a sua mao, e o que acontece com ele.
-  | "comodato";
+  | "comodato"
+  // 0143: o Financeiro pediu a sua nota fiscal do mês. Tipo próprio e não o;
 
 /** O que o evento é. Decide a cor quando `events.cor` não diz outra coisa. */
 export type EventoTipo =
@@ -998,6 +999,31 @@ export interface Database {
           id?: string;
           competencia: string;
           solicitado_por: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
+      /**
+       * Quem já fechou o pop-up de qual pedido de nota (0143).
+       *
+       * **É do PEDIDO e não do mês**, e a diferença é a 0066: cobrar de novo é
+       * um fato próprio, então a segunda cobrança traz o aviso de volta para
+       * quem dispensou a primeira e continua devendo.
+       *
+       * **Sem `Update` e sem `Delete`**, como as policies: não existe "quero o
+       * pop-up de volta", e reescrever a data de uma dispensa não responde
+       * pergunta de ninguém. `dispensado_em` fica fora do `Insert` porque quem
+       * o escreve é o `default` da coluna.
+       */
+      invoice_request_dismissals: {
+        Row: {
+          request_id: string;
+          user_id: string;
+          dispensado_em: string;
+        };
+        Insert: {
+          request_id: string;
+          user_id: string;
         };
         Update: never;
         Relationships: [];
@@ -4246,7 +4272,19 @@ export interface Database {
        */
       meus_pedidos_de_nota: {
         Args: Record<string, never>;
-        Returns: { competencia: string; pedido_em: string }[];
+        /**
+         * `pedido_id` e `dispensado` entraram na 0143, e é o par que permite o
+         * pop-up global: o id porque a dispensa é do PEDIDO e não do mês — a
+         * segunda cobrança traz o aviso de volta —, e `dispensado` porque a
+         * faixa da tela de Notas Fiscais e o pop-up fazem a MESMA pergunta e
+         * só divergem no que fazem com a resposta: ela ignora, ele filtra.
+         */
+        Returns: {
+          pedido_id: string;
+          competencia: string;
+          pedido_em: string;
+          dispensado: boolean;
+        }[];
       };
       pode_aprovar_subtarefa: {
         Args: { p_subtask_id: string };
@@ -5383,6 +5421,8 @@ export type ClientFunctionDefault =
 export type TeamInvoice = Database["public"]["Tables"]["team_invoices"]["Row"];
 export type InvoiceRequest =
   Database["public"]["Tables"]["invoice_requests"]["Row"];
+export type InvoiceRequestDismissal =
+  Database["public"]["Tables"]["invoice_request_dismissals"]["Row"];
 export type RequestType = Database["public"]["Tables"]["request_types"]["Row"];
 export type ClientRequest =
   Database["public"]["Tables"]["client_requests"]["Row"];

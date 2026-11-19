@@ -249,9 +249,35 @@ export async function meusPedidosDeNota(): Promise<PedidoDeNota[]> {
   }
 
   return (data ?? []).map((linha) => ({
+    pedidoId: linha.pedido_id,
     competencia: linha.competencia,
     pedidoEm: linha.pedido_em,
+    dispensado: linha.dispensado,
   }));
+}
+
+/**
+ * O que o pop-up global mostra: o pedido que me cobra e que eu ainda não
+ * fechei (0143).
+ *
+ * ---------------------------------------------------------------------------
+ * **É UM FILTRO SOBRE A MESMA LEITURA, e não uma consulta nova.**
+ *
+ * A faixa da tela de Notas Fiscais e o pop-up respondem a MESMA pergunta —
+ * "este pedido ainda me cobra" —, e duas consultas divergiriam no dia em que
+ * alguém mexesse numa. O que as separa é o que cada uma faz com `dispensado`:
+ * a faixa ignora, porque ela é o registro permanente na tela onde a nota se
+ * manda; esta filtra, porque o pop-up é o que a pessoa fechou.
+ * ---------------------------------------------------------------------------
+ *
+ * **E quem manda a nota some daqui sozinho**, sem nada precisar ser apagado:
+ * `meus_pedidos_de_nota()` já deixa de devolver o mês no instante em que a
+ * nota viva existe. É a frase da 0066 — *um aviso que cobra o que a pessoa já
+ * fez é o aviso que ela aprende a ignorar* — e é ela que torna um pop-up
+ * global seguro de pôr no layout.
+ */
+export async function meuPedidoDeNotaEmAberto(): Promise<PedidoDeNota[]> {
+  return (await meusPedidosDeNota()).filter((pedido) => !pedido.dispensado);
 }
 
 /** Quem da equipe ainda não mandou a nota do mês — a conta antes do clique. */

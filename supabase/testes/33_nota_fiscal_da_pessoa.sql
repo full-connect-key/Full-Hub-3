@@ -596,3 +596,162 @@ select teste.conferir_como(
   format($fmt$select count(*)::text from public.meus_pedidos_de_nota()
                where competencia = %L$fmt$, :MES_ANTERIOR),
   '0');
+
+
+-- ===========================================================================
+-- A DISPENSA DO POP-UP (0143)
+--
+-- O pedido deixou de ser so uma faixa dentro de Notas Fiscais e passou a ser um
+-- aviso que atravessa o painel. Decisao do usuario: *"permitir que cada usuario
+-- dispense o pop-up apos visualizar a solicitacao, MANTENDO O REGISTRO na
+-- central de notificacoes"* -- e e essa segunda metade que decide o schema.
+--
+-- DISPENSAR NAO E MARCAR COMO LIDO, e os dois nao podiam ser a mesma escrita.
+-- `notifications.lida_em` tira o aviso da contagem do sino, que e justamente o
+-- registro que ele pediu para guardar; e ele nao sabe QUANDO o pedido deixou
+-- de importar -- quem ja mandou a nota continuaria vendo o pop-up em toda tela
+-- do painel, que e o aviso que cobra o que a pessoa ja fez (0066).
+-- ===========================================================================
+
+-- A FAIXA IGNORA A DISPENSA E O POP-UP A OBEDECE, e e a assimetria inteira
+-- desta migration: a funcao devolve a linha dos DOIS jeitos, com a coluna
+-- dizendo qual. Fosse um filtro dentro dela, dispensar o pop-up apagaria
+-- tambem a faixa de `/painel/notas-fiscais` -- e aquela tela e onde a pessoa
+-- vai JUSTAMENTE para anexar a nota que o aviso cobrou.
+select teste.conferir_como(
+  'Antes de dispensar, o pedido de Rafael nasce aberto',
+  :RAFAEL,
+  $$select count(*)::text || ' | ' || bool_or(dispensado)::text
+      from public.meus_pedidos_de_nota()$$,
+  '1 | false');
+
+select teste.cenario('Rafael dispensa o pop-up do pedido dele', :RAFAEL,
+  $$insert into public.invoice_request_dismissals (request_id, user_id)
+    select pedido_id, auth.uid() from public.meus_pedidos_de_nota()$$,
+  'ok', 1);
+
+select teste.conferir_como(
+  'A linha FICA, dizendo que foi dispensada: a faixa continua cobrando',
+  :RAFAEL,
+  $$select count(*)::text || ' | ' || bool_or(dispensado)::text
+      from public.meus_pedidos_de_nota()$$,
+  '1 | true');
+
+-- A DISPENSA E DE QUEM DISPENSOU, e sem esta linha a coluna mentiria para
+-- todo mundo: um `exists` sem `user_id` responderia "ja dispensaram" para a
+-- agencia inteira porque UMA pessoa fechou o aviso dela.
+select teste.conferir_como(
+  'E a de Rafael nao dispensa a de Marina',
+  :MARINA,
+  $$select bool_or(dispensado)::text from public.meus_pedidos_de_nota()$$,
+  'false');
+
+-- NINGUEM DISPENSA NO NOME DE OUTRA PESSOA. Sem o `with check`, fechar o
+-- pop-up da agencia inteira seria um `insert` montado a mao -- e o sintoma
+-- seria uma cobranca que ninguem viu, que e o modo de falha que este modulo
+-- inteiro existe para nao ter.
+--
+-- O ID VEM DE `meus_pedidos_de_nota()`, e nunca de um `select` em
+-- `invoice_requests`: aquela tabela e do socio, entao a subconsulta devolveria
+-- ZERO linhas para Rafael e o `insert` passaria sem inserir nada -- um cenario
+-- verde medindo a policy errada. A primeira versao desta secao fazia isso, e
+-- foi a bateria que mostrou: quatro "passou quando devia ser recusado" que
+-- eram quatro comandos que nao alcancavam linha nenhuma.
+select teste.recusa_com(
+  'Rafael nao dispensa o aviso de Marina',
+  :RAFAEL,
+  format($fmt$insert into public.invoice_request_dismissals (request_id, user_id)
+          select pedido_id, %L from public.meus_pedidos_de_nota()$fmt$,
+         :MARINA),
+  'row-level security');
+
+-- E NINGUEM LE A DISPENSA DE OUTRA PESSOA. A tabela nao decide trabalho
+-- nenhum -- ela diz quem fechou um aviso e quando --, e saber isso do colega e
+-- a regua de `academy_anotacoes` e de `client_notification_prefs`: nem o
+-- socio.
+select teste.conferir_como(
+  'Nem a socia le a dispensa dos outros',
+  :ANA,
+  $$select count(*)::text from public.invoice_request_dismissals$$,
+  '0');
+
+select teste.conferir_como(
+  'Rafael le a dele',
+  :RAFAEL,
+  $$select count(*)::text from public.invoice_request_dismissals$$,
+  '1');
+
+-- NAO HA UPDATE E NAO HA DELETE, e as duas ausencias sao a decisao. "Quero o
+-- pop-up de volta" nao existe: o caminho e a tela de Notas Fiscais, que
+-- continua cobrando com a faixa. E reescrever a data de uma dispensa nao
+-- responde pergunta de ninguem.
+--
+-- E A AFIRMACAO E "ZERO LINHAS" E NAO "RECUSADO", porque e isso que o Postgres
+-- faz: sem policy de UPDATE nem de DELETE, o `using` e falso e o comando
+-- simplesmente nao acha nada -- ele nao estoura. Escrever `recusa` aqui seria
+-- um cenario que passa verde no dia em que alguem CRIAR a policy, porque um
+-- delete que apaga de verdade tambem nao estoura. O numero separa os dois.
+select teste.cenario('Nem o dono desfaz a propria dispensa', :RAFAEL,
+  'delete from public.invoice_request_dismissals', 'ok', 0);
+
+select teste.cenario('Nem o dono reescreve a data dela', :RAFAEL,
+  $$update public.invoice_request_dismissals set dispensado_em = now() - interval '1 day'$$,
+  'ok', 0);
+
+select teste.conferir_como(
+  'E a dispensa dele continua de pe depois das duas tentativas',
+  :RAFAEL,
+  $$select count(*)::text from public.invoice_request_dismissals$$,
+  '1');
+
+-- O CLIENTE NAO ALCANCA A TABELA, como nao alcanca nada deste modulo: ele nao
+-- emite nota para a agencia.
+--
+-- AQUI O ID VEM POR `\gset`, de fora de qualquer sessao: Joana nao le
+-- `invoice_requests` (e do socio) nem `meus_pedidos_de_nota()` (e `is_staff()`),
+-- entao as duas fontes de dentro dariam zero linhas e o `insert` passaria sem
+-- inserir nada -- o mesmo furo de cima, pelo lado do cliente.
+select id as pedido_recente from public.invoice_requests
+ order by created_at desc limit 1
+\gset
+
+select teste.recusa_com(
+  'O cliente nao dispensa aviso nenhum',
+  :JOANA,
+  format($fmt$insert into public.invoice_request_dismissals (request_id, user_id)
+          values (%L, %L)$fmt$, :'pedido_recente', :JOANA),
+  'row-level security');
+
+-- ---------------------------------------------------------------------------
+-- E A COBRANCA DE NOVO TRAZ O POP-UP DE VOLTA.
+--
+-- E a razao de a dispensa ser keyada no PEDIDO e nao na competencia, e e a
+-- frase da 0066 vista do outro lado: *"a cobranca do dia 10 e um fato
+-- diferente do pedido do dia 5"*. Dispensar o aviso do dia 5 nao pode calar o
+-- do dia 10 -- a segunda cobranca existe exatamente para quem dispensou a
+-- primeira e continua devendo.
+-- ---------------------------------------------------------------------------
+select teste.cenario('A socia cobra o mes anterior de novo', :ANA,
+  format($fmt$select public.solicitar_notas_do_mes(%L)$fmt$, :MES_SERVICO), 'ok', 1);
+
+select teste.conferir_como(
+  'E o pop-up de Rafael volta, porque o pedido e outro',
+  :RAFAEL,
+  $$select count(*)::text || ' | ' || bool_or(dispensado)::text
+      from public.meus_pedidos_de_nota()$$,
+  '1 | false');
+
+-- O `pedido_id` E O PEDIDO MAIS RECENTE DO MES, e nao um qualquer: ele tem de
+-- ser o mesmo que decide `pedido_em`. Fossem dois criterios, a pessoa
+-- dispensaria o aviso de um pedido lendo o prazo de outro -- e o pop-up
+-- voltaria no clique seguinte sem nada explicando.
+select id as cobranca_de_hoje from public.invoice_requests
+ where competencia = :'MES_SERVICO' order by created_at desc limit 1
+\gset
+
+select teste.conferir_como(
+  'E ele aponta para a cobranca de hoje, a mesma que deu o prazo',
+  :RAFAEL,
+  format($fmt$select (pedido_id = %L)::text from public.meus_pedidos_de_nota()$fmt$,
+         :'cobranca_de_hoje'),
+  'true');

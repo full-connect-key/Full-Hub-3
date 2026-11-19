@@ -1,3 +1,4 @@
+import { AvisoDoPedidoDeNota } from "@/components/painel/aviso-do-pedido-de-nota";
 import { BuscaGlobal } from "@/components/painel/busca-global";
 import { GravadorDeVisitas } from "@/components/painel/gravador-de-visitas";
 import { MenuDoUsuario } from "@/components/painel/menu-do-usuario";
@@ -13,6 +14,7 @@ import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 import { exigirEquipe } from "@/lib/auth/dal";
 import { obterMinhaFicha } from "@/lib/dados/equipe";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
+import { meuPedidoDeNotaEmAberto } from "@/lib/dados/notas-fiscais";
 import { minhasNotificacoes } from "@/lib/dados/notificacoes";
 import { meusTours } from "@/lib/dados/tour";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
@@ -55,11 +57,18 @@ export default async function LayoutDoPainel({
   // `select` de no máximo uma dúzia de linhas pela própria pessoa — e a
   // alternativa, carregá-las sob demanda, exigiria um segundo caminho de
   // leitura para responder a mesma pergunta.
-  const [ficha, avisos, tours, ehAtendimento] = await Promise.all([
+  const [ficha, avisos, tours, ehAtendimento, pedidosDeNota] = await Promise.all([
     obterMinhaFicha(),
     minhasNotificacoes(),
     meusTours(),
     souDoAtendimento(),
+    // A QUINTA LEITURA, e o custo é dito em vez de escondido: ela roda em toda
+    // navegação do painel, como as duas do tour acima. É uma RPC `stable` sobre
+    // uma tabela pequena, e é ela que faz o aviso aparecer em tempo real sem
+    // nada novo no fio — `router.refresh()` remonta este layout, e o pedido
+    // chega na renderização de servidor seguinte. Carregá-la sob demanda
+    // exigiria um segundo caminho de leitura para a mesma pergunta.
+    meuPedidoDeNotaEmAberto(),
   ]);
 
   // O TOUR É MONTADO NO SERVIDOR e desce como dado: `tourDoPainel()` é um
@@ -248,6 +257,14 @@ export default async function LayoutDoPainel({
           Router não é remontado ao navegar entre as telas dele, então quem
           sabe que a rota mudou é o `usePathname` dentro dele. */}
       <GravadorDeVisitas />
+
+      {/* O PEDIDO DE NOTA ATRAVESSA O PAINEL (0143), por decisão do usuário:
+          *"o aviso deve aparecer em formato de pop-up global, independentemente
+          da aba ou página em que o usuário esteja"*. Aqui pela mesma razão dos
+          três acima — e com uma própria: é por ser lido no layout que ele
+          aparece em tempo real, porque `router.refresh()` remonta este Server
+          Component sem a pessoa navegar. */}
+      <AvisoDoPedidoDeNota pedidos={pedidosDeNota} hojeISO={hojeNaAgencia()} />
     </ProvedorDoTour>
   );
 }

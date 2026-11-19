@@ -975,7 +975,21 @@ from (
     -- Acesso Rapido continuaria mostrando os tres atalhos de sempre, que e
     -- exatamente o fallback -- a tela nao quebra, ela so nao aprende, e
     -- ninguem liga uma coisa a outra.
-    ('0142', 'o acesso rapido aprende', 'funcao', 'registrar_visita')
+    ('0142', 'o acesso rapido aprende', 'funcao', 'registrar_visita'),
+    -- A 0143 CRIA UMA TABELA E RESHAPEIA UMA FUNCAO que ja existia desde a
+    -- 0066, e o marcador aponta para a SEGUNDA -- por PRESENCA de uma coluna
+    -- que a versao antiga nao tem. Um marcador na tabela diria `ok` sobre um
+    -- banco onde a colagem morreu no PASSO 2, e aquele e o pior estado dos
+    -- dois: o pop-up le `dispensado` e recebe `undefined`, entao ele aparece
+    -- para sempre, sem o botao de dispensar fazer efeito nenhum.
+    --
+    -- E O TRECHO E O NOME DA TABELA, nunca `dispensado`: aquela palavra mora no
+    -- `returns table`, que e `proargnames`, e `no_corpo` compara `prosrc` --
+    -- entao a primeira versao desta linha dizia FALTA num banco com a
+    -- migration inteira aplicada. E a 0134 pela segunda vez, e desta vez quem
+    -- pegou foi rodar o script contra o Postgres local antes de commitar.
+    ('0143', 'dispensar o pedido de nota', 'no_corpo',
+             'meus_pedidos_de_nota|invoice_request_dismissals')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

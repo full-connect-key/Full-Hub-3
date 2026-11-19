@@ -203,6 +203,18 @@ const TELAS = [
   // `10p-notas-fiscais-redirect` confere: o endereco velho abre a fila nova.
   { nome: "10p-notas-fiscais-redirect", rota: "/painel/notas-fiscais?aba=conferir", largura: 1440, altura: 900, role: "socio" },
   { nome: "10q-notas-fiscais-375", rota: "/painel/notas-fiscais", largura: 375, altura: 1200, role: "colaborador" },
+  // O POP-UP DO PEDIDO DE NOTA (0143), e ele abre numa rota que NAO e a de
+  // Notas Fiscais de proposito: o aviso some la, porque a faixa logo abaixo
+  // diz a mesma coisa com o campo de anexar ao lado. Fotografa-lo dentro do
+  // modulo provaria que ele sabe sumir, e nao que ele atravessa o painel.
+  //
+  // `PROTOTIPO_PEDIDO_DE_NOTA` e o que liga o estado: o stub nasce DISPENSADO
+  // porque o aviso mora no layout, e sem isso ele sairia nas cento e cinquenta
+  // telas de uma vez.
+  { nome: "10s-pedido-de-nota-popup", rota: "/painel/minhas-tasks", largura: 1440, altura: 900,
+    role: "colaborador", env: { PROTOTIPO_PEDIDO_DE_NOTA: "1" } },
+  { nome: "10t-pedido-de-nota-popup-375", rota: "/painel/minhas-tasks", largura: 375, altura: 900,
+    role: "colaborador", env: { PROTOTIPO_PEDIDO_DE_NOTA: "1" } },
   {
     nome: "10r-notas-fiscais-fila-filtrada",
     rota: "/painel/financeiro?aba=notas&pessoa=a0000000-0000-0000-0000-000000000003",

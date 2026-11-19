@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { anunciar } from "@/lib/acoes/ao-vivo";
 import { exigirEquipeNaAcao, exigirSocioNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
@@ -263,6 +264,19 @@ export async function solicitarNotasDoMes(mes: unknown): Promise<Resultado> {
     // e é lá que o bloco "Precisa de mim" mostra o pedido em aberto.
     revalidatePath("/painel");
 
+    // O PEDIDO CHEGA SEM RECARREGAR (0143), que é a frase do usuário:
+    // *"implementar a notificação em tempo real, sem necessidade de atualizar
+    // a página"*. **Nada novo viaja no fio** — `anunciar` manda a palavra
+    // `"nota-fiscal"` no canal da equipe, quem recebe chama `router.refresh()`,
+    // e o pop-up aparece porque o layout do painel é um Server Component que
+    // relê `meuPedidoDeNotaEmAberto()` na remontagem. É o mecanismo do Sprint
+    // 16 inteiro, sem uma linha de exceção para esta tela.
+    //
+    // E ele vem DEPOIS dos três `revalidatePath`: o aviso diz "peça a tela de
+    // novo", e pedi-la antes de o cache do servidor ser invalidado devolveria
+    // a versão sem o pedido — a tela recarregaria para mostrar o mesmo.
+    anunciar("nota-fiscal");
+
     const quantas = data ?? 0;
 
     // O NÚMERO ZERO É UMA RESPOSTA BOA, e a frase diz isso em vez de parecer
@@ -318,4 +332,63 @@ export async function contarQuemDeveNota(
       error: erro instanceof Error ? erro.message : "Não foi possível contar quem está devendo.",
     };
   }
+}
+
+/**
+ * Fechar o pop-up do pedido de nota — a dispensa de quem leu (0143).
+ *
+ * ---------------------------------------------------------------------------
+ * **DISPENSAR NÃO É MARCAR COMO LIDA**, e a separação é o pedido do usuário:
+ * *"permitir que cada usuário dispense o pop-up após visualizar a solicitação,
+ * **mantendo o registro na central de notificações**"*. Escrever `lida_em`
+ * apagaria o aviso do contador do sino, que é justamente o registro que ele
+ * pediu para ficar — e `marcarNovidadesComoVistas`, que faz essa escrita em
+ * lote, está a um import de distância e seria a resposta errada de graça.
+ *
+ * E há um segundo motivo, que é o que faz o pop-up poder morar no layout:
+ * `lida_em` não sabe quando o pedido deixou de valer. Quem manda a nota some
+ * de `meus_pedidos_de_nota()` no mesmo instante; a notificação continuaria por
+ * ler, e o aviso continuaria na tela de quem já mandou.
+ * ---------------------------------------------------------------------------
+ *
+ * **É UM `insert` E NÃO UMA RPC**, ao contrário de `registrar_visita` (0142):
+ * lá a escrita é uma conta sobre o valor antigo e um `select`-então-`update`
+ * seria a corrida da 0040; aqui é uma linha nova, sem conta nenhuma. Quem
+ * decide é o `with check` da policy — um `request_id` forjado grava no nome de
+ * quem chamou e dispensa o aviso dela mesma, que é o pior que ele faz.
+ *
+ * **`ignoreDuplicates` porque fechar duas vezes não é erro:** o segundo clique
+ * acontece quando a tela ainda não se refez, e uma recusa de chave primária
+ * apareceria como um botão que falhou depois de ter funcionado.
+ */
+export async function dispensarPedidoDeNota(pedidoId: unknown): Promise<Resultado> {
+  return executarAcao("dispensarPedidoDeNota", async () => {
+    const sessao = await exigirEquipeNaAcao();
+
+    const lido = z.object({ pedidoId: z.string().uuid() }).safeParse({ pedidoId });
+    if (!lido.success) {
+      return falha(
+        recusaDeValidacao("dispensarPedidoDeNota", lido.error, { pedidoId }, "Aviso desconhecido.", {
+          pedidoId: "pedido",
+        }),
+      );
+    }
+
+    const supabase = await criarClienteServidor();
+    const { error } = await supabase
+      .from("invoice_request_dismissals")
+      .upsert(
+        { request_id: lido.data.pedidoId, user_id: sessao.usuarioId },
+        { onConflict: "request_id,user_id", ignoreDuplicates: true },
+      );
+
+    if (error) return falha(error.message);
+
+    // O LAYOUT INTEIRO, e não só esta rota: o pop-up é desenhado lá, então
+    // revalidar só `/painel/notas-fiscais` o deixaria na tela de quem está em
+    // qualquer outro módulo — que é exatamente onde ele foi pedido para
+    // aparecer.
+    revalidatePath("/painel", "layout");
+    return sucesso("Aviso dispensado.");
+  });
 }
