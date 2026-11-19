@@ -122,7 +122,7 @@ export function PainelDaGestao({ linhas }: { linhas: LinhaDoAcompanhamento[] }) 
         <button
           type="button"
           onClick={baixar}
-          className="bg-card text-text-secondary hover:text-text-primary rounded-full border px-3 py-1.5 text-xs font-medium"
+          className="bg-card text-text-secondary hover:text-text-primary rounded-full border border-input px-3 py-1.5 text-xs font-medium"
         >
           Baixar CSV
         </button>

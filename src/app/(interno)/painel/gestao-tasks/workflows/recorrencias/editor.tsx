@@ -430,7 +430,7 @@ export function EditorDeRecorrencia({
                           )
                         }
                         className={cn(
-                          "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors",
+                          "inline-flex min-h-9 items-center gap-1.5 rounded-full border border-input bg-card px-3.5 text-sm transition-colors",
                           marcada
                             ? "border-accent-strong bg-accent text-accent-foreground font-medium"
                             : "hover:bg-accent",

@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { ouFalha } from "@/lib/dados/consulta";
+import { segundaDaSemana, somarDias } from "@/lib/dominio/datas";
 import { producaoDoPeriodo, type Producao } from "@/lib/dados/metricas";
 import type { SolicitacaoFrente } from "@/lib/supabase/database.types";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -140,18 +141,12 @@ export type ResumoDaAgencia = {
   sobraram: { entregues: number; atrasadas: number; proximaSemana: number };
 };
 
-/** A segunda-feira da semana de `data`. A semana da agência começa na segunda. */
-export function segundaDaSemana(data: string): string {
-  const d = new Date(`${data}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
-  return d.toISOString().slice(0, 10);
-}
-
-export function somarDias(data: string, quantos: number): string {
-  const d = new Date(`${data}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + quantos);
-  return d.toISOString().slice(0, 10);
-}
+/**
+ * A segunda-feira da semana, e o dia a N dela. A implementação é UMA, em
+ * `lib/dominio/datas.ts` — a reexportação é o que mantém de pé as chamadas
+ * que já apontavam para cá.
+ */
+export { segundaDaSemana, somarDias } from "@/lib/dominio/datas";
 
 /** A semana pedida na URL, quando é uma data de verdade. */
 export function lerSemana(valor: unknown, hoje: string): string {

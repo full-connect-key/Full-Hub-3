@@ -81,7 +81,7 @@ export function SeletorDeAprovadores({
             onClick={() => alternar(pessoa.id)}
             aria-pressed={marcada}
             className={cn(
-              "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors disabled:opacity-50",
+              "inline-flex min-h-9 items-center gap-1.5 rounded-full border border-input bg-card px-3 text-sm transition-colors disabled:opacity-50",
               // O HOVER DO CHIP SOLTO NÃO É `bg-accent`, e a razão é que ele é
               // o chão do chip MARCADO: com os dois iguais, passar o mouse num
               // chip desmarcado o faz parecer escolhido — a cor dizendo duas

@@ -95,16 +95,31 @@ select teste.cenario('O Atendimento distribui a etapa do mes, como qualquer etap
                        where client_id = %L and social_do_mes = '2027-03-01')$fmt$,
     :CARLA, :VERDE), 'ok', 1);
 
--- E O DESIGN NAO, porque ele nao e Atendimento nem gestao e a etapa nao e
--- dele. ZERO LINHAS e nao excecao, e a diferenca importa: quem recusa aqui e a
--- policy, e a action traduz "nao voltou linha" em recusa justamente para a
--- tela nao dizer "salvo" a toa.
-select teste.cenario('E o Design nao distribui etapa que nao e dele', :BRUNO,
+-- E O DESIGN NAO, porque ele nao e Atendimento nem gestao: a separacao da
+-- 0046 -- *o Atendimento abre o mes, a gestao distribui a corrente*.
+--
+-- QUEM RECUSA MUDOU NA 0144, E E EXCECAO E NAO MAIS ZERO LINHA. Ate ela,
+-- `subtasks_update` era `is_atendimento() or e o responsavel`, e a recusa era
+-- da POLICY: o update nao achava linha, e a action traduzia "nao voltou linha"
+-- em recusa. A 0144 abriu aquela policy para `is_staff()` -- a pauta de todos
+-- passou a ser editavel por toda a equipe --, e com ela passou a recusar quem
+-- redistribui a corrente de um mes o trigger `subtasks_o_que_e_de_quem_abre`.
+--
+-- *A TROCA E PARA MELHOR, e e por isso que o cenario mudou de forma em vez de
+-- sair:* zero linha nao diz por que, e o trigger diz -- e diz tambem o que
+-- CONTINUA aberto, para a recusa nao ser lida como "a pauta voltou a ser
+-- fechada". A regra do mes de social nao mudou em nada.
+--
+-- E O TAMANHO DO FURO QUE ELA FECHA FOI MEDIDO AQUI, por cascata: sem esta
+-- recusa, os dois cenarios de `tenho_etapa_no_post()` da secao 5 passam a
+-- achar 1 linha onde esperam 0 -- dando a si mesmo a fase `Pauta`, o Bruno
+-- ganha a escrita no card de todas as pecas daquele mes.
+select teste.recusa_com('E o Design nao distribui etapa que nao e dele', :BRUNO,
   format($fmt$update public.subtasks set responsavel_id = %L
      where social_papel is not null and titulo = 'Pauta'
        and task_id = (select id from public.tasks
                        where client_id = %L and social_do_mes = '2027-03-01')$fmt$,
-    :BRUNO, :VERDE), 'ok', 0);
+    :BRUNO, :VERDE), 'Quem distribui a corrente de um mes de social');
 
 
 -- --- 3. A PAUTA: onde a primeira etapa da corrente escreve -----------------

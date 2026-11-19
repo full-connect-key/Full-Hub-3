@@ -58,12 +58,20 @@ export function MinhaLista({
   prazos,
   usuarioId,
   souGestor,
+  souDaEquipe,
   aoAbrir,
 }: {
   linhas: LinhaPessoal[];
   prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
+  /**
+   * A lista está mostrando a pauta de OUTRA pessoa (migration 0144, item 23).
+   * Só a seção "Da equipe" passa `true`; a lista do próprio dia não passa
+   * nada, e a ausência cai no lado certo — é a mesma prop opcional de
+   * `AcoesDaSubtarefa`, com a razão escrita lá.
+   */
+  souDaEquipe?: boolean;
   aoAbrir: (taskId: string) => void;
 }) {
   if (linhas.length === 0) {
@@ -130,6 +138,7 @@ export function MinhaLista({
             prazos={prazos}
             usuarioId={usuarioId}
             souGestor={souGestor}
+            souDaEquipe={souDaEquipe}
             aoAbrir={aoAbrir}
             // O SELO DE STATUS SOME DENTRO DO GRUPO, e é a mesma decisão do
             // selo da campanha: dentro da seção que já diz o nome, ele
@@ -177,6 +186,7 @@ function Linhas({
   prazos,
   usuarioId,
   souGestor,
+  souDaEquipe,
   aoAbrir,
   mostrarStatus,
 }: {
@@ -184,6 +194,7 @@ function Linhas({
   prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
+  souDaEquipe?: boolean;
   aoAbrir: (taskId: string) => void;
   mostrarStatus: boolean;
 }) {
@@ -209,6 +220,7 @@ function Linhas({
           prazos={prazos}
           usuarioId={usuarioId}
           souGestor={souGestor}
+          souDaEquipe={souDaEquipe}
           aoAbrir={aoAbrir}
           mostrarStatus={mostrarStatus}
         />
@@ -231,6 +243,7 @@ function LinhaDaLista({
   prazos,
   usuarioId,
   souGestor,
+  souDaEquipe,
   aoAbrir,
   mostrarStatus,
 }: {
@@ -239,6 +252,7 @@ function LinhaDaLista({
   prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
+  souDaEquipe?: boolean;
   aoAbrir: (taskId: string) => void;
   mostrarStatus: boolean;
 }) {
@@ -480,6 +494,7 @@ function LinhaDaLista({
             subtarefa={sub}
             usuarioId={usuarioId}
             souGestor={souGestor}
+            souDaEquipe={souDaEquipe}
             rodadaPendenteId={
               sub.rodadas.find((r) => r.status === "pendente")?.id ?? null
             }

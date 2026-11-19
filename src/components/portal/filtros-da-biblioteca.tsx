@@ -69,7 +69,7 @@ function Chip({
       aria-pressed={ativo}
       className={cn(
         // min-h-9 é o alvo mínimo confortável para o polegar.
-        "inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-sm transition-colors",
+        "inline-flex min-h-9 items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm transition-colors",
         ativo
           ? "border-accent-strong bg-accent text-accent-foreground font-medium"
           : "hover:bg-accent",

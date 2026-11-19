@@ -109,6 +109,7 @@ export function AcoesDaSubtarefa({
   subtarefa,
   usuarioId,
   souGestor,
+  souDaEquipe,
   rodadaPendenteId,
   tamanho = "sm",
   aoMudar,
@@ -116,6 +117,18 @@ export function AcoesDaSubtarefa({
   subtarefa: SubtarefaParaAcao;
   usuarioId: string;
   souGestor: boolean;
+  /**
+   * Quem está olhando é da equipe, numa tela que mostra a pauta de OUTRA
+   * pessoa (migration 0144, item 23)? Com `subtasks_update` em `is_staff()`,
+   * quem move a etapa de alguém é aceito pelo banco e PASSA A SER a dona
+   * dela — então esconder o botão aqui deixaria a tela mais apertada que o
+   * Postgres, numa seção que existe para a pauta ser compartilhada.
+   *
+   * **É OPCIONAL, com `false` por padrão**, e a ausência cai no lado certo:
+   * as dezesseis telas que já desenham este componente não passam a oferecer
+   * botão em etapa de outra pessoa por causa de uma prop nova.
+   */
+  souDaEquipe?: boolean;
   /** A rodada que espera decisão, para aprovar ou pedir ajustes. */
   rodadaPendenteId?: string | null;
   tamanho?: "sm" | "default";
@@ -147,6 +160,7 @@ export function AcoesDaSubtarefa({
     tipoAprovacao: subtarefa.tipo_aprovacao,
     souOResponsavel: subtarefa.responsavel_id === usuarioId,
     souGestor,
+    souDaEquipe,
     dependenciasAbertas: subtarefa.dependenciasAbertas,
     rodadaPendente: subtarefa.rodadaPendente,
     avalInterno: subtarefa.avalInterno,

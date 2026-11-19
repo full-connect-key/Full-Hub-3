@@ -73,6 +73,16 @@ const FRASES: Record<string, string> = {
   // TAMBÉM DO BANCO (0040/0041/0113): a rotina da madrugada grava isto na
   // demanda que ela acabou de criar.
   gerada_por_recorrencia: "foi gerada por uma recorrência",
+  // AS DUAS DA 0144, escritas pelo gatilho `subtasks_quem_mexe_assume` — e
+  // elas são o registro de que a pauta é de todos: `assumiu_a_etapa` quando
+  // quem mexeu passou a ser o dono, `editou_a_etapa` quando quem mexeu é a
+  // gestão ou o Atendimento, que alteram SEM assumir.
+  //
+  // E nenhuma das duas entra em `MOSTRAM_O_VALOR`: o `para_valor` da primeira
+  // é o uuid de quem assumiu — que a frase já diz, no nome de quem ela leva —
+  // e o da segunda é o título da etapa, que o cabeçalho da tela já carrega.
+  assumiu_a_etapa: "assumiu a etapa",
+  editou_a_etapa: "alterou a etapa",
 };
 
 /**

@@ -1,4 +1,5 @@
 import type { VisaoDoCalendario } from "@/lib/dominio/calendario";
+import { segundaDaSemana, somarDias } from "@/lib/dominio/datas";
 
 /**
  * O período visível, e a janela que se busca do banco.
@@ -50,19 +51,12 @@ export function somarMeses(mes: string, quantos: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-export function somarDias(data: string, quantos: number): string {
-  const d = new Date(`${data}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + quantos);
-  return iso(d);
-}
-
-/** Segunda-feira da semana de `data`. A semana da agência começa na segunda. */
-export function segundaDaSemana(data: string): string {
-  const d = new Date(`${data}T12:00:00Z`);
-  const desloca = (d.getUTCDay() + 6) % 7;
-  d.setUTCDate(d.getUTCDate() - desloca);
-  return iso(d);
-}
+/**
+ * A segunda-feira da semana, e o dia a N dela. A implementação é UMA, em
+ * `lib/dominio/datas.ts` — a reexportação é o que mantém de pé as chamadas
+ * que já apontavam para cá.
+ */
+export { segundaDaSemana, somarDias } from "@/lib/dominio/datas";
 
 export type Janela = { de: string; ate: string; inicio: string; fim: string };
 

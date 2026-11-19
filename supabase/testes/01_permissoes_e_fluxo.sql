@@ -319,6 +319,23 @@ select teste.cenario('Joana aprova, e a subtarefa conclui', :JOANA,
   '(select public.decidir_rodada_do_cliente((select id from public.approval_rounds where content_id = ''dddddddd-0000-0000-0000-000000000002'' and escopo = ''cliente''), ''aprovada'', ''Perfeito''))',
   'ok');
 
+-- E A ETAPA NAO PASSOU A SER DA JOANA, que e a GUARDA 1 da 0144 medida no
+-- unico caminho que a alcanca.
+--
+-- `quem_mexe_na_pauta_assume()` (0144) faz quem mexe numa etapa alheia assumi-la
+-- -- e a linha de cima e um `security definer` escrevendo `subtasks.status` com
+-- o `auth.uid()` DO CLIENTE. Sem a guarda, aprovar o proprio material tornaria
+-- o cliente responsavel por uma etapa da agencia.
+--
+-- E ELE NAO E ALCANCAVEL PELA POLICY: `subtasks_update` e `is_staff()` desde a
+-- 0144, e a Joana leva zero linha no update direto (o cenario logo acima).
+-- Quer dizer que a guarda existe POR CAUSA do caminho definer, e que este e o
+-- cenario que a mede -- em qualquer outro ela e codigo que nao dispara.
+select teste.conferir('E a etapa concluida NAO passou a ser da Joana',
+  (select (responsavel_id is distinct from :JOANA)::text
+     from public.subtasks where id = 'dddddddd-0000-0000-0000-000000000002'),
+  'true');
+
 
 -- ---------------------------------------------------------------------------
 -- HISTORICO NAO SE REESCREVE

@@ -490,8 +490,16 @@ from (
              'no_corpo', 'busca_global|public.academy_items'),
     ('0097', 'feedback_metricas le academy_progresso', 'no_corpo',
              'feedback_metricas|public.academy_progresso'),
+    -- AS DUAS METADES ESTAVAM TROCADAS AQUI, e a linha dizia `ok` em todo
+    -- banco: `sem_execute` le `papel|funcao`, e `to_regrole('academy_vencidos')`
+    -- devolve null -- o `or` da guarda curto-circuita e a condicao vira
+    -- verdadeira. Quer dizer que o PASSO 3 da 0097, que e o revoke que tirou
+    -- aquela funcao do alcance da chave anon, nunca foi conferido por este
+    -- script. Medido contra um Postgres de verdade, e e a 0134 e a 0143 pela
+    -- terceira vez: `check:migrations` confere que a linha EXISTE, nunca que
+    -- ela responde alguma coisa.
     ('0097', 'academy_vencidos fora do alcance de authenticated', 'sem_execute',
-             'academy_vencidos|authenticated'),
+             'authenticated|public.academy_vencidos()'),
     -- A 0098 liga o sino nos dois lados: quatro gatilhos, nenhuma tabela e
     -- nenhuma coluna nova. A linha aponta para a funcao do PRIMEIRO deles --
     -- o aviso ao cliente --, e nao para a do comentario, que e o ultimo: num
@@ -989,7 +997,33 @@ from (
     -- migration inteira aplicada. E a 0134 pela segunda vez, e desta vez quem
     -- pegou foi rodar o script contra o Postgres local antes de commitar.
     ('0143', 'dispensar o pedido de nota', 'no_corpo',
-             'meus_pedidos_de_nota|invoice_request_dismissals')
+             'meus_pedidos_de_nota|invoice_request_dismissals'),
+    -- A 0144 TEM SEIS PASSOS E QUATRO LINHAS, e a contagem e a licao da 0138:
+    -- marcador por migration responde se a colagem chegou ao FIM, e e cego
+    -- para a que SALTA um passo. Passo de que nenhum outro depende precisa da
+    -- linha dele; onde o objeto de um e pre-requisito do seguinte, o marcador
+    -- de baixo ja o cobre.
+    --
+    -- Aqui o PASSO 1 (a ACL), o PASSO 2 (a policy), o PASSO 4 (quem assume) e
+    -- o PASSO 5 (as duas recusas) rodam cada um sozinho, e o banco fica
+    -- coerente com qualquer subconjunto deles -- sem erro em lugar nenhum. O
+    -- PASSO 3 nao tem linha porque ele e pre-requisito do 4: a funcao do 4
+    -- chama a do 3 tres vezes, e plpgsql nao valida o corpo na criacao, entao
+    -- a 3 faltando aparece no primeiro `update` de etapa. O PASSO 6 e prosa.
+    --
+    -- E DOS QUATRO, O 2 E O MAIS CARO DE FALTAR SOZINHO: com ele de pe e o 4
+    -- de fora, a equipe inteira passa a editar a pauta alheia e NINGUEM
+    -- assume nada -- que e exatamente o item 23 deixando de valer, em silencio.
+    -- O inverso (o 4 sem o 2) nao chega a acontecer, porque sem a policy
+    -- aberta ninguem alcanca a etapa de outra pessoa para comecar.
+    ('0144', 'a pauta e de todos (PASSO 1, a ACL da carga)', 'sem_execute',
+             'anon|public.carga_da_equipe(date, date)'),
+    ('0144', 'a pauta e de todos (PASSO 2, a policy)', 'policy',
+             'subtasks|subtasks_update|is_staff'),
+    ('0144', 'a pauta e de todos (PASSO 4, quem mexe assume)', 'trigger',
+             'subtasks_vincula_quem_assumiu'),
+    ('0144', 'a pauta e de todos (PASSO 5, as duas recusas)', 'trigger',
+             'subtasks_o_que_e_de_quem_abre')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

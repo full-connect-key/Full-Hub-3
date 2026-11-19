@@ -123,3 +123,34 @@ export function saudacaoDaAgencia(agora: Date = new Date()): string {
   if (hora < 18) return "Boa tarde";
   return "Boa noite";
 }
+
+/**
+ * A SEGUNDA-FEIRA DA SEMANA DE `data`, e o dia a N dias dela.
+ *
+ * ---------------------------------------------------------------------------
+ * **ERAM DUAS CÓPIAS, e elas já eram idênticas** — uma em
+ * `lib/reports/weekly.ts` e uma em `painel/calendario/periodo.ts`. A terceira
+ * seria a que divergiria: a pauta da equipe precisa dos cinco dias úteis
+ * desta semana, e dois cálculos de *que semana é esta* fariam a grade
+ * desenhar um dia que a consulta não trouxe. Os dois módulos REEXPORTAM estas
+ * duas, então nenhuma chamada precisou mudar — é a história das sete cópias
+ * de `abas.tsx` resolvida antes de a terceira existir.
+ *
+ * **É MEIO-DIA UTC e não meia-noite**, e a razão está escrita nas duas de
+ * origem: com meia-noite, um fuso a oeste volta ao dia anterior.
+ *
+ * E a semana da agência começa na SEGUNDA, que é a pergunta que ela faz toda
+ * segunda-feira — *o que acontece nesta semana?*
+ * ---------------------------------------------------------------------------
+ */
+export function somarDias(data: string, quantos: number): string {
+  const d = new Date(`${data}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + quantos);
+  return d.toISOString().slice(0, 10);
+}
+
+export function segundaDaSemana(data: string): string {
+  const d = new Date(`${data}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}

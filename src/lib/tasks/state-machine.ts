@@ -114,6 +114,23 @@ export type ContextoDaSubtarefa = {
   /** Quem está olhando é desenvolvedor ou sócio? */
   souGestor: boolean;
   /**
+   * Quem está olhando é da equipe, numa tela que mostra a pauta de OUTRA
+   * pessoa (migration 0144, item 23)?
+   *
+   * **É UM TERCEIRO TERMO E NÃO `souGestor` reaproveitado**, e a razão é que
+   * aquele campo decide mais duas coisas: ele é quem libera a DECISÃO de uma
+   * rodada interna e o "Enviar ao cliente", que a 0029 e a 0060 mantiveram em
+   * `is_gestor()`. Marcá-lo para o Design que abriu a pauta da Marina daria a
+   * ele, de lambuja, as duas portas que aquelas migrations fecharam.
+   *
+   * **E ele é OPCIONAL, com `false` por padrão**, porque o que ele muda é só
+   * quem AGE: as oito telas que já montam este contexto não o passam, e
+   * continuam respondendo o que respondiam. Quem o passa é a seção que mostra
+   * a pauta de outra pessoa — e é ela que escreve, por extenso, que mexer
+   * numa etapa alheia faz a etapa passar a ser sua.
+   */
+  souDaEquipe?: boolean;
+  /**
    * Ela é uma FASE do mês de social (`subtasks.social_papel` preenchido)?
    *
    * Quem fecha uma fase é a última caixinha dela, e não a mão de ninguém
@@ -224,7 +241,13 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
     ? `Aguardando: ${ctx.dependenciasAbertas.join(", ")}`
     : undefined;
 
-  const podeAgir = ctx.souOResponsavel || ctx.souGestor;
+  // `souDaEquipe` é o terceiro termo da 0144: com a policy `subtasks_update`
+  // em `is_staff()`, quem move a etapa de outra pessoa é aceito pelo banco e
+  // PASSA A SER a dona dela. Sem ele a tela ficaria mais apertada que o
+  // Postgres — a segunda pessoa de uma etapa (0114) via o trabalho na lista
+  // dela e não tinha botão nenhum para mexer nele.
+  const podeAgir =
+    ctx.souOResponsavel || ctx.souGestor || ctx.souDaEquipe === true;
 
   if (podeAgir) {
     if (ctx.status === "nao_iniciada") {

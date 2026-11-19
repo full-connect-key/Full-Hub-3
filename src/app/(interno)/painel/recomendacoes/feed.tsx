@@ -212,7 +212,7 @@ export function Feed({
               onClick={() => navegar("ordem", o === "recentes" ? null : o)}
               aria-pressed={filtros.ordem === o}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-xs",
+                "rounded-full border border-input bg-card px-3 py-1.5 text-xs",
                 filtros.ordem === o
                   ? "border-accent-strong bg-blue-soft text-accent-strong font-medium"
                   : "text-text-secondary hover:bg-muted",
@@ -369,7 +369,7 @@ export function Feed({
                 type="button"
                 onClick={() => navegar("tag", tag)}
                 className={cn(
-                  "rounded-full border px-2 py-0.5 text-xs transition-colors",
+                  "rounded-full border border-input bg-card px-2 py-0.5 text-xs transition-colors",
                   filtros.tag === tag
                     ? "border-accent-strong bg-blue-soft text-accent-strong"
                     : "text-text-secondary hover:bg-muted",
@@ -432,7 +432,7 @@ function ChipDeFiltro({
       onClick={onClick}
       aria-pressed={ativo}
       className={cn(
-        "shrink-0 rounded-full border px-3 py-1.5 text-xs whitespace-nowrap transition-colors",
+        "shrink-0 rounded-full border border-input bg-card px-3 py-1.5 text-xs whitespace-nowrap transition-colors",
         ativo
           ? "border-accent-strong bg-blue-soft text-accent-strong font-medium"
           : "text-text-secondary hover:bg-muted",

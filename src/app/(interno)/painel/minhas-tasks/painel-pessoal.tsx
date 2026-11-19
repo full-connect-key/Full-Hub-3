@@ -86,6 +86,7 @@ export function PainelPessoal({
   foraHoje,
   saudacao,
   dataPorExtenso,
+  barra,
   agoraDoServidor,
 }: {
   linhas: LinhaPessoal[];
@@ -105,6 +106,21 @@ export function PainelPessoal({
   foraHoje: ResumoDaHome["fora_hoje"];
   /** "Bom dia" / "Boa tarde" / "Boa noite", decidido NO SERVIDOR. */
   saudacao: string;
+  /**
+   * A BARRA DE SEÇÕES, montada na página e desenhada AQUI (0144, item 22).
+   *
+   * Ela vem como nó e não é construída dentro: as duas seções a desenham
+   * igual, e uma segunda `BarraDeContexto` escrita aqui seria a cópia que
+   * divergiria no `limparAoSair` — que é justamente o que decide quais
+   * parâmetros atravessam a troca.
+   *
+   * **E ela entra DEPOIS do cabeçalho**, não antes: a saudação é o título do
+   * módulo, e a barra é a navegação dentro dele. Acima, ela empurraria o nome
+   * da pessoa para baixo de uma fileira de pílulas — e a barra gruda na
+   * rolagem, então ela precisa ser a última coisa antes do conteúdo que rola
+   * por baixo dela.
+   */
+  barra?: React.ReactNode;
   /** "Terça, 29 de setembro", já no locale pt-BR e no fuso da agência. */
   dataPorExtenso: string;
   agoraDoServidor: number;
@@ -210,6 +226,8 @@ export function PainelPessoal({
           </>
         }
       />
+
+      {barra}
 
       {/* OS TRÊS CHIPS SAÍRAM, e a porta foi para a LINHA.
           -------------------------------------------------

@@ -145,7 +145,7 @@ export function FormularioDeEvento({
                   onClick={() => setTipo(t)}
                   aria-pressed={tipo === t}
                   className={cn(
-                    "rounded-full border px-3 py-1 text-xs transition-colors",
+                    "rounded-full border border-input bg-card px-3 py-1 text-xs transition-colors",
                     tipo === t
                       ? "border-accent-strong bg-blue-soft text-accent-strong font-medium"
                       : "text-text-secondary hover:bg-muted",
@@ -261,7 +261,7 @@ export function FormularioDeEvento({
                   onClick={() => alternarPessoa(p.id)}
                   aria-pressed={participantes.includes(p.id)}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs transition-colors",
+                    "flex items-center gap-1.5 rounded-full border border-input bg-card px-2 py-1 text-xs transition-colors",
                     participantes.includes(p.id)
                       ? "border-accent-strong bg-blue-soft text-accent-strong font-medium"
                       : "text-text-secondary hover:bg-muted",

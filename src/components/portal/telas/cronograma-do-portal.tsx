@@ -324,7 +324,7 @@ function ChipDeFrente({
       scroll={false}
       aria-current={ativo ? "true" : undefined}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full border border-input bg-card px-3 py-1.5 text-sm transition-colors",
         ativo
           ? "bg-action-soft text-action-text border-transparent font-semibold"
           : "text-text-secondary hover:bg-neutral-soft",

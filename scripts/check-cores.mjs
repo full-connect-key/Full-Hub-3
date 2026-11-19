@@ -1273,11 +1273,11 @@ function semComentarios(texto) {
   }
 }
 
-// --- os dois controles que se leem sobre o cinza ----------------------------
+// --- os controles que se leem sobre o cinza ---------------------------------
 //
-// As duas seções de cima pegam a FAMÍLIA `/NN`. Estas duas classes não são
-// dessa família — elas pintam com token cheio — e cada uma era um controle que
-// não se via:
+// As duas seções de cima pegam a FAMÍLIA `/NN`. Estas classes não são dessa
+// família — elas pintam com token cheio, ou com nada — e cada uma era um
+// controle que não se via:
 //
 // - o `outline` do `Button`, em **169 telas**, era `bg-background` (a página,
 //   1,00:1 de chão) com `border` (1,07:1 de limite). Devolvê-lo não acende
@@ -1286,13 +1286,20 @@ function semComentarios(texto) {
 //   quem o usa.
 // - o botão do `Switch` era `--background` sobre o trilho `--brand`: **1,49:1
 //   no tema claro**, ou seja o switch marcado não tinha botão.
+// - e `Input`, `Textarea` e `SelectTrigger` eram `bg-transparent`, o que é
+//   PIOR que um chão errado: eles tomavam a cor de quem os abrigava, então o
+//   mesmo campo era branco dentro de um cartão e cinza sobre cinza na página e
+//   em todo diálogo. Esta seção nasceu com os dois de cima e ganhou os três
+//   quando o usuário relatou o que faltava — *"aqui ainda está cinza sobre
+//   cinza"* —, que é exatamente a decisão que aquele sprint deixou medida e em
+//   aberto.
 //
 // É a forma das varreduras de frase que este arquivo já faz pelas travas da
 // 0029, da 0060 e da 0086: estreita, com o motivo escrito, e de MÃO DUPLA —
 // confere o que tem de estar lá E o que não pode voltar. Só a metade da
 // ausência passaria num botão que perdeu as duas classes de uma vez.
 
-console.log("\nOs dois controles que se leem sobre o cinza\n");
+console.log("\nOs controles que se leem sobre o cinza\n");
 
 const CONTROLES = [
   {
@@ -1306,6 +1313,28 @@ const CONTROLES = [
     nome: "o switch",
     tem: ["data-[state=checked]:bg-action", "bg-action-foreground pointer-events-none"],
     naoTem: ["data-[state=checked]:bg-brand", "bg-background pointer-events-none"],
+  },
+  // OS TRÊS CAMPOS, e o `naoTem` deles é a frase inteira e não só
+  // `bg-transparent`: o `Input` carrega um `file:bg-transparent` que é de
+  // outra coisa — o botão de escolher arquivo, que não tem chão nenhum de
+  // propósito — e um `naoTem` curto o acusaria.
+  {
+    arquivo: "src/components/ui/input.tsx",
+    nome: "o campo de texto",
+    tem: ["border bg-card px-3"],
+    naoTem: ["border bg-transparent px-3"],
+  },
+  {
+    arquivo: "src/components/ui/textarea.tsx",
+    nome: "a caixa de texto",
+    tem: ["border bg-card px-3"],
+    naoTem: ["border bg-transparent px-3"],
+  },
+  {
+    arquivo: "src/components/ui/select.tsx",
+    nome: "o seletor",
+    tem: ["border bg-card px-3"],
+    naoTem: ["border bg-transparent px-3"],
   },
 ];
 
@@ -1330,6 +1359,56 @@ for (const controle of CONTROLES) {
   } else {
     console.log(`  ok      ${controle.nome} se lê sobre a página e sobre o cartão`);
   }
+}
+
+// --- o chip de filtro nomeia o chão dele -----------------------------------
+//
+// A seção acima mede TRÊS componentes, por nome de arquivo. O chip de filtro
+// não é componente: ele é escrito à mão em **dezenove telas**, e era `border`
+// pelado sem `bg-` nenhum — ou seja a cor dele era a de quem o abrigasse. Na
+// imagem que o usuário mandou isso aparece como a fileira de Status das
+// Solicitações sumindo dentro do cinza da página.
+//
+// A FAMÍLIA É `rounded-full border `, e a regra é que a linha nomeie um chão
+// de REPOUSO: um `bg-` sem prefixo de estado. Um `hover:bg-accent` sozinho
+// passaria num chip que só tem cor quando o ponteiro está em cima — que é
+// exatamente o defeito. É a decisão da seção da opacidade: `hover:` e os
+// outros estados transitórios não respondem pelo repouso.
+//
+// Uma exceção declarada, com o motivo: o trilho do `Switch`, cujo chão são os
+// dois `data-[state=…]:bg-…` — ele está SEMPRE num dos dois estados, então
+// ali o prefixado É o repouso, e o arquivo já tem a entrada própria dele na
+// seção de cima.
+
+console.log("\nO chip de filtro nomeia o chão dele\n");
+
+const CHIPS_SEM_CHAO_SALVOS = ["src/components/ui/switch.tsx"];
+
+let chips = "";
+try {
+  chips = execSync(
+    `grep -rn 'rounded-full border ' src/ --include=*.tsx || true`,
+    { encoding: "utf8" },
+  );
+} catch {
+  chips = "";
+}
+
+const linhasDeChip = chips.split("\n").filter(Boolean);
+const semChao = linhasDeChip.filter((linha) => {
+  const arquivo = linha.slice(0, linha.indexOf(":"));
+  if (CHIPS_SEM_CHAO_SALVOS.includes(arquivo)) return false;
+  // `bg-` que não vem depois de `:` (hover:, focus:, data-[…]:) nem de outra
+  // letra ou hífen — ou seja, o chão de repouso.
+  return !/(^|[^:a-z-])bg-/.test(linha);
+});
+
+if (semChao.length > 0) {
+  falhas++;
+  console.log(`  FALHA   ${semChao.length} chip(s) sem chão de repouso — a cor deles é a de quem os abriga`);
+  for (const linha of semChao) console.log(`          ${linha.trim().slice(0, 160)}`);
+} else {
+  console.log(`  ok      os ${linhasDeChip.length} chips nomeiam o chão de repouso`);
 }
 
 // --- hex fora do arquivo de tokens -----------------------------------------

@@ -74,7 +74,7 @@ export function SeletorDeRedes({
             onClick={() => alternar(rede)}
             aria-pressed={marcada}
             className={cn(
-              "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors disabled:opacity-50",
+              "inline-flex min-h-9 items-center gap-1.5 rounded-full border border-input bg-card px-3 text-sm transition-colors disabled:opacity-50",
               marcada
                 ? "border-accent-strong bg-accent text-accent-foreground font-medium"
                 : "hover:bg-accent",

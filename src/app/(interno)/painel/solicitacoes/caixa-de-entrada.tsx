@@ -87,7 +87,7 @@ function FileiraDeFiltro({
         onClick={() => aoEscolher(null)}
         aria-pressed={!ativo}
         className={cn(
-          "rounded-full border px-3 py-1 text-sm transition-colors",
+          "rounded-full border border-input bg-card px-3 py-1 text-sm transition-colors",
           !ativo ? "border-accent-strong bg-accent" : "hover:bg-accent",
         )}
       >
@@ -100,7 +100,7 @@ function FileiraDeFiltro({
           onClick={() => aoEscolher(o.valor)}
           aria-pressed={ativo === o.valor}
           className={cn(
-            "rounded-full border px-3 py-1 text-sm transition-colors",
+            "rounded-full border border-input bg-card px-3 py-1 text-sm transition-colors",
             ativo === o.valor
               ? "border-accent-strong bg-accent"
               : "hover:bg-accent",

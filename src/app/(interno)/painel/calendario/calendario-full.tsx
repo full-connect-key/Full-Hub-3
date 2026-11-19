@@ -203,7 +203,7 @@ export function CalendarioFull({
               onClick={() => navegar({ visao: v === "mes" ? null : v })}
               aria-pressed={visao === v}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-xs transition-colors",
+                "rounded-full border border-input bg-card px-3 py-1.5 text-xs transition-colors",
                 visao === v
                   ? "border-accent-strong bg-blue-soft text-accent-strong font-medium"
                   : "text-text-secondary hover:bg-muted",

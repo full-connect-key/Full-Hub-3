@@ -77,7 +77,7 @@ export function SecoesDaBiblioteca({ atual }: { atual: SecaoDaBiblioteca }) {
                 onClick={() => ir(secao)}
                 aria-current={ativo ? "page" : undefined}
                 className={cn(
-                  "inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-sm transition-colors",
+                  "inline-flex min-h-9 items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm transition-colors",
                   ativo
                     ? "border-accent-strong bg-accent text-accent-foreground font-medium"
                     : "hover:bg-accent",
