@@ -1832,7 +1832,7 @@ pedir outra troca o tipo. Sem isso, clicar duas vezes no mesmo item aninharia
 uma caixa dentro da outra — e aninhar destaque é a forma mais rápida de não
 destacar nada.
 
-##### A TABELA abre em 3×3 com cabeçalho
+##### A TABELA, e a dimensão que se escolhe
 
 `TableKit`, com `resizable`. **E ela rola dentro de si, nunca a página:** uma
 tabela de seis colunas num painel de 768px passa da caixa, e a regra desta casa
@@ -1846,6 +1846,82 @@ briefing que pede tabela pede quase sempre "campo / valor" ou "peça / formato /
 prazo", e as linhas se acrescentam dentro com o Tab. Uma grade de escolher
 dimensão é um passo a mais para acertar de primeira um número que o teclado já
 resolve.
+
+###### E A DIMENSÃO PASSOU A SER ESCOLHIDA, o que desfaz uma decisão minha
+
+Decisão do usuário: *"no texto do briefing ele permite apenas tabelas 3x3, pode
+mudar isso? quero que seja ajustavel"*.
+
+**O QUE ESTAVA ESCRITO AQUI ERA O CONTRÁRIO, e fica registrado como reversão em
+vez de troca silenciosa:** *"o tamanho inicial não é um seletor de dimensão, e a
+ausência é decisão — um briefing que pede tabela pede quase sempre 'campo /
+valor' ou 'peça / formato / prazo', e as linhas se acrescentam dentro com o
+Tab"*.
+
+**O ARGUMENTO ERRAVA SOBRE A DESCOBERTA, e não sobre o caso comum.** As linhas
+se acrescentam mesmo, e o 3×3 serve mesmo para quase todo briefing — só que os
+comandos que fazem a tabela crescer **só existem DENTRO dela**, num menu que
+precisa do cursor numa célula para aparecer. Quem inseriu uma 3×3 e precisava de
+cinco colunas leu o rótulo do botão — *"Inserir tabela 3×3"* — e concluiu, com
+razão, que o produto só faz tabela 3×3. **Um caminho que existe e não se anuncia
+é indistinguível de um caminho que não existe**, que é a terceira vez que este
+arquivo paga essa frase: o nome da etapa que era `SheetTitle`, o `link_entrega`
+e o responsável na linha.
+
+**E É `Popover` E NÃO `MenuDaBarra`, por uma razão mecânica e não de desenho:**
+um campo de texto dentro de um `DropdownMenu` do Radix **não recebe o que se
+digita** — o menu captura a tecla para a busca por letra dele. É o que a
+documentação do Radix manda usar para conteúdo com campo dentro, e é por isso
+que a tabela saiu daquele componente enquanto cor, realce e caixa continuam
+nele. `MenuDaBarra` passou de quatro cópias para três, e o comentário dele
+acompanhou: prosa mantida à mão que conta quatro onde há três é a mesma
+armadilha do JSDoc que dizia *"quem o usa é o cronograma"*.
+
+**SÃO DOIS CAMPOS E NÃO UMA GRADE DE PASSAR O MOUSE.** A grade é o que o Word e
+o Google Docs fazem e é mais bonita; ela tem um teto que o campo não tem — uma
+grade de 6×6 não oferece as oito colunas de uma tabela de cronograma —, e ela é
+um `role="grid"` com navegação por seta escrita à mão, onde dois campos e um
+botão são teclado nativo.
+
+**O VALOR MORA NO RASCUNHO COMO TEXTO**, que é a razão escrita da quantidade de
+peças do workflow (0140): um `<input type="number">` controlado por número não
+deixa o campo ficar vazio enquanto a pessoa apaga o 3 para digitar outro — ela
+apaga e o React devolve o 3 na mesma tecla.
+
+**E O BOTÃO CONTA** — *"Inserir tabela 4 × 6"* —, que é a diferença entre um
+botão e uma instrução: a decisão da barra de salvar do modal da etapa. Fora da
+faixa (de 1 a 50 linhas e de 1 a 12 colunas) ele fica inerte **com a razão
+escrita**, nunca clampando em silêncio: aceitar 300 colunas e gravar 12 é
+*aceitar e fazer outra coisa*, que a 0025 diz ser pior que recusar com
+explicação.
+
+**O CABEÇALHO CONTINUA VINDO, e não virou uma terceira escolha.** As duas formas
+que um briefing pede querem as duas um cabeçalho, e quem não quer apaga a linha
+pelo próprio menu — um interruptor ali seria uma decisão a mais na frente da que
+ele pediu. *Ajustável é a dimensão; o resto do controle não mudou.*
+
+**E A FRASE DO PÉ SÓ EXISTE FORA DA TABELA**, que é o que a imagem mostrou: ela
+diz que a tabela cresce depois e onde, e **dentro** de uma tabela os cinco
+comandos estão logo abaixo dela — dizer que o menu *"ganha"* o que ele já tem é
+a tela descrevendo o que está a dois centímetros. Pinta-se a exceção, e aqui a
+exceção é não saber que o caminho existe.
+
+**Os comandos de dentro continuam aparecendo só dentro**, pela razão escrita
+quando eles nasceram: fora de uma tabela a razão não é um passo que falta, é que
+não há tabela nenhuma a que eles se apliquem.
+
+***E são DUAS telas no protótipo, não uma:*** a entrega inteira mora dentro de
+um ícone de 32px, então sem o clique a `25` e a `25d` sairiam idênticas às de
+antes; e com só a tela de fora, a imagem provaria que o controle **insere** e
+não que ele **cresce** — que é a razão do evento de cada par da legenda do
+calendário. As duas são `semRolagem` pela razão da `25b`: o popover se
+reposiciona quando a página rola, e `fullPage` rola para costurar.
+
+***E o axe pegou o popover sem nome*** (`aria-dialog-name`, serious): o
+`PopoverContent` do Radix é um `role="dialog"`, e o seletor de status e o sino
+já carregavam o `aria-label` por isso. **O do PRAZO da Gestão de Tasks não
+carregava**, e o achado dele nunca tinha aparecido porque tela nenhuma do
+protótipo o abria — ele saiu no mesmo commit, que é a regra desta casa.
 
 ##### A BARRA VIROU MENUS, e a fileira de bolinhas saiu
 

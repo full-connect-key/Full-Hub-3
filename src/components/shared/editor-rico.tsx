@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useEditor, EditorContent, type Editor, type JSONContent } from "@tiptap/react";
 import { StarterKit } from "@tiptap/starter-kit";
 import { BackgroundColor, Color, TextStyle } from "@tiptap/extension-text-style";
@@ -33,9 +34,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -293,56 +296,7 @@ function Barra({ editor }: { editor: Editor }) {
         ))}
       </MenuDaBarra>
 
-      {/* A TABELA abre em 3×3 COM CABEÇALHO, e não num seletor de tamanho: um
-          briefing que pede tabela pede quase sempre "campo / valor" ou
-          "peça / formato / prazo", e as linhas se acrescentam dentro. Uma
-          grade de escolher dimensão é um passo a mais para acertar na primeira
-          um número que o Tab já resolve. */}
-      <MenuDaBarra titulo="Tabela" icone={<TableIcon aria-hidden />}>
-        <DropdownMenuItem
-          onSelect={() =>
-            editor
-              .chain()
-              .focus()
-              .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-              .run()
-          }
-        >
-          <TableIcon aria-hidden className="size-3.5" />
-          Inserir tabela 3×3
-        </DropdownMenuItem>
-        {/* OS COMANDOS DE DENTRO SÓ EXISTEM DENTRO, e não aparecem
-            desligados: fora de uma tabela a razão não é um passo que falta, é
-            que não há tabela nenhuma a que eles se apliquem. */}
-        {editor.isActive("table") ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => editor.chain().focus().addRowAfter().run()}>
-              <Rows3 aria-hidden className="size-3.5" />
-              Acrescentar linha
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => editor.chain().focus().addColumnAfter().run()}>
-              <Columns3 aria-hidden className="size-3.5" />
-              Acrescentar coluna
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => editor.chain().focus().deleteRow().run()}>
-              <Rows3 aria-hidden className="size-3.5" />
-              Apagar a linha
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => editor.chain().focus().deleteColumn().run()}>
-              <Columns3 aria-hidden className="size-3.5" />
-              Apagar a coluna
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => editor.chain().focus().deleteTable().run()}
-            >
-              <Trash2 aria-hidden className="size-3.5" />
-              Apagar a tabela
-            </DropdownMenuItem>
-          </>
-        ) : null}
-      </MenuDaBarra>
+      <ControleDaTabela editor={editor} />
     </div>
   );
 }
@@ -350,10 +304,229 @@ function Barra({ editor }: { editor: Editor }) {
 /**
  * Um menu da barra: o gatilho é um botão de ícone como os outros.
  *
- * Ele existe porque são QUATRO menus com a mesma casca — e a quarta cópia é a
- * que divergiria no `aria-label` ou no tamanho do ícone, que é a história das
- * sete cópias de `abas.tsx` em miniatura.
+ * Ele existe porque são TRÊS menus com a mesma casca — cor, realce e caixa —,
+ * e a terceira cópia é a que divergiria no `aria-label` ou no tamanho do
+ * ícone, que é a história das sete cópias de `abas.tsx` em miniatura.
+ *
+ * A TABELA SAIU DAQUI quando a dimensão passou a ser escolhida: um campo de
+ * texto dentro de um `DropdownMenu` do Radix não recebe o que se digita — o
+ * menu captura a tecla para a busca por letra dele. Por isso `ControleDaTabela`
+ * é um `Popover`, que é o que a documentação do Radix manda usar para conteúdo
+ * com campo dentro.
  */
+/** Quantas linhas e colunas a tabela pode ter, e os dois têm razão. */
+const MAX_LINHAS = 50;
+const MAX_COLUNAS = 12;
+
+/**
+ * O controle de tabela: a dimensão se escolhe, e a tabela cresce depois.
+ *
+ * ISTO É UMA REVERSÃO DECLARADA, e a frase do usuário é o que a decide: *"no
+ * texto do briefing ele permite apenas tabelas 3x3, pode mudar isso? quero que
+ * seja ajustavel"*. O que estava escrito aqui era o contrário — *"o tamanho
+ * inicial não é um seletor de dimensão, porque um briefing que pede tabela
+ * pede quase sempre campo/valor ou peça/formato/prazo, e as linhas se
+ * acrescentam dentro com o Tab"*.
+ *
+ * **O ARGUMENTO ERRAVA SOBRE A DESCOBERTA, e não sobre o caso comum.** As
+ * linhas se acrescentam mesmo, e o 3×3 serve mesmo para quase todo briefing —
+ * só que os comandos que fazem a tabela crescer só existem DENTRO dela, num
+ * menu que precisa do cursor na célula para aparecer. Quem inseriu uma 3×3 e
+ * precisava de cinco colunas leu o rótulo do botão — "Inserir tabela 3×3" — e
+ * concluiu, com razão, que o produto só faz tabela 3×3. **Um caminho que
+ * existe e não se anuncia é indistinguível de um caminho que não existe.**
+ *
+ * **SÃO DOIS CAMPOS E NÃO UMA GRADE DE PASSAR O MOUSE.** A grade é o que o
+ * Word e o Google Docs fazem, e ela é mais bonita; ela tem um teto que o campo
+ * não tem — uma grade de 6×6 não oferece as oito colunas que uma tabela de
+ * cronograma pede —, e ela é um `role="grid"` com navegação por seta escrita à
+ * mão, onde dois campos e um botão são teclado nativo.
+ *
+ * **O VALOR MORA NO RASCUNHO COMO TEXTO**, que é a razão escrita da quantidade
+ * de peças do workflow (0140): um `<input type="number">` controlado por
+ * número não deixa o campo ficar vazio enquanto a pessoa apaga o 3 para
+ * digitar outro — ela apaga e o React devolve o 3 na mesma tecla.
+ *
+ * **E O BOTÃO CONTA**, em vez de dizer "Inserir": *"Inserir tabela 4 × 6"* é a
+ * diferença entre um botão e uma instrução, que é a decisão da barra de salvar
+ * do modal da etapa. Fora da faixa ele fica inerte **com a razão escrita** —
+ * aceitar 300 colunas e clampar para 12 em silêncio seria aceitar e fazer
+ * outra coisa, que a 0025 diz ser pior que recusar com explicação.
+ *
+ * **O CABEÇALHO CONTINUA VINDO, e não virou uma terceira escolha.** As duas
+ * formas que um briefing pede — campo/valor e peça/formato/prazo — querem as
+ * duas um cabeçalho, e quem não quer apaga a linha pelo próprio menu. Um
+ * interruptor ali seria uma decisão a mais na frente da que ele pediu.
+ *
+ * **E A FRASE DO PÉ É A OUTRA METADE DA ENTREGA**: ela diz que a tabela cresce
+ * depois e onde, que é o caminho que ninguém achava. Ela é uma frase e não um
+ * mecanismo — os comandos continuam aparecendo só dentro da tabela, porque
+ * fora dela a razão não é um passo que falta, é que não há tabela nenhuma a
+ * que eles se apliquem.
+ */
+function ControleDaTabela({ editor }: { editor: Editor }) {
+  const [aberto, setAberto] = useState(false);
+  const [linhas, setLinhas] = useState("3");
+  const [colunas, setColunas] = useState("3");
+
+  const pedidoDeLinhas = Number(linhas);
+  const pedidoDeColunas = Number(colunas);
+  const cabem =
+    Number.isInteger(pedidoDeLinhas) &&
+    Number.isInteger(pedidoDeColunas) &&
+    pedidoDeLinhas >= 1 &&
+    pedidoDeLinhas <= MAX_LINHAS &&
+    pedidoDeColunas >= 1 &&
+    pedidoDeColunas <= MAX_COLUNAS;
+
+  const dentroDeUmaTabela = editor.isActive("table");
+
+  function inserir() {
+    if (!cabem) return;
+    editor
+      .chain()
+      .focus()
+      .insertTable({ rows: pedidoDeLinhas, cols: pedidoDeColunas, withHeaderRow: true })
+      .run();
+    setAberto(false);
+  }
+
+  /** Todo comando de dentro fecha o popover: ele agiu, não há o que escolher. */
+  function comandar(acao: () => void) {
+    acao();
+    setAberto(false);
+  }
+
+  return (
+    <Popover open={aberto} onOpenChange={setAberto}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          title="Tabela"
+          aria-label="Tabela"
+          className="size-8"
+        >
+          <TableIcon aria-hidden />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" aria-label="Tabela" className="w-72 space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="tabela-linhas" className="text-xs">
+              Linhas
+            </Label>
+            <Input
+              id="tabela-linhas"
+              inputMode="numeric"
+              value={linhas}
+              onChange={(e) => setLinhas(e.target.value)}
+              className="h-8"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="tabela-colunas" className="text-xs">
+              Colunas
+            </Label>
+            <Input
+              id="tabela-colunas"
+              inputMode="numeric"
+              value={colunas}
+              onChange={(e) => setColunas(e.target.value)}
+              className="h-8"
+            />
+          </div>
+        </div>
+
+        {cabem ? null : (
+          <p className="text-warning text-xs">
+            De 1 a {MAX_LINHAS} linhas e de 1 a {MAX_COLUNAS} colunas.
+          </p>
+        )}
+
+        <Button type="button" size="sm" className="w-full" disabled={!cabem} onClick={inserir}>
+          <TableIcon aria-hidden className="size-3.5" />
+          {cabem ? `Inserir tabela ${pedidoDeLinhas} \u00d7 ${pedidoDeColunas}` : "Inserir tabela"}
+        </Button>
+
+        <p className="text-text-muted text-xs">
+          A primeira linha vira o cabeçalho.
+          {dentroDeUmaTabela
+            ? null
+            : " A tabela cresce depois: com o cursor dentro dela, este menu ganha acrescentar linha e coluna."}
+        </p>
+
+        {/* OS COMANDOS DE DENTRO SÓ EXISTEM DENTRO, e não aparecem desligados:
+            fora de uma tabela a razão não é um passo que falta, é que não há
+            tabela nenhuma a que eles se apliquem. */}
+        {dentroDeUmaTabela ? (
+          <div className="space-y-1 border-t pt-3">
+            <ComandoDaTabela
+              onClick={() => comandar(() => editor.chain().focus().addRowAfter().run())}
+              icone={<Rows3 aria-hidden className="size-3.5" />}
+            >
+              Acrescentar linha
+            </ComandoDaTabela>
+            <ComandoDaTabela
+              onClick={() => comandar(() => editor.chain().focus().addColumnAfter().run())}
+              icone={<Columns3 aria-hidden className="size-3.5" />}
+            >
+              Acrescentar coluna
+            </ComandoDaTabela>
+            <ComandoDaTabela
+              onClick={() => comandar(() => editor.chain().focus().deleteRow().run())}
+              icone={<Rows3 aria-hidden className="size-3.5" />}
+            >
+              Apagar a linha
+            </ComandoDaTabela>
+            <ComandoDaTabela
+              onClick={() => comandar(() => editor.chain().focus().deleteColumn().run())}
+              icone={<Columns3 aria-hidden className="size-3.5" />}
+            >
+              Apagar a coluna
+            </ComandoDaTabela>
+            <ComandoDaTabela
+              onClick={() => comandar(() => editor.chain().focus().deleteTable().run())}
+              icone={<Trash2 aria-hidden className="size-3.5" />}
+              destrutivo
+            >
+              Apagar a tabela
+            </ComandoDaTabela>
+          </div>
+        ) : null}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Uma linha de comando do popover da tabela. */
+function ComandoDaTabela({
+  onClick,
+  icone,
+  destrutivo,
+  children,
+}: {
+  onClick: () => void;
+  icone: React.ReactNode;
+  destrutivo?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition",
+        destrutivo && "text-danger",
+      )}
+    >
+      {icone}
+      {children}
+    </button>
+  );
+}
+
 function MenuDaBarra({
   titulo,
   icone,

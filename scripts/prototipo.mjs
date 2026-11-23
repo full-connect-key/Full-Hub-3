@@ -395,6 +395,28 @@ const TELAS = [
   // sobre fundo escuro e a nomeada clareia. As duas lado a lado sao o
   // argumento inteiro.
   { nome: "25d-task-briefing-escuro", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1400, role: "socio", tema: "escuro" },
+  // A TABELA DO BRIEFING, com a dimensao escolhida.
+  //
+  // Decisao do usuario: *"no texto do briefing ele permite apenas tabelas 3x3,
+  // pode mudar isso? quero que seja ajustavel"*. O controle em repouso e um
+  // icone de 32px, igual ao que estava la antes -- a entrega inteira esta
+  // DENTRO dele, entao sem o clique ela nao sai em imagem nenhuma: a `25` e a
+  // `25d` continuariam identicas.
+  //
+  // E ele e `semRolagem` pela razao da `25b`: o popover do Radix se reposiciona
+  // quando a pagina rola, e `fullPage` rola para costurar.
+  { nome: "25e-task-tabela-ajustavel", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1100, role: "socio", clicar: 'button[aria-label="Tabela"]', semRolagem: true },
+  // E O MESMO MENU DENTRO DE UMA TABELA, que e a outra metade.
+  //
+  // A frase do pe -- *"a tabela cresce depois: com o cursor dentro dela, este
+  // menu ganha acrescentar linha e coluna"* -- e a parte da entrega que torna
+  // o crescimento DESCOBRIVEL, e ela e uma promessa ate uma imagem mostrar o
+  // menu com os cinco comandos. Com a `25e` sozinha, a foto provaria que o
+  // controle insere e nao que ele CRESCE.
+  //
+  // O primeiro clique poe o cursor numa celula da tabela que o briefing de
+  // exemplo ja tinha; o segundo abre o menu.
+  { nome: "25f-task-tabela-por-dentro", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1100, role: "socio", clicar: ['td:has-text("1080×1350")', 'button[aria-label="Tabela"]'], semRolagem: true },
   // O PAINEL DA ETAPA com o enviador ligado: e ali que o arquivo entra, e a
   // 46 ja abre o painel -- o que faltava era ele ter por onde subir.
   { nome: "26-tasks-so-atrasadas", rota: "/painel/gestao-tasks?visao=lista&atrasadas=1", largura: 1600, altura: 800, role: "socio" },

@@ -146,7 +146,8 @@ function ChipDePrazo({
         </button>
       </PopoverTrigger>
 
-      <PopoverContent align="start" className="w-64 space-y-3">
+      {/* Mesmo motivo do seletor de status: o popover e um role="dialog". */}
+      <PopoverContent align="start" aria-label="Prazo" className="w-64 space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor="prazo-de" className="text-muted-foreground text-xs">
             De
