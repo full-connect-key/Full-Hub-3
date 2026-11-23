@@ -3,15 +3,18 @@
 import { exigirEquipeNaAcao } from "@/lib/acoes/guardas";
 import { ErroDeAcao, executarAcao, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { ehGestor } from "@/lib/auth/roles";
+import { mapaDeFeriados } from "@/components/shared/aviso-de-feriado";
 import { driveConfigurado } from "@/lib/drive/config";
 import { listarClientes } from "@/lib/dados/clientes";
 import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import type { Vertente } from "@/lib/dominio/vertentes";
 import type { EtapaQueMultiplica } from "@/lib/dominio/workflows";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { feriadosComNome } from "@/lib/dados/full-days";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { listarWorkflows } from "@/lib/dados/workflows";
 import { obterTask, urlsDosArquivos, type TaskCompleta } from "@/lib/dados/tasks";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 /**
  * O que o painel lateral precisa para desenhar o detalhe de uma task.
@@ -33,6 +36,16 @@ export type DetalheParaOPainel = {
   tipos: { id: string; nome: string; multiplicam: EtapaQueMultiplica[] }[];
   /** As vertentes da conta desta demanda (0118) — todas, inclusive as inativas. */
   vertentes: Vertente[];
+  /**
+   * OS FERIADOS, para o modal da etapa avisar quando a data escolhida cai num.
+   *
+   * ELE VEM DAQUI E NÃO DA TELA porque este painel abre a DEMANDA inteira, e a
+   * etapa de dentro dele abre o MESMO modal da tela de detalhe — é decisão
+   * escrita: *"ela abre por cima, inclusive do painel de Minhas Tasks"*. Sem
+   * isto, o aviso existiria num caminho e faltaria no outro, que é o pior dos
+   * dois: quem datasse por aqui concluiria que o produto não avisa.
+   */
+  feriados: Record<string, string>;
   urls: Record<string, string>;
   usuarioId: string;
   /** Atendimento ou gestão: mexe na demanda e nas etapas. */
@@ -69,12 +82,18 @@ export async function carregarDetalheDaTask(
     const task = await obterTask(taskId);
     if (!task) throw new ErroDeAcao("Task não encontrada, ou seu perfil não alcança ela.");
 
-    const [clientes, equipe, tipos, ehDoAtendimento, vertentes] = await Promise.all([
+    // A JANELA É LARGA de propósito, e é a mesma da tela de detalhe: o campo
+    // de data aceita qualquer coisa digitada, então um aviso que só conhece o
+    // futuro fica calado justamente quando alguém erra o ano.
+    const anoCorrente = Number(hojeNaAgencia().slice(0, 4));
+
+    const [clientes, equipe, tipos, ehDoAtendimento, vertentes, feriados] = await Promise.all([
       listarClientes(),
       listarEquipeAtiva(),
       listarWorkflows(task.client_id),
       souDoAtendimento(),
       vertentesDoCliente(task.client_id),
+      feriadosComNome(`${anoCorrente - 1}-01-01`, `${anoCorrente + 3}-12-31`),
     ]);
 
     const urls = await urlsDosArquivos(
@@ -99,6 +118,7 @@ export async function carregarDetalheDaTask(
         multiplicam: t.workflow?.multiplicam ?? [],
       })),
       vertentes,
+      feriados: mapaDeFeriados(feriados),
       urls,
       usuarioId: sessao.usuarioId,
       podeGerenciar: ehDoAtendimento || gestor,

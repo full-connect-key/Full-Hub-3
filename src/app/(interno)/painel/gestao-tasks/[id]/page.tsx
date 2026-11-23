@@ -16,6 +16,7 @@ import { ehGestor } from "@/lib/auth/roles";
 import { campanhaDaTask } from "@/lib/dados/campanhas";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { feriadosComNome } from "@/lib/dados/full-days";
 import { prazosDeHoje, souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { obterTask, urlsDosArquivos } from "@/lib/dados/tasks";
 import { vertentesDoCliente } from "@/lib/dados/vertentes";
@@ -32,6 +33,8 @@ import { ArquivosDaEntrega } from "./arquivos-da-entrega";
 import { Referencias } from "./referencias";
 import { Subtarefas } from "./subtarefas";
 import { Voltar } from "@/components/shared/voltar";
+import { mapaDeFeriados } from "@/components/shared/aviso-de-feriado";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 export const metadata: Metadata = { title: "Task" };
 
@@ -42,7 +45,17 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
   const task = await obterTask(id);
   if (!task) notFound();
 
-  const [clientes, equipe, tipos, ehDoAtendimento, vertentes] = await Promise.all([
+  // A JANELA DOS FERIADOS É LARGA DE PROPÓSITO, e ela é uma leitura só por
+  // visita. A tabela `holidays` tem algumas dezenas de linhas e vai até 2030
+  // (0038), então pedir quatro anos de uma vez custa o mesmo que pedir um mês
+  // — e o campo de data aceita qualquer coisa que alguém digite: o prazo de
+  // uma etapa pode ser retroativo, e um aviso que só conhece o futuro cala
+  // justamente no caso em que a pessoa errou o ano.
+  const hoje = hojeNaAgencia();
+  const anoCorrente = Number(hoje.slice(0, 4));
+
+  const [clientes, equipe, tipos, ehDoAtendimento, vertentes, feriados] =
+    await Promise.all([
     listarClientes(),
     listarEquipeAtiva(),
     listarWorkflows(task.client_id),
@@ -53,6 +66,7 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
     // `vertentesParaEscolher()`: a frente que a conta tirou do ar sai da
     // lista, menos quando é justamente a que esta demanda já aponta.
     vertentesDoCliente(task.client_id),
+    feriadosComNome(`${anoCorrente - 1}-01-01`, `${anoCorrente + 3}-12-31`),
   ]);
 
   const urls = await urlsDosArquivos(
@@ -209,6 +223,7 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
                 podeGerenciar={podeGerenciar}
                 souGestor={souGestor}
                 usuarioId={sessao.usuarioId}
+                feriados={mapaDeFeriados(feriados)}
                 /* Hoje e agora saem do SERVIDOR e descem prontos, como em
                    toda tela do produto: se cada navegador lesse o próprio
                    relógio, o cronômetro renderizado aqui e o hidratado lá

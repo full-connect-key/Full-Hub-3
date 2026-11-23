@@ -256,22 +256,87 @@ export async function listarTime(): Promise<PessoaDoTime[]> {
   return TIME;
 }
 
+/**
+ * UM FERIADO, E ELE CAI NO PRAZO DE "Criar KV" de proposito.
+ *
+ * O stub devolvia lista vazia, com a razao escrita: *"um feriado no meio dele
+ * mudaria a contagem de dias uteis que a tela mostra sem acrescentar nada ao
+ * que se quer validar"*. Aquilo valia enquanto o unico leitor era o Day Off;
+ * deixou de valer quando o modal da etapa passou a avisar que a data escolhida
+ * e feriado — com a lista vazia, **o aviso nao sairia em imagem nenhuma**, e a
+ * rodada terminaria dizendo "Pronto" sobre a peca nova. E a licao da duplicata
+ * do Cronograma: um ambiente de exemplo que mostra o produto no unico estado em
+ * que a entrega e invisivel.
+ *
+ * E A DATA E CALCULADA e nao literal, que e a licao dos meses da nota fiscal:
+ * `dia(1)` e o prazo de "Criar KV" em `tasks.ts`, e os dois andam juntos — uma
+ * data fixa aqui deixaria de casar com a etapa na primeira virada de mes, e a
+ * imagem sairia sem o aviso sem nada reclamar.
+ *
+ * SAO DOIS, UM POR TELA QUE AVISA, e nenhum a mais: o modal da etapa e a
+ * abertura do mes de social sao os dois lugares onde o aviso foi ligado, e uma
+ * tela com peca nova e sem imagem e uma tela que ninguem conferiu.
+ *
+ * O NOME E COPIADO DA TABELA, letra por letra (0011), e nao inventado: ele e
+ * o mais longo dos 78, entao a imagem mostra a linha QUEBRANDO — que e o que
+ * uma frase curta nao mostraria. E ele vai sem acento porque a tabela o grava
+ * assim; o stub espelha o dado, nao o portugues que o dado deveria ter.
+ *
+ * E NENHUM DOS DOIS CAI NAS OUTRAS DATAS DO EXEMPLO, de proposito: o campo de
+ * inicio da mesma etapa esta vazio, a entrega do mes de social nasce em branco
+ * e a tela `56d` fecha o periodo noutro dia — e sao eles que mostram, na mesma
+ * imagem, que a linha sabe FALTAR.
+ */
+const FERIADOS = [
+  // 1. O PRAZO DE "Criar KV" (`dia(1)` em `tasks.ts`), que e a etapa que o
+  //    modal de `46-subtarefa-painel` abre.
+  { data: emDias(1), nome: "Dia Nacional de Zumbi e da Consciencia Negra" },
+  // 2. O DIA QUE A TELA `56c-abrir-o-mes-periodo` CLICA na faixa.
+  { data: diaDaFaixaDoSocial(2), nome: "Finados" },
+];
+
+/**
+ * O DIA 2 DO MES QUE A FAIXA DE `abrir-o-mes` ABRE.
+ *
+ * Isto ESPELHA `DIAS_DA_FAIXA` de `scripts/prototipo.mjs`, e a duplicacao e
+ * declarada: os dois rodam em runtimes diferentes — aquele monta o seletor do
+ * clique, do lado de fora, e este responde a consulta, de dentro da copia
+ * compilada —, e nao ha modulo que os dois importem. A conta e a de la, palavra
+ * por palavra: a tela de abrir o mes nasce no mes que vem, e
+ * `periodosSugeridosDoFluxo()` poe a data da Pauta em "o dia 1 do mes aberto
+ * menos 32".
+ *
+ * **Se as duas divergirem, a imagem sai sem o aviso e nada reclama** — e a
+ * licao dos meses da nota fiscal, que e tambem a razao de nenhuma das duas ser
+ * uma data literal.
+ */
+function diaDaFaixaDoSocial(dia: number): string {
+  const mesAberto = new Date();
+  mesAberto.setDate(1);
+  mesAberto.setMonth(mesAberto.getMonth() + 1);
+
+  const naFaixa = new Date(mesAberto);
+  naFaixa.setDate(naFaixa.getDate() - 32);
+
+  const mes = String(naFaixa.getMonth() + 1).padStart(2, "0");
+  return `${naFaixa.getFullYear()}-${mes}-${String(dia).padStart(2, "0")}`;
+}
+
 export async function feriadosEntre(inicio: string, fim: string): Promise<Set<string>> {
-  void inicio;
-  void fim;
-  // Sem feriado no exemplo: o conjunto de dados cobre um mes so, e um feriado
-  // no meio dele mudaria a contagem de dias uteis que a tela mostra sem
-  // acrescentar nada ao que se quer validar.
-  return new Set<string>();
+  // OS DOIS SAEM DA MESMA LISTA. Antes um devolvia vazio e o outro tambem; com
+  // um feriado em cena, duas respostas para *"que dias sao feriado"*
+  // divergiriam — e o que divergiria e a contagem de dias uteis do relatorio,
+  // que diria um numero que o calendario ao lado contradiz.
+  return new Set(
+    FERIADOS.filter((f) => f.data >= inicio && f.data <= fim).map((f) => f.data),
+  );
 }
 
 export async function feriadosComNome(
   inicio: string,
   fim: string,
 ): Promise<{ data: string; nome: string }[]> {
-  void inicio;
-  void fim;
-  return [];
+  return FERIADOS.filter((f) => f.data >= inicio && f.data <= fim);
 }
 
 export async function matrizDoPeriodo(

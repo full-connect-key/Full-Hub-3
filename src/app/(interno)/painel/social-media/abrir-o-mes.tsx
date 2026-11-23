@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AvisoDeFeriado } from "@/components/shared/aviso-de-feriado";
 import { FaixaDeDisponibilidade } from "@/components/shared/faixa-de-disponibilidade";
 import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { SeletorDeRedes } from "@/components/shared/seletor-de-redes";
@@ -142,6 +143,7 @@ export function AbrirOMes({
   clientes,
   equipe,
   fluxos,
+  feriados,
   driveLigado = false,
 }: {
   clientes: { id: string; nome_empresa: string }[];
@@ -155,6 +157,16 @@ export function AbrirOMes({
    * funções a distribuir e os portões que a tela anuncia.
    */
   fluxos: FluxoDeSocial[];
+  /**
+   * OS FERIADOS, data → nome, para o aviso de cada campo de data.
+   *
+   * **ELA VEM DE CIMA pela razão de `fluxos` e de `driveLigado`:**
+   * `lib/dados/full-days.ts` é `server-only`. E aqui o aviso pesa mais que na
+   * tela da etapa: são CINCO datas de uma vez, decididas em bloco, e a
+   * sugestão de cada uma é calculada (0089) — ninguém olha o calendário antes
+   * de aceitar o bloco que a tela já preencheu.
+   */
+  feriados: Record<string, string>;
   /**
    * A integração com o Drive está configurada?
    *
@@ -891,6 +903,14 @@ export function AbrirOMes({
                     <p className="text-text-secondary text-xs">
                       {rotuloDoDiaDaEtapa(periodo.inicio)}
                     </p>
+                    {/* O AVISO É UMA SEGUNDA LINHA, e não entra na de cima.
+                        O dia da semana existe aqui desde a 0083 porque
+                        "marcar o envio do mês num domingo é o erro que só
+                        essa palavra pega" — e um feriado cai quase sempre num
+                        dia útil, que é precisamente o caso que aquela linha
+                        não alcança. Ele só aparece quando existe, então não
+                        há linha a mais no caso normal. */}
+                    <AvisoDeFeriado data={periodo.inicio} feriados={feriados} />
                   </div>
 
                   {/*
@@ -930,6 +950,12 @@ export function AbrirOMes({
                         rotuloDoDiaDaEtapa(periodo.fim)
                       )}
                     </p>
+                    {/* E O AVISO É DOS DOIS CAMPOS. A entrega é o dia em que a
+                        etapa VENCE, e marcá-la num feriado é a realocação que
+                        este aviso existe para evitar — num campo que nasce em
+                        branco e que alguém preenche justamente quando o
+                        trabalho dura mais de um dia. */}
+                    <AvisoDeFeriado data={periodo.fim} feriados={feriados} />
                   </div>
                 </div>
 

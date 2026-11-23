@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 import type { JSONContent } from "@tiptap/react";
 
+import { AvisoDeFeriado } from "@/components/shared/aviso-de-feriado";
 import { EditorRico, VisualizadorRico } from "@/components/shared/editor-rico";
 import { EnviarArquivos } from "@/components/shared/enviar-arquivos";
 import { FaixaDeDisponibilidade } from "@/components/shared/faixa-de-disponibilidade";
@@ -97,6 +98,7 @@ export function PainelDaSubtarefa({
   irmas,
   podeGerenciar,
   usuarioId,
+  feriados,
   aoFechar,
 }: {
   subtarefa: SubtarefaDetalhada;
@@ -106,6 +108,8 @@ export function PainelDaSubtarefa({
   irmas: SubtarefaDetalhada[];
   podeGerenciar: boolean;
   usuarioId: string;
+  /** Os feriados, data → nome: o aviso dos dois campos de data. */
+  feriados: Record<string, string>;
   aoFechar: () => void;
 }) {
   const router = useRouter();
@@ -526,14 +530,22 @@ export function PainelDaSubtarefa({
                    precisa devolver o campo ao valor do banco — e um input
                    não controlado ficaria mostrando o que a pessoa digitou
                    depois de a tela já ter desistido dele. */
-                <Input
-                  type="date"
-                  aria-label="Data de início da etapa"
-                  value={valor.data_inicio}
-                  onChange={(evento) =>
-                    mexer({ data_inicio: evento.target.value })
-                  }
-                />
+                <>
+                  <Input
+                    type="date"
+                    aria-label="Data de início da etapa"
+                    value={valor.data_inicio}
+                    onChange={(evento) =>
+                      mexer({ data_inicio: evento.target.value })
+                    }
+                  />
+                  {/* O AVISO É DOS DOIS CAMPOS, e não um resumo embaixo da
+                      grade: ele diz "este dia é feriado", e "este dia" tem de
+                      ser o campo que a pessoa acabou de mexer. Com um aviso
+                      só, começar no dia 25 e entregar no dia 2 daria uma
+                      frase que não diz qual das duas datas é a do feriado. */}
+                  <AvisoDeFeriado data={valor.data_inicio} feriados={feriados} />
+                </>
               ) : (
                 <span className="text-sm">
                   {subtarefa.data_inicio
@@ -547,12 +559,15 @@ export function PainelDaSubtarefa({
 
             <Campo rotulo="Prazo">
               {podeGerenciar ? (
-                <Input
-                  type="date"
-                  aria-label="Prazo da etapa"
-                  value={valor.prazo}
-                  onChange={(evento) => mexer({ prazo: evento.target.value })}
-                />
+                <>
+                  <Input
+                    type="date"
+                    aria-label="Prazo da etapa"
+                    value={valor.prazo}
+                    onChange={(evento) => mexer({ prazo: evento.target.value })}
+                  />
+                  <AvisoDeFeriado data={valor.prazo} feriados={feriados} />
+                </>
               ) : (
                 <span className="text-sm">
                   {subtarefa.prazo

@@ -88,6 +88,7 @@ export function Subtarefas({
   souGestor,
   usuarioId,
   agoraDoServidor,
+  feriados,
 }: {
   taskId: string;
   subtarefas: SubtarefaDetalhada[];
@@ -98,6 +99,16 @@ export function Subtarefas({
   usuarioId: string;
   /** O instante medido no servidor, para o cronômetro começar de lá. */
   agoraDoServidor: number;
+  /**
+   * Os feriados, data → nome, para o modal avisar quando o dia escolhido é um.
+   *
+   * ELA ATRAVESSA ESTE COMPONENTE SEM SER LIDA, e é de propósito: quem desenha
+   * os campos de data é o modal da etapa, e a leitura é da página — uma por
+   * visita, não uma por abertura de modal. A lista não tem data própria: a
+   * linha mostra o prazo e o seletor de status, e um aviso de feriado em cada
+   * linha de uma demanda de dez etapas é a mesma frase dez vezes.
+   */
+  feriados: Record<string, string>;
 }) {
   const router = useRouter();
   const [salvando, iniciar] = useTransition();
@@ -536,6 +547,7 @@ export function Subtarefas({
           irmas={subtarefas}
           podeGerenciar={podeGerenciar}
           usuarioId={usuarioId}
+          feriados={feriados}
           aoFechar={() => setAberta(null)}
         />
       ) : null}

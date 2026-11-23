@@ -6,9 +6,12 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { feriadosComNome } from "@/lib/dados/full-days";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { fluxosDeSocial } from "@/lib/dados/social-flows";
 import { driveConfigurado } from "@/lib/drive/config";
+import { mapaDeFeriados } from "@/components/shared/aviso-de-feriado";
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 import { AbrirOMes } from "../abrir-o-mes";
 
@@ -57,13 +60,21 @@ async function Conteudo() {
    */
   if (!(await souDoAtendimento())) forbidden();
 
-  const [clientes, equipe, fluxos] = await Promise.all([
+  // A JANELA DOS FERIADOS É LARGA, e é a mesma das outras telas que avisam: o
+  // campo de data aceita qualquer coisa digitada, então um aviso que só
+  // conhece o futuro fica calado justamente quando alguém erra o ano. E ela
+  // precisa cobrir o PASSADO porque a corrente de um mês nasce ANTES dele —
+  // o mês que vem se produz nos trinta dias que o antecedem (0089).
+  const anoCorrente = Number(hojeNaAgencia().slice(0, 4));
+
+  const [clientes, equipe, fluxos, feriados] = await Promise.all([
     listarClientes(),
     listarEquipeAtiva(),
     // SÓ OS ATIVOS: a tela oferece o que dá para aplicar, e um fluxo
     // desativado é um que a agência tirou do ar sem apagar — oferecê-lo
     // abriria um mês com a corrente que ela aposentou.
     fluxosDeSocial({ apenasAtivos: true }),
+    feriadosComNome(`${anoCorrente - 1}-01-01`, `${anoCorrente + 3}-12-31`),
   ]);
 
   return (
@@ -73,6 +84,7 @@ async function Conteudo() {
         .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }))}
       equipe={equipe.map((p) => ({ id: p.id, nome: p.nome }))}
       fluxos={fluxos}
+      feriados={mapaDeFeriados(feriados)}
       driveLigado={driveConfigurado()}
     />
   );

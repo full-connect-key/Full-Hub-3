@@ -124,6 +124,16 @@ export async function feriadosEntre(inicio: string, fim: string): Promise<Set<st
   return new Set(data.map((h) => h.data));
 }
 
+/**
+ * Os feriados do período, com o NOME de cada um.
+ *
+ * **Ela tem DOIS leitores, e o segundo não é do Day Off.** Nasceu para a grade
+ * do calendário rolável, que precisa do nome para dizer por que o dia está
+ * apagado; desde o aviso de feriado dos campos de data (`AvisoDeFeriado`) ela
+ * responde também ao modal da etapa e à abertura do mês de social. É a mesma
+ * pergunta — *quais datas do período são feriado, e como se chamam* —, e uma
+ * segunda leitura ao lado seria o lugar onde as duas respostas divergem.
+ */
 export async function feriadosComNome(
   inicio: string,
   fim: string,

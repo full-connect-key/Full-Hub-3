@@ -1611,6 +1611,98 @@ quando ele recusa: sem isso a linha saltaria de volta ao lugar antigo e só
 depois para o novo, que é o arrasto se desfazendo na frente de quem arrastou. É
 a mesma decisão do board da Gestão de Tasks.
 
+##### E O DIA ESCOLHIDO DIZ QUANDO É FERIADO
+
+Decisão do usuário: *"quando vou montar uma task, quero que você deixe o dia do
+feriado com um aviso caso eu selecione ele, de que aquele dia é feriado, para
+evitar realocações de tasks"*.
+
+**NÃO HÁ MIGRATION E NÃO HÁ CONSULTA NOVA — é a ponte construída e nunca
+atravessada pela vigésima terceira vez.** `holidays` existe desde a 0011, a
+0038 a estendeu até 2030 (78 linhas), e `feriadosComNome()` já a lê com o nome
+desde o Sprint 6 — para o Day Off, que PINTA os feriados no calendário dele. A
+tela que data o trabalho da agência não perguntava.
+
+**E É JUSTAMENTE ALI QUE A FALTA DOÍA**, porque é a assimetria entre as duas:
+a grade do Day Off **apaga a célula** do feriado, então quem escolhe por lá vê
+a ausência do dia; um `<input type="date">` não mostra nada — ele aceita o 25
+de dezembro exatamente como aceita o 24, e a realocação aparece na semana
+seguinte.
+
+**ELE AVISA E NUNCA RECUSA**, que é a regra da carga (0081) aplicada a outra
+dimensão: *sobrecarga avisa, nunca recusa*. Trabalhar num feriado é decisão da
+agência — a gravação urgente que sai no dia 1, a peça que o cliente pediu para
+sair no Natal —, e uma trava aqui seria recusar o caso que a pessoa escolheu de
+propósito. O aviso é `--warning` e nunca `--danger`, pela mesma razão.
+
+**ISTO NÃO CONTRADIZ `DO_CALENDARIO`, e a distinção precisou ser escrita.**
+Aquele conjunto tira `fim_de_semana` e `feriado` do aviso de sobrecarga da
+faixa, com o motivo registrado: *"fim de semana e feriado apagam a célula na
+grade, e avisar sobre eles seria um aviso em metade dos cliques"*. O argumento
+é sobre a GRADE, que já diz o que o dia é — e ele não atravessa para um campo
+de data, que não diz nada. O que a faixa continua não fazendo é avisar; o que o
+campo passou a fazer é dizer qual feriado.
+
+**A FRASE NÃO REPETE A DATA, só o NOME e a consequência.** O campo ao lado já
+mostra 25/12/2026, e o que a pessoa não tem como saber é que aquele dia é o
+Natal. Em `abrir-o-mes` a linha do dia da semana fica logo acima — ela existe
+desde a 0083 porque *"marcar o envio do mês num domingo é o erro que só essa
+palavra pega"* —, e **o feriado cai quase sempre num dia útil**, que é
+precisamente o caso que aquela linha não alcança. São duas linhas e não uma, e
+a de baixo só existe quando existe: **pinta-se a exceção**.
+
+**SÃO DUAS TELAS, e o critério é onde alguém escolhe uma data que uma PESSOA
+vai ter de cumprir:**
+
+| Onde | Por que |
+| --- | --- |
+| o modal da etapa (início e prazo) | é o pedido em quantas palavras, e são os dois campos: começar num feriado e vencer num feriado são dois problemas |
+| a abertura do mês de social | **cinco datas de uma vez**, decididas em bloco, e a sugestão de cada uma é CALCULADA (0089) — ninguém olha o calendário antes de aceitar o bloco que a tela já preencheu |
+
+***E as que ficaram de fora, com o motivo de cada uma:*** a edição em linha da
+Lista da Gestão de Tasks, onde `PeriodoInline` é `h-7 w-36` numa célula de
+tabela e o prazo em massa vale para N demandas — uma linha de feriado ali seria
+a mesma frase para todas; a árvore da nova campanha, onde a data é uma linha
+apertada dentro de uma lista que chega a cinquenta peças; os seletores de
+período dos filtros e dos relatórios, que são um RECORTE e não um compromisso;
+o editor de recorrência, que já tem um interruptor de *"pular feriado"* — e uma
+trava de verdade é mais forte que um aviso; e o calendário do Day Off, que
+pinta o feriado por construção.
+
+**O COMPONENTE É UM SÓ** (`components/shared/aviso-de-feriado.tsx`) **porque
+são quatro campos de data em duas telas**, e a cópia que divergiria é a do
+Social, que se abre menos: é a história das sete cópias de `abas.tsx` em
+miniatura. Ele devolve `null` quando o dia não é feriado, em vez de a tela
+perguntar antes — assim a linha é a mesma em todo campo.
+
+**A JANELA É LARGA, e a razão é que o campo aceita o que for digitado:** de
+`ano − 1` a `ano + 3`. Um aviso que só conhece o futuro fica calado justamente
+quando alguém erra o ano — e em `abrir-o-mes` o passado é obrigatório, porque a
+corrente de um mês nasce nos trinta dias que o antecedem (0089).
+
+**E O PAINEL DE MINHAS TASKS RECEBE OS FERIADOS PELA SERVER ACTION**, e não
+pela página: o modal da etapa abre por cima dele desde a 0022 — *"ela abre por
+cima, inclusive do painel de Minhas Tasks"* —, e é o MESMO componente. Sem
+isso o aviso existiria num caminho e faltaria no outro, que é o pior dos dois:
+quem datasse por ali concluiria que o produto não avisa. **Foi o `tsc` que
+cobrou**, e só porque a prop nasceu obrigatória — opcional, ela teria compilado
+e o painel ficaria mudo.
+
+***E o exemplo do protótipo ganhou DOIS feriados, um por tela***, pela lição da
+duplicata do Cronograma: o stub devolvia lista vazia com a razão escrita, e com
+ela **o aviso não sairia em imagem nenhuma** — a rodada terminaria dizendo
+"Pronto" sobre a peça nova. Um cai no prazo de "Criar KV", que é a etapa que o
+modal da `46` abre; o outro no dia que a `56c` clica na faixa. **Os dois são
+calculados e nunca literais** (a lição dos meses da nota fiscal), e o segundo
+**espelha `DIAS_DA_FAIXA` do gerador** — duplicação declarada, porque os dois
+rodam em runtimes diferentes e não há módulo que os dois importem; se eles
+divergirem, a imagem sai sem o aviso e nada reclama. **E `feriadosEntre` passou
+a sair da mesma lista**: com um feriado em cena, duas respostas para *"que dias
+são feriado"* divergiriam, e o que divergiria é a contagem de dias úteis do
+relatório, que diria um número que o calendário ao lado contradiz. As telas que
+NÃO mostram o aviso — o campo de início da mesma etapa, as outras quatro fases
+do mês, a `56d` — são o que prova, na mesma imagem, que a linha sabe faltar.
+
 #### O BRIEFING GANHOU CAIXA, TABELA E UMA PALETA QUE SAI DE TOKEN
 
 Decisão do usuário: *"quero que adicione parte de construir briefing mais
