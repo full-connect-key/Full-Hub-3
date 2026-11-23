@@ -799,14 +799,19 @@ const TELAS = [
   { nome: "64c-full-days-cancelar", rota: "/painel/full-days?aba=aprovacoes&fila=aprovada", largura: 1200, altura: 800, role: "socio", clicar: 'button:has-text("Cancelar o período")' },
   { nome: "64d-full-days-canceladas", rota: "/painel/full-days?aba=aprovacoes&fila=cancelada", largura: 1500, altura: 800, role: "socio" },
   { nome: "65-full-days-colaborador", rota: "/painel/full-days", largura: 1600, altura: 1200, role: "colaborador" },
-  // QUEM AINDA NAO CONQUISTOU DIA NENHUM (0074). E o estado de todo mundo por
-  // doze meses, e a tela dele nao e "saldo zero": ela troca o numero pela DATA
-  // em que os primeiros dias chegam, tira a barra de uso -- que a zero pede
-  // para ser lida como "voce ja usou tudo" -- e desliga o envio com um aviso
-  // so. Sem esta imagem, a unica tela do modulo que muda de forma ficaria sem
-  // foto.
-  { nome: "65d-full-days-primeiro-ciclo", rota: "/painel/full-days", largura: 1600, altura: 1200,
-    role: "colaborador", env: { PROTOTIPO_PRIMEIRO_CICLO: "1" } },
+  // A FICHA SEM DATA DE ENTRADA, e ela SUBSTITUI a do primeiro ciclo (0145).
+  //
+  // A que estava aqui fotografava quem ainda nao tinha conquistado dia nenhum
+  // -- o estado de todo mundo por doze meses ate a 0145, quando os 15 dias
+  // passaram a valer desde a entrada. Sem aquele estado, a imagem sairia
+  // IDENTICA a 65: um valor de `ciclos` que nenhuma tela le mais.
+  //
+  // O que esta foto confere e o estado que a 0145 criou: sem `data_admissao` a
+  // faixa nao tem a data para dizer, perde a linha de "os 15 voltam em", e
+  // ganha o aviso para a gestao -- com a barra de uso, o saldo cheio e o envio
+  // de pe, que e a diferenca inteira em relacao ao primeiro ciclo de antes.
+  { nome: "65d-full-days-sem-data-de-entrada", rota: "/painel/full-days", largura: 1600, altura: 1200,
+    role: "colaborador", env: { PROTOTIPO_SEM_DATA_DE_ENTRADA: "1" } },
   // O SALDO QUE NAO VEIO, e ela existe porque o estado nasceu de um relato: a
   // faixa dizia "voce tem 15 de 15 dias disponiveis" para quem tinha day off
   // aprovado, porque a leitura falhava calada e o fallback preenchia um ciclo

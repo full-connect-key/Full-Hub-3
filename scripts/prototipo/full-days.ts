@@ -522,12 +522,13 @@ export type { DescansoDoCiclo } from "../../src/lib/dados/full-days";
  * que ela serve para dizer. E com saldo parcial a faixa mostra a frase inteira
  * que a 0085 trouxe, a da data em que os dias voltam.
  *
- * `proximoEm` entrou com a 0074 e nao e decorativo: ele e o campo que a tela
- * usa quando `ciclos` e ZERO, que e o estado de todo mundo no primeiro ano --
- * e desde a 0085 ele serve tambem a quem JA tem ciclo fechado, porque e a data
- * em que o bloco se restaura. Esta funcao devolve dois ciclos de proposito: a
- * tela do primeiro ciclo tem imagem propria, por `PROTOTIPO_SO`, e um stub que
- * so soubesse desenhar um dos dois estados fotografaria o produto pela metade.
+ * `proximoEm` nao e decorativo: desde a 0145 ele e a data em que o bloco se
+ * RESTAURA -- os 15 dias voltam inteiros, e o que sobrou ate la se perde
+ * (0085). Era, na 0074, a data em que os primeiros dias chegavam, e aquele
+ * estado deixou de existir. Esta funcao devolve dois ciclos de proposito: as
+ * outras duas formas desta faixa (o saldo que nao respondeu e a ficha sem data
+ * de entrada) tem imagem propria, por `env`, e um stub que so soubesse
+ * desenhar uma delas fotografaria o produto pela metade.
  */
 export async function descansoDoCiclo(
   _usuarioId: string,
@@ -541,36 +542,41 @@ export async function descansoDoCiclo(
   const proximo = new Date(inicio);
   proximo.setFullYear(proximo.getFullYear() + 1);
 
-  // O PRIMEIRO CICLO, por pedido da tela (`env` no gerador). Colchetes de
-  // proposito, como em `dal.ts`: assim o valor vem do ambiente na hora do
-  // pedido e o mesmo build serve para as duas imagens.
+  // O SALDO QUE NAO RESPONDEU, por pedido da tela (`env` no gerador).
+  // Colchetes de proposito, como em `dal.ts`: assim o valor vem do ambiente na
+  // hora do pedido e o mesmo build serve para as duas imagens.
   //
-  // Ele nao e um `_usuarioId` diferente porque nenhum perfil do prototipo
-  // corresponde a quem acabou de entrar -- e inventar um contradiria o seed,
-  // onde a Marina tem um ciclo fechado.
-  // O SALDO QUE NAO RESPONDEU, pela razao do primeiro ciclo: e a terceira
-  // forma que esta faixa tem, e a unica que nasceu de um relato -- a tela
-  // dizia "voce tem 15 de 15 dias disponiveis" para quem tinha day off
-  // aprovado, porque o fallback preenchia um ciclo cheio. Sem a imagem, o
-  // estado que o conserto criou ficaria sem foto, que e a licao de
+  // E a unica das formas desta faixa que nasceu de um relato -- a tela dizia
+  // "voce tem 15 de 15 dias disponiveis" para quem tinha day off aprovado,
+  // porque o fallback preenchia um ciclo cheio. Sem a imagem, o estado que o
+  // conserto criou ficaria sem foto, que e a licao de
   // `30b-minhas-tasks-vazia`: o ambiente de exemplo mostra o produto nos
   // estados em que ele doi.
   if (process.env["PROTOTIPO_SALDO_SEM_RESPOSTA"] === "1") {
     return null;
   }
 
-  if (process.env["PROTOTIPO_PRIMEIRO_CICLO"] === "1") {
-    const entrou = new Date();
-    entrou.setMonth(entrou.getMonth() - 4);
-    const chegam = new Date(entrou);
-    chegam.setFullYear(chegam.getFullYear() + 1);
+  // A FICHA SEM DATA DE ENTRADA, e ela SUBSTITUI o primeiro ciclo (0145).
+  //
+  // O ramo que estava aqui devolvia `ciclos: 0` com zero concedidos, que era o
+  // estado de todo mundo por doze meses -- e o produto nao tem mais esse
+  // estado: os 15 dias valem desde a entrada. Deixa-lo de pe seria o stub
+  // fotografando um produto que nao existe, que e o seed inserindo campanha
+  // sem demanda na camada da imagem.
+  //
+  // O que ficou no lugar e o estado que a 0145 CRIOU e que imagem nenhuma
+  // cobria: sem `data_admissao` a ficha nao tem como dizer quando os dias
+  // voltam, entao `proximoEm` vem nulo -- a faixa perde a linha da data e
+  // ganha o aviso para a gestao, com o envio de pe e o saldo cheio. E
+  // alcancavel em producao, porque a coluna e opcional desde o Sprint 2.
+  if (process.env["PROTOTIPO_SEM_DATA_DE_ENTRADA"] === "1") {
     return {
-      inicioDoCiclo: entrou.toISOString().slice(0, 10),
-      proximoEm: chegam.toISOString().slice(0, 10),
+      inicioDoCiclo: null,
+      proximoEm: null,
       ciclos: 0,
-      diasConcedidos: 0,
+      diasConcedidos: 15,
       diasUsados: 0,
-      saldo: 0,
+      saldo: 15,
     };
   }
 

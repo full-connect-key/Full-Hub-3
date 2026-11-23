@@ -218,7 +218,7 @@ export async function meusPedidosDeNota(): Promise<PedidoDeNota[]> {
       // `true` deixa a FAIXA de `/painel/notas-fiscais` exatamente como ela
       // era — ela ignora a coluna, de propósito — e o pop-up sai numa tela
       // só, por `PROTOTIPO_PEDIDO_DE_NOTA`. É a forma de
-      // `PROTOTIPO_FEED_VAZIO` e de `PROTOTIPO_PRIMEIRO_CICLO`: o estado raro
+      // `PROTOTIPO_FEED_VAZIO` e de `PROTOTIPO_SALDO_SEM_RESPOSTA`: o estado raro
       // é que se liga, e não o comum que se desliga.
       dispensado: process.env["PROTOTIPO_PEDIDO_DE_NOTA"] !== "1",
     },

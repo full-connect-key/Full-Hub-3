@@ -297,7 +297,7 @@ async function ConteudoDeSolicitar({
       feriados={feriados}
       bloqueados={Object.fromEntries(bloqueados)}
       hojeISO={hojeISO}
-      diasPorCiclo={eu?.diasFeriasAno ?? 15}
+      diasPorAno={eu?.diasFeriasAno ?? 15}
       descanso={descanso}
       minhaArea={eu?.area ?? "Sem área"}
     />

@@ -57,7 +57,7 @@ export function Solicitar({
   feriados,
   bloqueados,
   hojeISO,
-  diasPorCiclo,
+  diasPorAno,
   descanso,
   minhaArea,
 }: {
@@ -65,8 +65,8 @@ export function Solicitar({
   feriados: { data: string; nome: string }[];
   bloqueados: Record<string, string[]>;
   hojeISO: string;
-  /** O que o contrato dá a cada ciclo de 12 meses. */
-  diasPorCiclo: number;
+  /** O que o contrato dá por ano, restaurado a cada 12 meses de casa. */
+  diasPorAno: number;
   /** O saldo já calculado pelo banco, ou null se a ficha não respondeu. */
   descanso: DescansoDoCiclo | null;
   minhaArea: string;
@@ -176,42 +176,44 @@ export function Solicitar({
   // responde com confiança a pergunta que a pessoa veio fazer.
   const saldoNaoRespondeu = descanso === null;
 
-  const concedidos = descanso?.diasConcedidos ?? diasPorCiclo;
+  const concedidos = descanso?.diasConcedidos ?? diasPorAno;
   const usados = descanso?.diasUsados ?? 0;
-  const ciclos = descanso?.ciclos ?? 1;
 
-  const saldo = descanso?.saldo ?? diasPorCiclo;
+  const saldo = descanso?.saldo ?? diasPorAno;
   const saldoDepois = tipo === "ferias" ? saldo - diasSelecionados : saldo;
 
-  // O PRIMEIRO CICLO É UM ESTADO PRÓPRIO, e não "saldo zero" (0074). Quem
-  // entrou há três meses não gastou os dias dela: eles ainda não chegaram, e
-  // as duas situações pedem frases opostas — uma manda escolher um período
-  // menor, a outra manda esperar uma data.
+  // **O ESTADO `primeiroCiclo` NÃO EXISTE MAIS, e a migration 0145 é o que o
+  // apagou.** Ele era o jeito de a tela dizer "os dias dela ainda não
+  // chegaram", e eram quatro ramos: a manchete da faixa, um aviso próprio, a
+  // barra de uso escondida, e o rótulo "ainda não conquistado" no cartão do
+  // tipo. Decisão do usuário: *"a pessoa pode tirar os 15 dias a partir do
+  // momento que ela entra na agência. mas quando completa 1 ano, a contagem de
+  // dias volta para 15 dias"* — então quem entrou hoje tem os 15, e não há
+  // segundo estado a desenhar.
   //
-  // O fallback de `ciclos` continua sendo 1 e não 0, e é deliberado: quando a
-  // consulta do saldo falha, cair em zero trancaria a equipe inteira fora do
-  // pedido por causa de uma leitura que não respondeu. É a decisão do limite
-  // de tentativas — falhar para o lado aberto, porque quem recusa quando
-  // quebra recusa justamente na hora em que já há outro problema. Quem decide
-  // de verdade é a trava do `insert`.
-  const primeiroCiclo = tipo === "ferias" && ciclos === 0;
+  // Tirar isto da tela sem a migration seria o pior dos dois mundos: o botão
+  // passaria e `validar_solicitacao` recusaria com a frase do primeiro ciclo,
+  // que é a 0029 e a 0060 pela enésima vez. As duas pontas saíram no mesmo
+  // commit.
 
   // **SEM SALDO LIDO, A TELA NÃO RECUSA NADA**, e é a outra metade do mesmo
   // conserto: com o fallback de 15, um pedido de 20 dias era barrado por um
   // número que nunca veio — e o de 12 passava afirmando que sobravam 3. Quem
-  // decide é a trava do `insert`, que lê a conta de verdade. É a decisão do
-  // `ciclos ?? 1` logo abaixo, pelo mesmo argumento: falhar para o lado
-  // aberto, porque quem recusa quando quebra recusa justamente na hora em que
-  // já há outro problema.
+  // decide é a trava do `insert`, que lê a conta de verdade: falhar para o
+  // lado aberto, porque quem recusa quando quebra recusa justamente na hora em
+  // que já há outro problema.
   const excedeSaldo =
-    tipo === "ferias" &&
-    !primeiroCiclo &&
-    !saldoNaoRespondeu &&
-    diasSelecionados > saldo;
+    tipo === "ferias" && !saldoNaoRespondeu && diasSelecionados > saldo;
 
   // A DATA POR EXTENSO, uma vez só: ela aparece na faixa do topo e no aviso do
   // resumo, e duas formatações da mesma data é o começo de duas datas.
-  const chegamEm = descanso?.proximoEm
+  //
+  // **E ELA MUDOU DE SENTIDO COM A 0145, e por isso mudou de nome.** Era
+  // `chegamEm` — quando os primeiros dias CHEGAM —, e passou a ser quando eles
+  // VOLTAM: o aniversário da entrada restaura os dias ao número do contrato, e
+  // o que sobrou até lá se perde (0085). A coluna do banco é a mesma
+  // (`proximo_descanso_em()`); o que trocou é o que a frase ao lado dela diz.
+  const voltamEm = descanso?.proximoEm
     ? format(parseISO(descanso.proximoEm), "dd/MM/yyyy")
     : null;
   const retroativo = Boolean(inicioSel && inicioSel < hojeISO);
@@ -284,11 +286,7 @@ export function Solicitar({
   }
 
   const podeEnviar =
-    !enviando &&
-    Boolean(inicioSel) &&
-    diasSelecionados > 0 &&
-    !excedeSaldo &&
-    !primeiroCiclo;
+    !enviando && Boolean(inicioSel) && diasSelecionados > 0 && !excedeSaldo;
 
   return (
     <div className="space-y-5">
@@ -311,11 +309,7 @@ export function Solicitar({
             <p className="text-text-primary text-[26px] leading-tight font-bold tracking-[-0.035em]">
               {saldoNaoRespondeu
                 ? "Não foi possível ler o seu saldo agora"
-                : primeiroCiclo
-                  ? chegamEm
-                    ? `Seus primeiros ${diasPorCiclo} dias chegam em ${chegamEm}`
-                    : `Seus primeiros ${diasPorCiclo} dias chegam ao completar 12 meses`
-                  : `Você tem ${saldo} de ${concedidos} dias disponíveis`}
+                : `Você tem ${saldo} de ${concedidos} dias disponíveis`}
             </p>
             {/* O QUE ACONTECE, e não o que deu errado: a pessoa veio propor
                 um período, e a tela diz que ela pode seguir. `--warning` e
@@ -329,10 +323,18 @@ export function Solicitar({
               </p>
             ) : null}
 
-            {!saldoNaoRespondeu && primeiroCiclo && !chegamEm ? (
+            {/* A FICHA SEM DATA DE ENTRADA DEIXOU DE SER UMA RECUSA, e passou
+                a ser uma lacuna. Até a 0145 ela era o segundo ramo do primeiro
+                ciclo — sem a data, os dias não tinham quando chegar. Agora os
+                dias existem desde o primeiro dia, e o que a data decide é
+                outra coisa: QUANDO eles voltam. Sem ela a faixa não tem essa
+                frase para dizer, e é isso que esta linha avisa — em
+                `--accent-strong` e não em vermelho, porque não há erro da
+                pessoa aqui e o pedido passa normalmente. */}
+            {!saldoNaoRespondeu && !voltamEm ? (
               <p className="text-accent-strong text-sm">
                 Esta ficha ainda não tem data de entrada — peça à gestão para
-                preencher.
+                preencher, senão não há como dizer quando os dias voltam.
               </p>
             ) : null}
 
@@ -343,24 +345,23 @@ export function Solicitar({
                 que os 15 voltam — e as duas coisas decidem se a pessoa pede
                 agora ou espera. É a razão pela qual a dica da recusa do banco
                 carrega a mesma data. */}
-            {!saldoNaoRespondeu && !primeiroCiclo && chegamEm ? (
+            {!saldoNaoRespondeu && voltamEm ? (
               <p className="text-accent-strong text-sm">
                 O day off não acumula: os {concedidos} dias voltam inteiros em{" "}
-                {chegamEm}, e o que sobrar deste ciclo se perde.
+                {voltamEm}, e o que sobrar até lá se perde.
               </p>
             ) : null}
           </div>
 
-          {/* A BARRA SOME NO PRIMEIRO CICLO, e não vai a zero: "0% de 0 dias" é
-              uma linha de números que não decide nada, e
-              uma barra vazia pede para ser lida como "você já usou tudo" —
-              que é o contrário do que está acontecendo. A faixa ao lado já
-              diz a única coisa que há para dizer, que é a data.
+          {/* A BARRA SOME QUANDO O SALDO NÃO VEIO, e é o único caso que
+              sobrou: ali ela desenharia `0 / 15` — uma barra vazia sobre um
+              ano cheio, que é o 15 do fallback de novo, em forma de desenho.
 
-              **E ELA SOME TAMBÉM QUANDO O SALDO NÃO VEIO**, pela razão
-              inversa: ali a barra desenharia `0 / 15` — uma barra vazia sobre
-              um ciclo cheio, que é o 15 de novo em forma de desenho. */}
-          {primeiroCiclo || saldoNaoRespondeu ? null : (
+              **Ela sumia também no primeiro ciclo, e aquele ramo saiu com a
+              0145**: `0% de 0 dias` era a conta de quem ainda não tinha
+              conquistado nada, e hoje quem entrou hoje tem os 15 — a barra
+              desenha zero por cento de quinze, que é a verdade. */}
+          {saldoNaoRespondeu ? null : (
             <div className="bg-surface-card shadow-cartao w-full max-w-xs shrink-0 rounded-xl p-4">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-text-secondary text-sm">Já usado</span>
@@ -384,8 +385,7 @@ export function Solicitar({
                   com a contagem de parcelas ali, a porcentagem acima falava de
                   dias e o texto logo abaixo falava de outra unidade. */}
               <p className="text-text-muted mt-2 text-right text-xs tabular-nums">
-                {usados} de {concedidos} {concedidos === 1 ? "dia" : "dias"}{" "}
-                neste ciclo
+                {usados} de {concedidos} {concedidos === 1 ? "dia" : "dias"}
               </p>
             </div>
           )}
@@ -533,11 +533,9 @@ export function Solicitar({
                   // cartão existe para dizer.
                   [
                     "ferias",
-                    ciclos === 0
-                      ? "ainda não conquistado"
-                      : saldoNaoRespondeu
-                        ? "desconta do saldo"
-                        : `desconta (${saldo}d livres)`,
+                    saldoNaoRespondeu
+                      ? "desconta do saldo"
+                      : `desconta (${saldo}d livres)`,
                   ],
                   ["licenca", "não desconta"],
                   ["ausencia", "não desconta"],
@@ -593,7 +591,7 @@ export function Solicitar({
               valor={inicioSel ? String(diasSelecionados) : "—"}
               destaque
             />
-            {tipo === "ferias" && !primeiroCiclo && !saldoNaoRespondeu ? (
+            {tipo === "ferias" && !saldoNaoRespondeu ? (
               <Campo
                 rotulo="Saldo depois"
                 valor={`${saldoDepois} de ${concedidos}`}
@@ -615,29 +613,23 @@ export function Solicitar({
             </Aviso>
           ) : null}
 
-          {/* UM AVISO SÓ, e ele é o do primeiro ciclo. Sem o `!primeiroCiclo`
-              em `excedeSaldo`, quem entrou este ano veria os dois empilhados:
-              "você tem 0 de saldo" e este. Duas recusas para um motivo é a
-              tela parecendo quebrada. A frase é a MESMA do banco, como a
-              outra: quem lê aqui e quem levar a recusa do `insert` precisa ler
-              o mesmo. (Eram TRÊS até a 0116, quando a de parcela saiu.) */}
-          {primeiroCiclo ? (
-            <Aviso tom="erro">
-              {chegamEm
-                ? `O day off é conquistado a cada 12 meses de casa. Os seus primeiros ${diasPorCiclo} dias chegam em ${chegamEm}.`
-                : "O day off é conquistado a cada 12 meses de casa, e esta ficha não tem data de entrada."}
-            </Aviso>
-          ) : null}
+          {/* UM AVISO SÓ, e agora ele é o único que existe. Eram TRÊS até a
+              0116 (a parcela saiu com a trava dela) e DOIS até a 0145, quando
+              o do primeiro ciclo saiu com o estado que o produzia — não há
+              mais uma recusa por "os dias ainda não chegaram".
 
-          {/* "NESTE CICLO" É A PALAVRA QUE A 0085 ACRESCENTOU, nos dois
-              lados. Sem ela, quem tirou dez no ciclo passado e cinco neste
-              leria "você tem 10 de saldo" e iria procurar os outros dez — e a
-              frase do banco diz exatamente isto desde a 0085. */}
+              A FRASE É A MESMA DO BANCO, palavra por palavra: quem lê aqui e
+              quem levar a recusa de `validar_solicitacao` precisa ler o mesmo
+              — senão a tela ensina uma regra e o clique seguinte ensina
+              outra. E ela perdeu o "neste ciclo" junto com a migration: o que
+              decide o número é o contrato, e o que a segunda metade diz é
+              QUANDO ele volta inteiro, que é a dica do `insert`. */}
           {excedeSaldo ? (
             <Aviso tom="erro">
-              São {diasSelecionados} dias corridos e neste ciclo você tem{" "}
-              {saldo} de saldo. Escolha um período menor
-              {chegamEm ? ` ou espere ${chegamEm}` : ""}.
+              São {concedidos} dias de day off, contados corridos. Você já tem{" "}
+              {usados} comprometidos, então sobram {saldo}. Escolha um período
+              menor
+              {voltamEm ? ` ou espere ${voltamEm}` : ""}.
             </Aviso>
           ) : null}
 

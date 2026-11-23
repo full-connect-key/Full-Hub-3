@@ -14090,10 +14090,11 @@ afirmação, não.
 > dia a agência quiser ir além, é decisão explícita — não um ajuste de texto.
 
 
-**15 dias de day off a CADA CICLO DE 12 MESES, e eles são CORRIDOS dentro do
-ciclo.** O número é uma coluna de `team_members` (`dias_ferias_ano` — nome
-anterior à troca de vocabulário), não uma constante no código: contrato muda
-por pessoa, e mudar contrato não pode exigir deploy. **Em quantas vezes esses
+**15 dias de day off POR ANO, valendo desde o primeiro dia de casa, e eles
+são CORRIDOS.** O número é uma coluna de `team_members` (`dias_ferias_ano` —
+nome anterior à troca de vocabulário), não uma constante no código: contrato
+muda por pessoa, e mudar contrato não pode exigir deploy. **Quando eles chegam
+e quando eles voltam é a 0145**, logo abaixo — e ela desfaz a 0074. **Em quantas vezes esses
 dias são partidos não é mais pergunta do produto** — a trava saiu na 0116, e o
 porquê está em "O DAY OFF NÃO TEM PARCELAS", logo abaixo.
 
@@ -14207,41 +14208,22 @@ número de cada pessoa.
 
 - `ciclos_de_descanso()` conta os ciclos, `inicio_do_ciclo()` diz quando o
   atual começou, e `saldo_de_ferias()` **perdeu o parâmetro de ano**. A âncora
-  é `data_admissao`; sem ela, `created_at` da ficha. Depois da 0085, `ciclos`
-  decide **uma** coisa — zero é o primeiro ciclo, que não concede nada —, e não
-  é mais um multiplicador: `descanso_do_ciclo()` devolve os números do ciclo
-  corrente — quatro até a 0116, dois depois que o par de parcela saiu —, e a
-  tela os lê como estão.
-- **OS 15 SÃO CONQUISTADOS NO FIM DO CICLO, e não na abertura dele** (migration
-  0074, decisão do usuário: *"entrou hj, nn tem dias disponíveis - fez 12
-  meses, ganha 15 dias, fez 24 meses, ganha mais 15 dias"*). Quem entrou hoje
-  tem **zero** dias, e o primeiro bloco entra no primeiro aniversário.
-
-  **A 0039 tinha escolhido o contrário, e registrou a escolha.** O comentário
-  dela dizia que havia duas leituras de "a cada 12 meses soma 15", que ela
-  ficava com a da abertura, que **para inverter era o `+ 1` de
-  `ciclos_de_descanso()`** e que a bateria tinha o cenário que avisaria. Ele
-  avisou: era *"Quem entrou hoje já está no ciclo 1"*, e hoje ele é o mesmo
-  cenário virado do avesso. Devolvendo o `+ 1`, **32 cenários caem** — a regra
-  está medida no módulo inteiro, não só na sentinela.
-
-- **A recusa do primeiro ciclo diz a DATA, e não os três números.** *"Você já
-  tem 0 comprometidos, então sobram 0"* é verdade e não ensina nada: quem lê
-  não sabe se é a regra, um cadastro errado ou um defeito. `proximo_descanso_em()`
-  nasceu para a frase poder dizer *"os seus primeiros 15 dias chegam em
-  28/05/2027"*, e é a decisão da recusa da 0023 nomear cada etapa em vez de
-  dizer "há etapa sem aprovação". A dica manda para onde não depende de saldo:
-  ausência pontual e afastamento.
-- **E a tela do primeiro ciclo troca de forma, não de número.** O título vira a
-  data, a barra de uso **some** — a zero ela pede para ser lida como "você já
-  usou tudo", que é o contrário do que está acontecendo —, "Saldo depois" sai
-  do resumo, e o envio desliga com **um** aviso só. Sem o `!primeiroCiclo` nos
-  dois derivados, quem entrou este ano veria três recusas empilhadas para um
-  motivo só, que é a tela parecendo quebrada.
-- **Sem ficha, zero ciclos** — e até a 0074 era um, com o argumento de que "uma
-  ficha incompleta não pode deixar a pessoa com zero dias". Ele valia enquanto
-  o primeiro ciclo já vinha concedido; agora zero é o estado normal de quem
-  chegou, e dar um ciclo a quem não tem ficha daria a ela mais do que quem tem.
+  é `data_admissao`; sem ela, `created_at` da ficha. **E `ciclos` deixou de
+  decidir qualquer coisa na 0145** — era por ele que o produto sabia quem
+  estava no primeiro ano, e aquele estado não existe mais; ele continua sendo
+  um FATO que a função devolve, que é a decisão de `parcelas_no_ciclo()` na
+  0116. Nunca foi multiplicador: `descanso_do_ciclo()` devolve os números do
+  ciclo corrente — quatro até a 0116, dois depois que o par de parcela saiu —,
+  e a tela os lê como estão.
+- **Sem ficha, zero ciclos**, e isso não muda o saldo de ninguém desde a 0145:
+  os 15 dias saem de `dias_ferias_ano`, com o default de 15 quando não há
+  ficha. Até a 0074 `ciclos` era um "por garantia" — *"uma ficha incompleta não
+  pode deixar a pessoa com zero dias"* —, e a 0074 o levou a zero; hoje a
+  pergunta não decide mais dia nenhum. O que a ficha sem `data_admissao`
+  continua custando é a DATA: sem ela `proximo_descanso_em()` devolve nulo, e a
+  faixa não tem como dizer quando os dias voltam — é o que o aviso em
+  `--accent-strong` pede à gestão, e o que a imagem
+  `65d-full-days-sem-data-de-entrada` confere.
 - **O lançamento retroativo continua passando**, inclusive no primeiro ano: a
   gestão registra o descanso combinado por fora, o saldo fica negativo, e isso
   é a verdade. `validar_solicitacao` devolve antes da conta de saldo quando a
@@ -14264,13 +14246,14 @@ número de cada pessoa.
   aniversários por conta própria com o mesmo `age()`; sem o `+ 1` os dois
   números passaram a ser o mesmo, e duas cópias da mesma conta é onde as duas
   verdades começam a divergir.
-- **E o seed ganhou alguém no primeiro ciclo**, com data relativa e não
-  literal: depois da 0074 "pessoa sem nenhum dia" é o estado de todo mundo por
-  doze meses, e com todas as fichas passadas de um ano o ambiente de
-  desenvolvimento mostraria o produto no único estado em que essa tela não
-  existe. É a lição da Óptica Visão (0062) e da pessoa desligada (0069). A data
-  é relativa porque uma fixa deixa de ser o primeiro ciclo sozinha, daqui a
-  alguns meses, sem ninguém tocar no arquivo.
+- **E o seed ganhou alguém com menos de um ano de casa**, com data relativa e
+  não literal. Ela entrou pela 0074, quando "pessoa sem nenhum dia" era o
+  estado de todo mundo por doze meses e nenhuma ficha do seed o mostrava — a
+  lição da Óptica Visão (0062) e da pessoa desligada (0069). **Depois da 0145
+  ela mede outra coisa, e continua valendo:** é por ela que se vê o saldo cheio
+  de quem acabou de entrar, que é justamente o que a migration passou a
+  conceder. A data é relativa porque uma fixa deixa de estar no primeiro ano
+  sozinha, daqui a alguns meses, sem ninguém tocar no arquivo.
 - **`tasks.ano_referencia` foi apagada**, e ela tinha nascido na 0037 para
   keyar o saldo por ano. Sem conta anual não há atribuição a fazer — os dias
   contam, e o ciclo em que caem não muda nada. Apagar e não aposentar, como a
@@ -14302,6 +14285,123 @@ número de cada pessoa.
   `conferir_como` e não por `conferir`: ela é `security definer` com
   `is_staff()` na porta, e avaliada como dono do banco — sem sessão — recusa a
   si mesma.
+
+#### O DAY OFF VALE DESDE A ENTRADA (0145)
+
+Decisão do usuário, em duas frases na mesma mensagem: *"no day off tá escrito
+sobre ciclo, pode tirar isso?"* e *"a pessoa pode tirar os 15 dias a partir do
+momento que ela entra na agência. mas quando completa 1 ano, a contagem de dias
+volta para 15 dias"*.
+
+**AS DUAS SÃO A MESMA ENTREGA, e é por isso que elas saem juntas.** O estado que
+mais falava de ciclo na tela era o PRIMEIRO CICLO — a manchete da faixa (*"Seus
+primeiros 15 dias chegam em 28/05/2027"*), um aviso próprio em vermelho, a barra
+de uso escondida e o rótulo *"ainda não conquistado"* no cartão do tipo. Com os
+15 valendo desde a entrada ele deixa de existir, e com ele saem as quatro
+frases. O que sobrou de "ciclo" na tela eram três linhas, e elas trocaram a
+palavra pela DATA.
+
+**ISTO É UMA REVERSÃO DECLARADA DA 0074, e dela só.** Aquela migration é um
+pedido anterior do mesmo usuário — *"entrou hj, nn tem dias disponíveis - fez 12
+meses, ganha 15 dias"* — e o que ela fez foi conceder o bloco no FIM do ciclo.
+**A 0085 fica inteira:** o saldo continua não acumulando, e os 15 voltam ao
+número do contrato a cada aniversário em vez de somar. Quem entrou há três anos
+e nunca parou continua tendo 15, não 45; o que mudou é quem entrou há três
+meses, que passou de 0 para 15.
+
+##### O `+ 1` QUE O PRÓPRIO ARQUIVO RECOMENDAVA ESTÁ ERRADO
+
+Estava escrito aqui, na 0074, que *"para inverter era o `+ 1` de
+`ciclos_de_descanso()`"*. **Deixou de ser verdade na própria 0074**, e a frase
+sobreviveu a ela: aquela migration fez `inicio_do_ciclo()` passar a ser
+`âncora + ciclos_de_descanso() anos`. Com o `+ 1` de volta, quem entrou há três
+meses ganha um `inicio_do_ciclo` no **futuro** — e
+`descanso_usado_no_ciclo()` filtra `data_inicio >= comeca`, então **o day off
+que ela já tirou para de contar**. O saldo sairia 15 com cinco dias
+comprometidos: plausível, e errado.
+
+**Então `ciclos_de_descanso()` NÃO É TOCADA**, e a conta muda nos dois lugares
+onde ela decidia a concessão:
+
+| | Era | É |
+| --- | --- | --- |
+| `saldo_de_ferias()` | `if ciclos = 0 then return 0 - usado` | `por_ano - usado`, sempre |
+| `descanso_do_ciclo()` | `case when ciclos = 0 then 0 else por_ciclo end` | `coalesce(por_ano, 15)` |
+
+**E A VARIÁVEL TROCOU DE NOME DE PROPÓSITO**, `por_ciclo` → `por_ano`: é ela que
+dá ao `onde-esta-o-banco.sql` um marcador por PRESENÇA em cada um dos dois
+passos, que é o que a 0090 ensinou a preferir sobre marcador por ausência. São
+três linhas e não uma, porque os três passos são independentes e um não cria o
+objeto do outro — é a régua da 0138: **passo de que nenhum outro depende precisa
+da linha dele**, senão a colagem que salta o meio responde `ok`. Sem o PASSO 1 a
+faixa diz "0 de 15"; sem o 2, "0 de 0"; sem o 3 o pedido é **recusado** com a
+frase da 0074 sobre dias que já chegaram.
+
+##### A RECUSA PERDEU O JARGÃO, e ela é a terceira metade
+
+`validar_solicitacao` foi **copiada inteira** da 0116 (a lição da 0030:
+`create or replace` se reescreve a partir do texto de agora e não avisa quando o
+texto novo tem menos coisa que o velho), com duas remoções e uma reescrita: o
+`if ciclos = 0 then contratado := 0` saiu, o bloco de recusa do primeiro ciclo
+saiu, e a frase do saldo deixou de dizer "por ciclo de 12 meses" para dizer os
+três números — *"São 15 dias de day off, contados corridos. Você já tem 14
+comprometidos, então sobram 1."* **A dica carrega a data**, que é a única coisa
+que a palavra "ciclo" dizia de útil: *"os 15 dias voltam inteiros em
+28/05/2027"*.
+
+**Tirar a palavra só da tela seria o pior dos dois mundos**, que é a 0029 e a
+0060 pela enésima vez: o clique passaria e o `insert` recusaria com a frase do
+primeiro ciclo, falando de dias que não chegaram a quem acabou de ler que tem
+15. As duas pontas saíram no mesmo commit.
+
+##### Medido como gente de verdade, contra o Postgres de produção
+
+As cinco pessoas com menos de um ano de casa foram de **0 para 15 dias**, cada
+uma com a data em que eles voltam; quem já tinha ciclo fechado não mudou — 5
+usadas e 10 livres numa, 14 e 1 em duas. Em transação revertida: alguém com 19
+dias de casa **conseguiu pedir 10 dias**, que a 0074 recusava, e alguém com 14
+comprometidas levou a recusa nova, sem a palavra "ciclo".
+
+##### Na tela, e o que ficou de fora
+
+O que trocou de forma: a manchete da faixa é sempre *"Você tem N de M dias
+disponíveis"*; a barra de uso só some quando o saldo **não respondeu** (ali ela
+desenharia `0 / 15`, que é o fallback de novo em forma de desenho); o cartão do
+tipo perdeu o *"ainda não conquistado"*; e o aviso do pé virou **um só**, com a
+frase do banco. `chegamEm` virou `voltamEm` — a coluna do banco é a mesma,
+`proximo_descanso_em()`, e o que mudou é o que a frase ao lado dela afirma.
+
+**A ficha sem data de entrada deixou de ser uma recusa e passou a ser uma
+lacuna.** Era o segundo ramo do primeiro ciclo: sem a data, os dias não tinham
+quando chegar. Hoje eles existem desde o primeiro dia, e o que falta é a data em
+que voltam — então o aviso é `--accent-strong` e não vermelho, e o envio passa.
+
+**E A IMAGEM DO PRIMEIRO CICLO VIROU A DESSA LACUNA.**
+`65d-full-days-primeiro-ciclo` fotografava `ciclos: 0` com zero concedidos, que
+é um estado que o produto não tem mais — deixá-la de pé seria o stub
+fotografando um produto que não existe, que é o seed inserindo campanha sem
+demanda na camada da imagem; e ela sairia **idêntica à 65**, porque a única
+diferença restante é um valor que nenhuma tela lê. No lugar entrou
+`65d-full-days-sem-data-de-entrada`, que é o estado que a 0145 CRIOU e que
+imagem nenhuma cobria.
+
+***O que fica dito em vez de escondido:*** **a bateria não foi rodada.** O
+arquivo 05 tem cenários que afirmam a regra da 0074 — entre eles *"Quem entrou
+hoje já está no ciclo 1"*, virado do avesso pela 0074 e que esta migration vira
+de novo — e eles não foram reescritos; o que existe no lugar é a medição acima,
+contra o banco de produção. E `inicioDoCiclo` continua no tipo sem leitor
+nenhum em `src/`, como já estava antes desta entrega.
+
+> **E ISTO AFASTA O PRODUTO DO DESENHO DA CLT, pela primeira vez neste
+> módulo.** A nota no fim desta seção registra, três vezes, que ciclo de 12
+> meses contado da entrada é estruturalmente o período aquisitivo, e que a 0074
+> e a 0085 aproximaram mais um passo cada — *"um bloco concedido ao completar o
+> ciclo e perdido se não usado é o período aquisitivo mais o concessivo"*. A
+> 0145 desfaz a metade aquisitiva: não há mais carência, os dias valem desde o
+> primeiro dia, e o que sobra é um saldo anual que se restaura. O vocabulário
+> já não era o da lei; agora a estrutura também recuou um passo. A outra
+> metade — o saldo que se perde no aniversário — continua de pé, por decisão
+> do usuário na 0085.
 
 #### E A FAIXA DIZIA "15 DE 15" PARA QUEM TINHA DAY OFF APROVADO
 

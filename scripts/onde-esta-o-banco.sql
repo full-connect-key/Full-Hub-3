@@ -1023,7 +1023,23 @@ from (
     ('0144', 'a pauta e de todos (PASSO 4, quem mexe assume)', 'trigger',
              'subtasks_vincula_quem_assumiu'),
     ('0144', 'a pauta e de todos (PASSO 5, as duas recusas)', 'trigger',
-             'subtasks_o_que_e_de_quem_abre')
+             'subtasks_o_que_e_de_quem_abre'),
+    -- A 0145 reverte a 0074: o day off vale desde a entrada. Ela nao cria
+    -- objeto nenhum -- reescreve tres funcoes --, entao os marcadores sao por
+    -- CORPO, e por PRESENCA de uma palavra que nenhuma versao anterior tem.
+    --
+    -- SAO TRES LINHAS PARA TRES PASSOS INDEPENDENTES, pela regra que a 0138
+    -- escreveu: o marcador do fim responde se a colagem chegou ao FIM e e cego
+    -- para a que SALTA um passo. E aqui cada falta tem uma cara propria -- sem
+    -- o 1 a faixa diz "0 de 15" para quem acabou de entrar, sem o 2 ela diz
+    -- "0 de 0", e sem o 3 o pedido e RECUSADO com a frase da 0074, que e a
+    -- unica das tres que impede a pessoa de trabalhar.
+    ('0145', 'o day off vale desde a entrada (PASSO 1, o saldo)', 'no_corpo',
+             'saldo_de_ferias|por_ano'),
+    ('0145', 'o day off vale desde a entrada (PASSO 2, os concedidos)', 'no_corpo',
+             'descanso_do_ciclo|por_ano'),
+    ('0145', 'a recusa sem o jargao de ciclo (PASSO 3)', 'no_corpo',
+             'validar_solicitacao|day off, contados corridos')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

@@ -82,7 +82,7 @@ export const ROTULOS_DE_COLUNA: Record<string, string> = {
   data_fim: "fim",
   prazo: "prazo",
   capacidade_minutos_dia: "capacidade por dia",
-  dias_ferias_ano: "dias de day off por ciclo",
+  dias_ferias_ano: "dias de day off por ano",
   max_parcelas_ferias: "parcelas de day off",
   deve_trocar_senha: "precisa trocar a senha",
   link_entrega: "pasta de entrega",

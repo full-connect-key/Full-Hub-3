@@ -145,7 +145,7 @@ const MICRO_TOURS: Readonly<Record<string, Tour>> = {
         "calendario",
         ANCORAS.conteudoDoModulo,
         "O saldo abre a tela",
-        "Quantos dias você tem neste ciclo, e quando os próximos chegam.",
+        "Quantos dias você tem, e quando eles voltam inteiros.",
       ),
       passo(
         "fila",

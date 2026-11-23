@@ -543,13 +543,26 @@ export type DescansoDoCiclo = {
   /** Quando começou o ciclo de 12 meses em que a pessoa está. */
   inicioDoCiclo: string | null;
   /**
-   * Quando ela conquista o próximo bloco de dias — o próximo aniversário da
-   * entrada (0074). É o campo que sustenta a tela de quem está no primeiro
-   * ciclo: ali `saldo` e `diasConcedidos` são zero, e "0 de 0 dias" é verdade
-   * sem explicar nada.
+   * Quando os dias VOLTAM inteiros — o próximo aniversário da entrada.
+   *
+   * **Ele mudou de sentido na 0145, e a coluna é a mesma.** Nasceu na 0074
+   * como "quando ela conquista o primeiro bloco", porque ali quem tinha menos
+   * de um ano de casa lia `0 de 0 dias`; com os 15 valendo desde a entrada,
+   * não há bloco a conquistar — o aniversário restaura o saldo ao número do
+   * contrato, e o que sobrou até lá se perde (0085). É este campo que a faixa
+   * do pedido usa para dizer a data, e é ele que a dica da recusa do banco
+   * carrega.
    */
   proximoEm: string | null;
-  /** Quantos ciclos de 12 meses ela já COMPLETOU. Zero no primeiro ano. */
+  /**
+   * Quantos ciclos de 12 meses ela já COMPLETOU. Zero no primeiro ano.
+   *
+   * **E ele deixou de decidir qualquer coisa na tela** (0145): era por ele que
+   * o pedido sabia desenhar o primeiro ciclo, e aquele estado não existe mais.
+   * Fica porque continua sendo um FATO que a função devolve — a decisão de
+   * `parcelas_no_ciclo()` na 0116, que ficou enquanto `parcelas_concedidas()`
+   * saiu: o limite vai, o fato permanece.
+   */
   ciclos: number;
   /**
    * **OS QUATRO SÃO DO CICLO CORRENTE, e não da vida dela** (0085). O day off
@@ -558,9 +571,8 @@ export type DescansoDoCiclo = {
    * day off que atravessa o aniversário pertence ao ciclo de onde saiu.
    *
    * Até a 0085 eram a soma de tudo: alguém com três ciclos lia 45 concedidos.
-   * `ciclos` continua acima porque ele ainda decide uma coisa — zero é o
-   * primeiro ciclo, que não concede nada (0074) —, e **não** porque alguém
-   * deva multiplicar por ele.
+   * `ciclos` continua acima como fato, e **não** porque alguém deva
+   * multiplicar por ele — desde a 0145 ele nem decide mais o primeiro ano.
    */
   diasConcedidos: number;
   diasUsados: number;
