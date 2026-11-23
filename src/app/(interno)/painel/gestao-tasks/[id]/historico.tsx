@@ -51,6 +51,14 @@ import { hojeNaAgencia, horaNaAgencia } from "@/lib/dominio/datas";
  * **Ação sem rótulo continua aparecendo CRUA**, e é de propósito: é assim que
  * um evento novo é notado em vez de passar batido — foi exatamente assim que
  * estas duas foram encontradas.
+ *
+ * **E AS QUATRO DO COMENTÁRIO E DA REFERÊNCIA ENTRARAM NO MESMO COMMIT QUE AS
+ * GRAVA.** Relato do usuário — *"quando alguém comenta, ou adiciona um link,
+ * nn aparece no histórico da task"* —, e a causa era anterior ao mapa:
+ * `comentar` e `adicionarReferencia` **nunca chamavam `registrar()`**, então
+ * não havia ação sem rótulo, havia ação sem linha. O rótulo vem junto por
+ * causa do parágrafo acima: uma ação nova sem entrada aqui apareceria com o
+ * NOME DA COLUNA na tela, e o conserto de um buraco não pode abrir o outro.
  * ---------------------------------------------------------------------------
  */
 const FRASES: Record<string, string> = {
@@ -70,6 +78,14 @@ const FRASES: Record<string, string> = {
   cliente_pediu_ajustes: "pediu ajustes",
   entrega_anexada: "anexou uma entrega",
   entrega_removida: "removeu uma entrega",
+  // AS QUATRO DA CONVERSA E DO MATERIAL DE APOIO. Nenhuma entra em
+  // `MOSTRAM_O_VALOR`: o `para_valor` da referência é o NOME dela, que não é
+  // status nenhum, e as duas do comentário não gravam valor — o texto mora em
+  // `task_comentarios`, na aba ao lado, e o que foi apagado é o que se perde.
+  comentou: "comentou",
+  comentario_removido: "removeu um comentário",
+  referencia_anexada: "anexou uma referência",
+  referencia_removida: "removeu uma referência",
   // TAMBÉM DO BANCO (0040/0041/0113): a rotina da madrugada grava isto na
   // demanda que ela acabou de criar.
   gerada_por_recorrencia: "foi gerada por uma recorrência",

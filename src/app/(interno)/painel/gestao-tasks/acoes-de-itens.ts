@@ -460,6 +460,36 @@ export async function desvincularDependencia(
 
 // --- referências ------------------------------------------------------------
 
+/**
+ * Anexar um link ou um arquivo de apoio à demanda.
+ *
+ * ---------------------------------------------------------------------------
+ * **O QUE ENTRA AQUI FICA NO HISTÓRICO**, e até esta entrega não ficava: a
+ * referência nascia em `task_referencias`, a tela se refazia, e a aba
+ * Histórico da demanda **não dizia nada** — relato do usuário, *"quando
+ * alguém comenta, ou adiciona um link, nn aparece no histórico da task"*.
+ *
+ * É a decisão da 0121 um bloco abaixo, palavra por palavra: `anexarEntrega`
+ * gravava `entrega_anexada` e a remoção não gravava nada, *"então um arquivo
+ * que alguém viu numa segunda-feira podia não existir mais na terça, sem nada
+ * dizendo quem o tirou"*. Uma referência é o mesmo material, um nível acima —
+ * o PDF do briefing do cliente, a arte de inspiração, o link que orienta a
+ * produção —, e quem abre o histórico semanas depois está perguntando
+ * exatamente de onde aquilo veio.
+ *
+ * **O `para_valor` LEVA O NOME e não o endereço inteiro**, que é a forma de
+ * `entrega_anexada`: `titulo` quando a pessoa escreveu um, o nome do arquivo
+ * quando é upload, e a URL só quando não há nenhum dos dois — um link colado
+ * sem título é o caso em que o endereço É o nome.
+ *
+ * ***E ele não é desenhado hoje, dito em vez de escondido:*** a linha do
+ * histórico mostra `para_valor` só nas três ações de status (`MOSTRAM_O_VALOR`,
+ * em `[id]/historico.tsx`), porque fora delas o valor é enum em inglês. O que
+ * a coluna guarda é o registro — a frase na tela diz *"anexou uma
+ * referência"*, e o nome está no banco para quem for reconstruir meses depois,
+ * que é o que este histórico existe para fazer.
+ * ---------------------------------------------------------------------------
+ */
 export async function adicionarReferencia(
   taskId: string,
   referencia: {
@@ -485,23 +515,62 @@ export async function adicionarReferencia(
     });
 
     if (error) return falha(`Não foi possível adicionar: ${error.message}`);
+
+    await registrar(supabase, {
+      task_id: taskId,
+      acao: "referencia_anexada",
+      para_valor:
+        vazioParaNulo(referencia.titulo) ??
+        vazioParaNulo(referencia.arquivo_nome) ??
+        referencia.url.trim(),
+      autor_id: sessao.usuarioId,
+    });
+
     revalidar(taskId);
     return sucesso("Referência adicionada.");
   });
 }
 
+/**
+ * Tirar uma referência da demanda.
+ *
+ * **A LEITURA VEM ANTES DO `delete`**, e é a forma de `removerEntrega`: depois
+ * de apagar não há mais de onde tirar o nome, e *"referência removida"* sem
+ * dizer QUAL é uma linha de histórico que não responde nada. Esta tabela não
+ * tem policy de UPDATE de propósito — trocar o endereço de uma referência que
+ * alguém já abriu é trocar o destino embaixo de quem a leu —, então remover é
+ * o único caminho, e é ele que precisa deixar rastro.
+ */
 export async function removerReferencia(
   id: string,
   taskId: string,
 ): Promise<Resultado> {
   return executarAcao("removerReferencia", async () => {
-    await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirRotaNaAcao(ROTA);
     const supabase = await criarClienteServidor();
+
+    const { data: antes } = await supabase
+      .from("task_referencias")
+      .select("titulo, arquivo_nome, url")
+      .eq("id", id)
+      .limit(1);
+
     const { error } = await supabase
       .from("task_referencias")
       .delete()
       .eq("id", id);
     if (error) return falha(`Não foi possível remover: ${error.message}`);
+
+    const removida = antes?.[0];
+    if (removida) {
+      await registrar(supabase, {
+        task_id: taskId,
+        acao: "referencia_removida",
+        de_valor: removida.titulo ?? removida.arquivo_nome ?? removida.url,
+        autor_id: sessao.usuarioId,
+      });
+    }
+
     revalidar(taskId);
     return sucesso("Referência removida.");
   });
@@ -538,6 +607,26 @@ export async function urlDoArquivo(
  *
  * `interno` é true por padrão, e a tela precisa de um gesto explícito para
  * desmarcar: conversa de equipe não vaza para o Portal por esquecimento.
+ *
+ * ---------------------------------------------------------------------------
+ * **E O COMENTÁRIO ENTRA NO HISTÓRICO**, que é a outra metade do relato do
+ * usuário: ele nascia em `task_comentarios`, aparecia na aba Trabalho, e a aba
+ * Histórico da mesma demanda não registrava que alguém havia falado. Quem abre
+ * o histórico está perguntando *quem mexeu nisto* — e uma conversa é a coisa
+ * que mais move uma demanda sem mudar status nenhum.
+ *
+ * **O TEXTO NÃO VAI PARA O `task_history`, e a ausência é decisão.** O
+ * comentário É o conteúdo, e ele mora na própria tabela, visível na aba ao
+ * lado: um trecho no histórico seria o mesmo texto em dois lugares, e o que
+ * divergiria é a cópia — ninguém reescreve um excerto quando o comentário é
+ * editado. A linha do histórico responde quem e quando; o que foi dito se lê
+ * onde foi dito.
+ *
+ * **O `subtask_id` VIAJA quando o comentário é de uma etapa**, para a linha
+ * ficar pendurada nela e não solta na demanda. *Hoje a tela nunca o manda —
+ * `comentarios.tsx` chama sem `subtaskId` —, e é ponte construída esperando a
+ * travessia, não motivo para apagar o campo.*
+ * ---------------------------------------------------------------------------
  */
 export async function comentar(
   taskId: string,
@@ -564,23 +653,65 @@ export async function comentar(
     });
 
     if (error) return falha(`Não foi possível comentar: ${error.message}`);
+
+    await registrar(supabase, {
+      task_id: taskId,
+      subtask_id: opcoes?.subtaskId || null,
+      acao: "comentou",
+      autor_id: sessao.usuarioId,
+    });
+
     revalidar(taskId);
     return sucesso("Comentário publicado.");
   });
 }
 
+/**
+ * Apagar um comentário.
+ *
+ * **O HISTÓRICO É O ÚNICO RASTRO QUE SOBRA, e é por isso que ele grava.** O
+ * `delete` leva a linha de `task_comentarios` inteira: sem esta linha, um
+ * comentário que alguém leu na segunda simplesmente não existiu mais na
+ * terça — o argumento da 0121, aqui na forma mais aguda, porque uma entrega
+ * removida ainda deixa o arquivo no bucket e um comentário não deixa nada.
+ *
+ * **E O TEXTO APAGADO NÃO É COPIADO PARA CÁ**, ao contrário do nome do arquivo
+ * em `entrega_removida`. Quem apaga um comentário quase sempre está moderando
+ * — é a régua das Recomendações, *"a gestão modera apagando"* —, e guardar o
+ * que ele dizia numa linha que toda a equipe lê desfaria o apagamento pelo
+ * outro lado. O histórico diz que alguém removeu um comentário e quando; o que
+ * ele dizia é o que se perde, que é o que apagar quer dizer.
+ */
 export async function removerComentario(
   id: string,
   taskId: string,
 ): Promise<Resultado> {
   return executarAcao("removerComentario", async () => {
-    await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirRotaNaAcao(ROTA);
     const supabase = await criarClienteServidor();
+
+    // A ETAPA VEM ANTES DO `delete`, pela razão de `removerReferencia`:
+    // depois não há de onde tirá-la, e é ela que pendura a linha na etapa
+    // certa quando o comentário era de uma.
+    const { data: antes } = await supabase
+      .from("task_comentarios")
+      .select("subtask_id")
+      .eq("id", id)
+      .limit(1);
+
     const { error } = await supabase
       .from("task_comentarios")
       .delete()
       .eq("id", id);
     if (error) return falha(`Não foi possível remover: ${error.message}`);
+
+    await registrar(supabase, {
+      task_id: taskId,
+      subtask_id: antes?.[0]?.subtask_id ?? null,
+      acao: "comentario_removido",
+      autor_id: sessao.usuarioId,
+    });
+
     revalidar(taskId);
     return sucesso("Comentário removido.");
   });

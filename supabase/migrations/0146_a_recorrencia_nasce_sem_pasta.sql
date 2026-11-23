@@ -166,6 +166,24 @@ begin
     chr(10) ||
     '    primeira := coalesce(primeira, nova_task);';
 
+  -- JA APLICADA? NADA A TROCAR -- e isto e a convencao da casa escrita em
+  -- `CLAUDE.md`: "migrations precisam poder rodar mais de uma vez sem erro".
+  --
+  -- O BLOCO PROCURA A RECUSA VELHA, QUE A TROCA DE BAIXO APAGA: na segunda
+  -- colagem ele nao a acha, e o `raise` de "forma inesperada" dispararia sobre
+  -- um banco que esta EM DIA -- mandando quem o leu aplicar a mao duas trocas
+  -- que ja estao lá. Uma recusa que mente sobre o estado do banco custa o mesmo
+  -- que uma que nao dispara: nas duas o script responde com confianca sobre um
+  -- estado que nao e o do banco.
+  --
+  -- O GUC E A MARCA, e nao o aviso: `full_hub.sem_pasta` nasce nesta migration
+  -- e nada mais o escreve dentro desta funcao, enquanto a frase do aviso e
+  -- texto que uma reescrita posterior pode reformular.
+  if position('full_hub.sem_pasta' in def) > 0 then
+    raise notice 'A 0146 ja esta aplicada: gerar_ocorrencia() avisa no lugar de recusar. Nada a trocar.';
+    return;
+  end if;
+
   -- AS TRES CITACOES SAO CONTADAS ANTES DE QUALQUER TROCA, e o bloco estoura
   -- com a dica: `replace()` que nao acha devolve o texto inteiro, CALADO, e o
   -- `execute` recriaria a funcao identica -- a recusa continuaria de pe e nada

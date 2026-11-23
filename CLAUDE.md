@@ -1256,6 +1256,57 @@ fiscal. **E entrou o 375**, porque a linha virou avatar + nome + frase + duas
 pílulas + hora: a imagem é a única coisa que diz se a hora continua encostada
 na direita quando o resto quebra em duas linhas.
 
+###### E O COMENTÁRIO E A REFERÊNCIA NÃO ERAM GRAVADOS
+
+Relato do usuário, na mesma mensagem da linha que não abria: *"quando alguém
+comenta, ou adiciona um link, nn aparece no histórico da task"*. Ele estava
+certo, e **não era o mapa de rótulos**: `comentar` e `adicionarReferencia`
+**nunca chamavam `registrar()`** — não havia ação crua na tela, havia ação sem
+linha. Medido na demanda publicada daquele banco: 1 comentário e 1 referência
+nas tabelas delas, e um histórico com três linhas, todas sobre a etapa.
+
+**É A 0121 UM NÍVEL ACIMA**, com o argumento dela palavra por palavra:
+`anexarEntrega` gravava e a remoção não, *"então um arquivo que alguém viu numa
+segunda-feira podia não existir mais na terça, sem nada dizendo quem o tirou"*.
+Uma referência é o mesmo material um nível acima — o PDF do briefing, a arte de
+inspiração, o link que orienta a produção —, e `task_referencias` **não tem
+policy de UPDATE** de propósito, então remover é o único caminho e é ele que
+precisa deixar rastro.
+
+**SÃO QUATRO AÇÕES E NÃO AS DUAS QUE ELE NOMEOU**, e as duas remoções entram
+pelo mesmo argumento: a do comentário é a mais aguda de todas, porque um
+`delete` em `task_comentarios` **não deixa nada** — a entrega removida ainda
+tem o arquivo no bucket, e o comentário não tem nem isso.
+
+**E O TEXTO DO COMENTÁRIO APAGADO NÃO É COPIADO PARA O HISTÓRICO**, ao
+contrário do nome do arquivo em `entrega_removida`. Quem apaga um comentário
+quase sempre está moderando — é a régua das Recomendações, *"a gestão modera
+apagando"* —, e guardar o que ele dizia numa linha que toda a equipe lê
+desfaria o apagamento pelo outro lado. O histórico diz **que** alguém removeu
+um comentário e quando; o que ele dizia é o que se perde, que é o que apagar
+quer dizer. No comentário **publicado** a ausência é outra: o texto mora na aba
+ao lado, e um excerto aqui seria o mesmo texto em dois lugares — e o que
+divergiria é a cópia.
+
+**O RÓTULO SAI NO MESMO COMMIT QUE A GRAVAÇÃO**, e a razão está escrita no
+próprio `FRASES`: ação sem entrada no mapa cai no `?? evento.acao` e aparece
+**com o nome da coluna na tela**. Consertar um buraco não pode abrir o outro.
+E nenhuma das quatro entra em `MOSTRAM_O_VALOR`, cuja regra é que só as três
+ações de status desenham `StatusBadge`.
+
+***O `para_valor` DA REFERÊNCIA É GRAVADO E NÃO DESENHADO, dito em vez de
+escondido:*** ele leva o nome dela (`titulo`, o nome do arquivo, e a URL só
+quando não há nenhum dos dois — um link colado sem título é o caso em que o
+endereço É o nome), e a linha na tela diz *"anexou uma referência"*. É a forma
+de `entrega_anexada`: o nome fica no banco para quem for reconstruir meses
+depois, que é o que este histórico existe para fazer.
+
+**Medido contra o Postgres de produção**, numa transação revertida e **como um
+`colaborador`**, não como dono do banco: as quatro linhas passam por
+`task_history_insert` (`is_staff() and autor_id = auth.uid()`) e voltam com o
+nome de quem as escreveu. Sem a medição, o risco era o de sempre — uma escrita
+barrada pela RLS volta sem erro e sem linha, e o histórico continuaria vazio
+com o conserto no lugar.
 
 #### O seletor de status, nos dois níveis
 
@@ -1860,6 +1911,40 @@ gancho guarda onde o ponteiro desceu, e gancho não se chama de dentro de um
 `<button>` (ou o `<Link>`, quando não há painel), porque ali não existe controle
 nenhum dentro dele. É a prova de que o caso difícil é o outro — o card que
 carrega os próprios botões.
+
+##### E A LINHA DA TABELA NÃO ABRIA, numa tela que só tem tabela
+
+Relato do usuário: *"não estou conseguindo visualizar as infos de uma task,
+clicando nela, por meio da gestão de task"*. Ele estava certo, e a causa é a
+distância entre as três portas da mesma demanda: no **board** o cartão inteiro
+abre; em **Rascunhos** a linha inteira é o `<Link>`, com a razão escrita (*"sem
+isto a linha apareceria em branco e a pessoa não teria em que clicar"*); e na
+**Lista** o `<Link>` embrulhava **só o texto do título** — alguns pixels numa
+linha de nove colunas.
+
+**E O CASO AGUDO É O TÍTULO VAZIO, que foi medido:** duas demandas publicadas
+daquele banco têm `titulo = ''`, e ali o `<a>` tem largura zero — **não há um
+pixel clicável na linha**. A demanda publicada às pressas é exatamente a que
+não tem nome, e é exatamente a que não abre. O `"Sem título"` em itálico é o
+mesmo fallback de Rascunhos, pela mesma razão.
+
+**O CONSERTO MORA NA `DataTable`, e não na Lista**, porque **`onRowClick` já
+existia lá** e nenhuma das seis telas que usam o componente o passava — a ponte
+construída e nunca atravessada pela enésima vez. Com a linha abrindo a demanda,
+as seis ganham a superfície de uma vez e a sétima não nasce errada.
+
+**MAS NÃO PELO `onClick` CRU que a prop tinha: pelo `useCliqueNoCartao`.** Numa
+tabela a célula carrega checkbox de seleção em massa, link, menu de ações e
+edição no lugar — com o clique cru, **marcar a caixa de uma demanda abriria a
+demanda**, e arrastar o cursor para copiar um nome abriria também. As três
+coisas que o gancho não rouba (o que já responde, o fim de uma seleção de texto
+e o fim de um arrasto) valem aqui letra por letra.
+
+**E A LINHA VIROU COMPONENTE pela razão da linha de Minhas Tasks**: o gancho
+guarda num `ref` onde o ponteiro desceu, e gancho não se chama de dentro de um
+`.map`. O foco continua nos controles de cada célula — a linha **não** ganha
+`role="button"` nem `tabIndex`, senão seria um botão com botões dentro
+(`nested-interactive`, crítico no axe), que este produto já pagou uma vez.
 
 #### Formulário longo vai em seções numeradas
 

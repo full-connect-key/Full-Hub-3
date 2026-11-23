@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ChevronsUpDown, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { useCliqueNoCartao } from "@/components/shared/clique-no-cartao";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,52 @@ export type Column<T> = {
 };
 
 type Ordenacao = { colunaId: string; direcao: "asc" | "desc" };
+
+/**
+ * A LINHA DA TABELA, e ela é componente por causa do GANCHO.
+ *
+ * `useCliqueNoCartao` guarda num `ref` onde o ponteiro desceu, e gancho não se
+ * chama de dentro de um `.map` — é a mesma razão pela qual a linha de Minhas
+ * Tasks virou componente quando o cartão inteiro passou a abrir os detalhes.
+ *
+ * **E É O GANCHO E NÃO UM `onClick` CRU, que é o que a linha tinha.** Numa
+ * tabela a célula carrega checkbox de seleção em massa, link, menu de ações e
+ * edição no lugar: com o clique cru, marcar a caixa de uma demanda ABRIRIA a
+ * demanda, e arrastar o cursor para copiar um nome abriria também. As três
+ * coisas que ele não rouba — o que já responde, o fim de uma seleção de texto
+ * e o fim de um arrasto — valem aqui letra por letra.
+ *
+ * O foco continua nos controles da própria célula: a linha não ganha
+ * `role="button"` nem `tabIndex`, senão seria um botão com botões dentro
+ * (`nested-interactive`, crítico no axe), que este produto já pagou uma vez.
+ */
+function LinhaDaTabela<T>({
+  linha,
+  columns,
+  aoAbrir,
+}: {
+  linha: T;
+  columns: Column<T>[];
+  aoAbrir?: (row: T) => void;
+}) {
+  const clique = useCliqueNoCartao(() => aoAbrir?.(linha));
+
+  return (
+    <TableRow
+      {...(aoAbrir ? clique : {})}
+      className={cn(aoAbrir && "cursor-pointer")}
+    >
+      {columns.map((coluna) => (
+        <TableCell
+          key={coluna.id}
+          className={cn(coluna.align === "right" && "text-right", coluna.className)}
+        >
+          {coluna.cell(linha)}
+        </TableCell>
+      ))}
+    </TableRow>
+  );
+}
 
 function comparar(a: unknown, b: unknown): number {
   if (a == null && b == null) return 0;
@@ -107,6 +154,16 @@ export function DataTable<T>({
   toolbar?: ReactNode;
   /** Desliga a caixa de busca desta tabela. Veja `casaComBusca`. */
   semBusca?: boolean;
+  /**
+   * A LINHA INTEIRA ABRE O ITEM — e ela passa por `useCliqueNoCartao`, não por
+   * um `onClick` cru. Quer dizer que o clique num controle da própria célula
+   * (checkbox de seleção em massa, link, menu de ações, edição no lugar), o
+   * fim de uma seleção de texto e o fim de um arrasto NÃO disparam isto.
+   *
+   * A prop existia desde que a tabela nasceu e nenhuma das seis telas a
+   * passava — a ponte construída dos dois lados e nunca atravessada, até o
+   * usuário relatar que a linha da Gestão de Tasks não abria.
+   */
   onRowClick?: (row: T) => void;
   className?: string;
 }) {
@@ -274,20 +331,12 @@ export function DataTable<T>({
               </TableRow>
             ) : (
               visiveis.map((linha) => (
-                <TableRow
+                <LinhaDaTabela
                   key={getRowId(linha)}
-                  onClick={onRowClick ? () => onRowClick(linha) : undefined}
-                  className={cn(onRowClick && "cursor-pointer")}
-                >
-                  {columns.map((coluna) => (
-                    <TableCell
-                      key={coluna.id}
-                      className={cn(coluna.align === "right" && "text-right", coluna.className)}
-                    >
-                      {coluna.cell(linha)}
-                    </TableCell>
-                  ))}
-                </TableRow>
+                  linha={linha}
+                  columns={columns}
+                  aoAbrir={onRowClick}
+                />
               ))
             )}
           </TableBody>

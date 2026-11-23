@@ -312,6 +312,7 @@ function BarraDeAcoesEmMassa({
 }
 
 export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
+  const router = useRouter();
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   // AGRUPADO POR STATUS por padrão.
   //
@@ -388,7 +389,10 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
               vencida(task) && "text-destructive",
             )}
           >
-            {task.titulo}
+            {/* DEMANDA SEM NOME TEM NOME, como o rascunho da lista de baixo:
+                sem isto o `<a>` fica vazio e não há onde clicar — e o título é
+                exatamente o que uma demanda publicada às pressas não tem. */}
+            {task.titulo || <span className="text-text-muted italic">Sem título</span>}
           </Link>
           {/* A MARCA VEM NA COLUNA DO NOME e não na do status, e a razão é
               o agrupamento: quando a Lista agrupa POR STATUS aquela coluna
@@ -648,6 +652,20 @@ export function ListaDeTasks({ tasks }: { tasks: TaskDaLista[] }) {
             emptyTitle="Nenhuma task com esses filtros"
             emptyDescription="Ajuste ou limpe os filtros, ou crie a primeira task com a tecla N."
             toolbar={agrupado || indice > 0 ? undefined : seletorDeAgrupamento}
+            // A LINHA INTEIRA ABRE A DEMANDA, e é a decisão do usuário sobre o
+            // cartão do board aplicada onde ela nunca chegou: *"toda a
+            // superfície deve abrir os detalhes, preservando os botões, menus
+            // internos e o arrastar e soltar"*. Aqui o alvo era o TEXTO DO
+            // TÍTULO e nada mais — uns poucos pixels de altura no meio de uma
+            // linha de nove colunas —, e numa demanda sem nome não havia alvo
+            // nenhum: o `<a>` nascia vazio, com largura zero.
+            //
+            // `onRowClick` existe na `DataTable` desde que ela nasceu e
+            // NENHUMA das seis telas que a usam o passava: a ponte construída
+            // dos dois lados e nunca atravessada. Quem a faz valer sem roubar
+            // o checkbox da seleção em massa nem a edição no lugar é o
+            // `useCliqueNoCartao`, que a tabela passou a usar.
+            onRowClick={(task) => router.push(`/painel/gestao-tasks/${task.id}`)}
           />
         );
 
