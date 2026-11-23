@@ -378,23 +378,25 @@ export function modeloVazio(): ModeloDaRecorrencia {
 /**
  * O que falta para a regra poder ser salva.
  *
- * A PASTA DE ENTREGA ENTRA AQUI porque ela é obrigatória na task desde a 0015,
- * e uma regra sem pasta gera erro toda madrugada — silenciosamente, num
- * histórico que ninguém abre. `gerar_ocorrencia()` recusa e grava o motivo;
- * esta função é o que evita chegar lá.
+ * **A PASTA DE ENTREGA NÃO ESTÁ AQUI, e a ausência é decisão do usuário**
+ * (0146): *"quando tento abrir uma recorrência, não consigo pois pede a pasta
+ * de entrega da conta, tire essa regra"*. Ela esteve, em duas formas — campo
+ * do modelo até a 0113, e a conta sem pasta padrão depois dela —, e as duas
+ * recusavam numa tela que **não tem onde satisfazer a recusa**: desde a 0113 o
+ * campo saiu daqui, e a pasta de cada conta mora na ficha dela, em Gestão de
+ * Pessoas › Clientes. É a 0076 outra vez — uma recusa que a pessoa não tem
+ * como cumprir sem sair da tela é um portão fechado.
+ *
+ * **O QUE ENTRA NO LUGAR É UM AVISO**, no rodapé do editor e no chip de cada
+ * conta, e a regra salva: é "função sem dono avisa, nunca recusa" (0064) e
+ * "publicar sem etapa avisa e deixa seguir" (0028). Do outro lado,
+ * `gerar_ocorrencia()` deixou de recusar a conta sem pasta — as duas pontas no
+ * mesmo commit, que é a lição da 0029 e da 0060.
  */
 export function faltaParaSalvar(
   regra: RegraDeRecorrencia & {
     nome: string;
     clienteId: string | null;
-    /**
-     * As contas escolhidas que ainda não têm pasta padrão, pelo NOME.
-     *
-     * Pelo nome e não pelo id porque a frase vai para a tela: "a pasta de
-     * entrega de aaaa-0000-…" manda a pessoa procurar o que ela já está
-     * olhando.
-     */
-    contasSemPasta?: string[];
   },
   modelo: ModeloDaRecorrencia,
 ): string[] {
@@ -402,23 +404,6 @@ export function faltaParaSalvar(
   if (!regra.nome.trim()) faltam.push("o nome da regra");
   if (!regra.clienteId) faltam.push("o cliente");
   if (!modelo.titulo.trim()) faltam.push("o título das demandas");
-
-  // A PASTA SAIU DAQUI (0113), e a ausência é a entrega.
-  //
-  // Ela era obrigatória porque `tasks_exige_pasta_de_entrega` (0015) recusa
-  // demanda nova sem uma, e uma regra sem pasta falharia toda madrugada em
-  // silêncio. Agora a pasta vem de `client_flow_defaults.pasta_entrega_url`
-  // de CADA conta — com N contas, uma pasta digitada estaria errada para N-1
-  // delas.
-  //
-  // **O QUE ENTRA NO LUGAR É A CONTA SEM PASTA**, nomeada. É a mesma frase
-  // que `gerar_ocorrencia()` grava no histórico às três da manhã, dita aqui
-  // antes de alguém salvar — a decisão da máquina de estados da subtarefa ao
-  // lado dos gatilhos: o banco é o que vale, e isto escreve a frase antes do
-  // clique.
-  for (const conta of regra.contasSemPasta ?? []) {
-    faltam.push(`a pasta de entrega de ${conta}`);
-  }
   if (regra.frequencia === "mensal" && !regra.diaMes) faltam.push("o dia do mês");
   if (
     regra.modo === "task_por_ocorrencia" &&

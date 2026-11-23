@@ -3726,6 +3726,107 @@ derruba 1 — e tirar a guarda do cascade **aborta a bateria**, porque `delete
 from task_recurrences` passa a ser recusado pelo próprio gatilho que protege a
 última conta.
 
+##### E A PASTA DE ENTREGA DEIXOU DE SER EXIGIDA AQUI (0146)
+
+Decisão do usuário: *"quando tento abrir uma recorrência, não consigo pois pede
+a pasta de entrega da conta, tire essa regra"*.
+
+**A RECUSA ESTAVA NUMA TELA QUE NÃO TEM ONDE SATISFAZÊ-LA, e é isso que a torna
+errada e não só inconveniente.** A pasta era um campo DO MODELO até a 0113;
+aquela migration o tirou com a razão escrita — *"com N contas na regra, UMA
+pasta digitada está errada para N-1 delas"* — e pôs a origem em
+`client_flow_defaults.pasta_entrega_url`, que mora na ficha de cada conta, em
+Gestão de Pessoas › Clientes. **Então desde a 0113 a tela de recorrência recusa
+salvar por causa de um campo que ela não tem.**
+
+É a 0076 pela segunda vez: *uma recusa que a pessoa não tem como cumprir sem
+sair da tela é um portão fechado*. E aqui o custo dela é o oposto do que a
+trava existe para comprar — a recorrência inteira deixa de ser aberta.
+
+**O QUE A TRAVA PROTEGIA CONTINUA PROTEGIDO ONDE O ARGUMENTO VALE.** A 0015
+escreveu: *"sem a trava o campo vira aquele que ninguém preenche — quem abre a
+demanda está com pressa, quem procura o material está semanas depois, e as
+duas pessoas raramente são a mesma"*. **Aquilo é sobre uma PESSOA abrindo uma
+demanda, e continua inteiro:** `tasks_publicar_exige_minimo` segue cobrando
+título, cliente e pasta de quem publica pela tela. O que muda é a rotina das
+três da manhã, onde não há ninguém para preencher e onde a recusa significa o
+cliente sem entrega.
+
+###### A ARQUEOLOGIA, porque a trava não estava onde o nome dela diz
+
+`tasks_exige_pasta_de_entrega` (0015) **não cobra mais no `insert`**: a 0028
+mudou a cobrança para a transição de `publicada_em` e deixou no trigger da 0015
+um `if tg_op = 'INSERT' then return new; end if;`. Quer dizer que a única
+exigência viva é a de `tasks_publicar_exige_minimo` — e é por isso que esta
+migration mexe em dois objetos e não em meia dúzia. **Medir antes de escrever é
+o que separou um remendo de uma varredura**, que é a lição da 0060 e da 0127.
+
+###### SÃO AS DUAS PONTAS NO MESMO COMMIT
+
+Tirando só a validação da tela, a regra salvaria e **a geração morreria toda
+madrugada em silêncio**, num histórico que ninguém abre — exatamente o modo de
+falha que o cabeçalho da 0040 já descrevia. Tirando só a do banco, a tela
+continuaria recusando o clique. É a 0029 e a 0060 pela enésima vez.
+
+###### A SAÍDA DE EMERGÊNCIA É UM GUC DE ESCOPO LOCAL
+
+`full_hub.sem_pasta`, ligado na linha anterior ao `insert` da demanda e
+**desligado na seguinte** — a forma de `full_hub.corrente` (0045) e de
+`full_hub.fluxo_do_mes` (0087), com a regra escrita lá: *a saída de emergência
+não vira porta destrancada*. Ele não é um interruptor de produto: é um insert,
+de uma função só.
+
+**E só o ramo da PASTA o lê.** Título e cliente continuam sendo cobrados em
+todo caminho, a rotina inclusive: uma demanda sem título não é achável por
+ninguém e uma sem cliente não aparece para a conta — e os dois são coisas que
+`gerar_ocorrencia()` TEM em mãos, que não dependem de alguém ter preenchido uma
+ficha.
+
+###### O AVISO JÁ TINHA PARA ONDE IR
+
+`avisos` é zerado no topo do laço de contas e vira `recurrence_runs.detalhes`
+no fim dele, tocando o sino do Atendimento e da gestão desde a 0041 — então a
+conta sem pasta entra no caminho que a pessoa que distribui trabalho já usa, em
+vez de numa demanda que nunca nasceu. É *"função sem dono avisa, nunca
+recusa"* (0064) com outro sujeito, e a razão é a mesma: **travar deixaria o
+cliente sem entrega por causa de um cadastro.**
+
+###### E A FUNÇÃO FOI REMENDADA A PARTIR DO CATÁLOGO, nunca do arquivo
+
+**O arquivo da 0113 não é a versão que está no ar:** a 0123 já lhe acrescentou
+`conta_no_resumo` pelo mesmo mecanismo, e o corpo deployado tem fim de linha
+CRLF (colagem pelo SQL Editor) — 15156 bytes contra 14780 do arquivo. Colar o
+corpo do arquivo aqui **desfaria a 0123 em silêncio**, que é a lição da 0030
+pelo outro lado; e redigitá-lo é o erro da 0128, que inventou um `order by
+p.criado_em` numa coluna que não existe. O que o bloco lê é
+`pg_get_functiondef()`, normalizando `\r\n` primeiro — ele devolve o
+`create or replace` INTEIRO, com a assinatura, o `language`, o
+`security definer` e o `set search_path` que a função tem, em vez de eu
+redigitar essas quatro linhas de memória.
+
+**E ele CONTA as três citações e estoura com a dica**, em vez de não fazer
+nada: `replace()` que não acha devolve o texto inteiro, calado, e o `execute`
+recriaria a função IDÊNTICA — a recusa continuaria de pé e nada na tela diria
+por quê. É a primeira versão da 0123, que procurava um texto que a função
+deployada não tinha.
+
+###### Na tela, o chip diz ONDE e o rodapé diz O QUE ACONTECE
+
+`faltaParaSalvar()` perdeu o parâmetro `contasSemPasta` e o laço que empurrava
+*"a pasta de entrega de X"* — o botão Salvar deixou de ser desligado por isso.
+O que entra no lugar é um aviso em `--warning` ao lado dele, com o nome da
+conta, dizendo que **a demanda nasce sem pasta e quem for produzir preenche**;
+e o chip da conta na fileira continua marcado em âmbar, que é a decisão escrita
+desde a 0113 — *a frase do rodapé diz o que falta, o chip diz onde*. É
+`--warning` e nunca `--danger`: demanda sem pasta é um cadastro a completar,
+não um erro.
+
+***Medido contra o Postgres de produção***, com a conferência do fim da
+migration: a trava lê o GUC, a rotina avisa, a recusa saiu, e o patch da 0123
+continua de pé. ***E a bateria não foi rodada*** — o arquivo 0146 não ganhou
+cenário de SQL; o que existe no lugar é o `select` de conferência e a linha no
+`onde-esta-o-banco.sql`.
+
 #### O responsável padrão é FALLBACK, nunca substituição
 
 `modelo->>'responsavel_padrao'` (migration 0041, decisão do usuário) preenche

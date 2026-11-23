@@ -68,3 +68,9 @@ next-env.d.ts
 /prototipo-full-hub.html
 prototipos/servidor.log
 .claude/settings.local.json
+
+# Skills instaladas pelo `npx skills add` e pelo `uipro init`: elas são
+# ferramenta de quem desenvolve, não código do produto.
+.agents/
+.claude/
+skills-lock.json

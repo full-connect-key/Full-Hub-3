@@ -214,7 +214,10 @@ export function EditorDeRecorrencia({
     ? [clienteId, ...outrasContas.filter((c) => c !== clienteId)]
     : [];
 
-  // A TELA DIZ A FRASE QUE O BANCO DIRIA ÀS TRÊS DA MANHÃ, antes do clique.
+  // A CONTA SEM PASTA PADRÃO, pelo NOME — e ela AVISA, nunca recusa (0146).
+  //
+  // Pelo nome e não pelo id porque a frase vai para a tela: "a pasta de
+  // entrega de aaaa-0000-…" manda a pessoa procurar o que ela já está olhando.
   const contasSemPasta = contasDaRegra
     .map((id) => clientes.find((c) => c.id === id))
     .filter((c) => c && !c.pastaPadrao?.trim())
@@ -278,10 +281,7 @@ export function EditorDeRecorrencia({
     workflows,
   ]);
 
-  const faltam = faltaParaSalvar(
-    { ...regraAtual, nome, clienteId, contasSemPasta },
-    modelo,
-  );
+  const faltam = faltaParaSalvar({ ...regraAtual, nome, clienteId }, modelo);
 
   function alternarDia(valor: number) {
     setDiasSemana((atual) =>
@@ -402,8 +402,10 @@ export function EditorDeRecorrencia({
               tirá-lo troca o seletor acima.
 
               **E A CONTA SEM PASTA É MARCADA AQUI**, em âmbar, no próprio chip
-              — e não só na frase do rodapé. A frase diz o que falta; o chip diz
-              ONDE, que é a diferença entre uma recusa e uma instrução.
+              — e não só na linha do rodapé. O rodapé diz o que vai acontecer; o
+              chip diz ONDE, que é a diferença entre um aviso e uma instrução.
+              Desde a 0146 nenhum dos dois recusa: a regra salva, e a demanda da
+              conta sem pasta nasce sem uma.
               ------------------------------------------------------------------ */}
           {clientes.length > 1 ? (
             <fieldset className="space-y-2">
@@ -448,7 +450,8 @@ export function EditorDeRecorrencia({
               </div>
               <p className="text-text-muted text-sm">
                 Uma demanda por conta, a cada ocorrência. A pasta de entrega de
-                cada uma vem da ficha dela.
+                cada uma vem da ficha dela — a conta que ainda não tem uma gera
+                a demanda sem ela.
               </p>
             </fieldset>
           ) : null}
@@ -1006,6 +1009,19 @@ export function EditorDeRecorrencia({
         {faltam.length > 0 ? (
           <p className="text-text-secondary text-sm">
             Falta {faltam.join(", ")}.
+          </p>
+        ) : null}
+        {/* O AVISO DA PASTA, e ele NÃO desliga o botão (0146).
+            Ele fica ao lado do Salvar e não num aviso no topo porque a
+            consequência precisa estar onde ela acontece — é a decisão da linha
+            de saldo do Day Off, que desceu da caixa do topo para a coluna ao
+            lado do botão. E é `--warning` e nunca `--danger`: demanda sem pasta
+            é uma pendência de quem for produzir, não um erro de quem salvou. */}
+        {contasSemPasta.length > 0 ? (
+          <p className="text-warning text-sm">
+            {contasSemPasta.length === 1
+              ? `${contasSemPasta[0]} ainda não tem pasta de entrega na ficha: a demanda nasce sem ela, e quem for produzir preenche.`
+              : `${contasSemPasta.length} contas ainda não têm pasta de entrega na ficha (${contasSemPasta.join(", ")}): a demanda nasce sem ela, e quem for produzir preenche.`}
           </p>
         ) : null}
       </div>

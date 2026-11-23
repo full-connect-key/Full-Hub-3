@@ -1039,7 +1039,19 @@ from (
     ('0145', 'o day off vale desde a entrada (PASSO 2, os concedidos)', 'no_corpo',
              'descanso_do_ciclo|por_ano'),
     ('0145', 'a recusa sem o jargao de ciclo (PASSO 3)', 'no_corpo',
-             'validar_solicitacao|day off, contados corridos')
+             'validar_solicitacao|day off, contados corridos'),
+    -- A 0146 tira a exigencia da pasta de entrega da RECORRENCIA. Ela tambem
+    -- nao cria objeto nenhum -- reescreve duas funcoes --, e os dois passos
+    -- sao INDEPENDENTES: cada um roda sozinho e o banco fica coerente com
+    -- metade da regra. Entao sao DUAS linhas, pela regra que a 0138 escreveu,
+    -- e cada falta tem uma cara propria -- sem o 1 a demanda da conta sem
+    -- pasta e RECUSADA pelo banco (a rotina morre em silencio, no historico
+    -- que ninguem abre), e sem o 2 a rotina continua desistindo da conta antes
+    -- de tentar.
+    ('0146', 'a pasta nao e exigida da rotina (PASSO 1, a trava)', 'no_corpo',
+             'tasks_publicar_exige_minimo|full_hub.sem_pasta'),
+    ('0146', 'a conta sem pasta avisa (PASSO 2, a rotina)', 'no_corpo',
+             'gerar_ocorrencia|ainda nao tem pasta de entrega na ficha')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
