@@ -3908,9 +3908,23 @@ não um erro.
 
 ***Medido contra o Postgres de produção***, com a conferência do fim da
 migration: a trava lê o GUC, a rotina avisa, a recusa saiu, e o patch da 0123
-continua de pé. ***E a bateria não foi rodada*** — o arquivo 0146 não ganhou
-cenário de SQL; o que existe no lugar é o `select` de conferência e a linha no
-`onde-esta-o-banco.sql`.
+continua de pé.
+
+***E A BATERIA FOI RODADA DEPOIS, porque ela ficou vermelha.*** O arquivo 0146
+nasceu sem cenário de SQL — o que existia no lugar era o `select` de
+conferência e a linha no `onde-esta-o-banco.sql` —, e o arquivo 18 tinha dois
+blocos afirmando a recusa que esta migration tirou: *"O modelo sem pasta de
+entrega vira ERRO, não exception"* e *"a conta sem pasta virou erro"*. **Eles
+viraram do avesso** e passaram a medir o que ficou de pé: a demanda nasce, ela
+nasce SEM pasta, o aviso fica em `recurrence_runs.detalhes->'avisos'` **com o
+nome da CONTA e não da regra**, o relógio da regra anda, e as TRÊS contas
+geram — essa última é a que guarda a lição da 0113, porque uma demanda que
+herdasse a pasta de outra conta passaria por um cenário que só contasse
+quantas nasceram. **Medido com duas mutações:** devolver a recusa a
+`gerar_ocorrencia()` derruba **7**, e tirar o GUC de
+`tasks_publicar_exige_minimo()` derruba **9** — e o primeiro cenário que cai
+nessa segunda nomeia a frase da PRÓPRIA TRAVA, ou seja os cenários passaram a
+medir que **as duas metades** da 0146 estão no lugar, e não só a de cima.
 
 #### O responsável padrão é FALLBACK, nunca substituição
 
@@ -14629,14 +14643,20 @@ para pegar um andar acima.
 **A LEGENDA DIZ DIAS, que é o que a porcentagem ao lado mede.** Ela dizia
 *"0 dias em 0 de 2 parcelas"*, e os dois números não eram da mesma conta — a
 barra media dias usados sobre dias concedidos, e a metade de baixo falava de
-outra coisa. Hoje é **"5 de 15 dias neste ciclo"**, e "neste ciclo" é a palavra
-que a 0085 acrescentou: sem ela, quem tirou dez no ciclo passado e cinco neste
-leria "5 de 15" e iria procurar os outros dez.
+outra coisa. Ela passou a ser **"5 de 15 dias neste ciclo"**, e "neste ciclo"
+era a palavra que a 0085 acrescentara: sem ela, quem tirou dez no ciclo passado
+e cinco neste leria "5 de 15" e iria procurar os outros dez. ***E ela não está
+mais lá, o que fica corrigido aqui:*** a 0145 tirou a palavra "ciclo" da tela
+inteira, porque o saldo passou a valer desde a entrada — hoje a faixa diz
+*"Você tem 5 de 15 dias disponíveis"* e a matriz diz *"5 de 15 dias"*. O
+argumento da 0085 continua certo sobre o que ele protege, e o que o cobre hoje
+é a linha ao lado, que diz **quando os dias voltam**.
 
 **E O AVISO DE "sem parcela livre" SAIU COM A TRAVA.** Ele era um dos três que
-desligavam o botão de enviar, e os outros dois ficam — saldo insuficiente e
+desligavam o botão de enviar, e os outros dois ficaram — saldo insuficiente e
 primeiro ciclo. Um aviso que explica uma recusa que não acontece mais é pior
-que aviso nenhum: ele ensina uma regra que o banco não tem.
+que aviso nenhum: ele ensina uma regra que o banco não tem. ***E o do primeiro
+ciclo saiu pela mesma razão, na 0145:*** hoje é um só, o do saldo.
 
 **O que se perde está dito, e é consequência aceita:** a agência deixa de poder
 limitar em quantas vezes alguém parte o day off. Quem quiser a trava de volta
@@ -14822,12 +14842,38 @@ diferença restante é um valor que nenhuma tela lê. No lugar entrou
 `65d-full-days-sem-data-de-entrada`, que é o estado que a 0145 CRIOU e que
 imagem nenhuma cobria.
 
-***O que fica dito em vez de escondido:*** **a bateria não foi rodada.** O
-arquivo 05 tem cenários que afirmam a regra da 0074 — entre eles *"Quem entrou
-hoje já está no ciclo 1"*, virado do avesso pela 0074 e que esta migration vira
-de novo — e eles não foram reescritos; o que existe no lugar é a medição acima,
-contra o banco de produção. E `inicioDoCiclo` continua no tipo sem leitor
-nenhum em `src/`, como já estava antes desta entrega.
+***E A BATERIA FOI RODADA DEPOIS, porque ela ficou vermelha.*** O arquivo 05
+tinha cenários que afirmavam a regra da 0074 — entre eles *"Quem entrou hoje já
+está no ciclo 1"*, virado do avesso pela 0074 e que esta migration vira de novo
+—, e eles **não foram reescritos no mesmo commit**: a Action veio vermelha, e
+com `publicar-hostinger` tendo `needs: verificar` o site parou de receber
+qualquer coisa. Hoje eles medem o contrário: sem data de entrada os 15 valem
+assim mesmo, quem entrou hoje já tem os 15, os dias voltam no primeiro
+aniversário, e **pedir day off no primeiro ano PASSA** e desconta.
+
+**E AS DUAS FRASES MUDARAM DE LISTA, que é a forma desta casa** (0116): *"O day
+off é conquistado a cada 12 meses de casa"* e *"dias de day off por ciclo de 12
+meses"* saíram do `novas` e entraram no `antigas` da varredura de frases do
+arquivo 05 — e é ela quem protege a troca, porque **medido com mutação**,
+devolvendo a recusa do primeiro ano a `validar_solicitacao` o primeiro cenário
+que cai é *"Nenhuma função do Full Days carrega as frases antigas"*, nomeando a
+frase exata que voltou. **Três mutações medidas:** devolver a carência a
+`saldo_de_ferias()` derruba **6** (`esperado 15, achado 0`), devolver a recusa
+derruba **3**, e o `-2` do fim do bloco é o que guarda o **saldo negativo** que
+o cenário antigo guardava com `-5` — dois lançamentos retroativos por cima dos
+15, porque `validar_solicitacao` devolve antes da conta de saldo quando a
+origem não é `solicitacao`.
+
+***E dois cenários caíram em cascata, o que fica registrado:*** com *"Pedir day
+off no primeiro ano"* passando, o período dele cobre o dia da ausência pontual
+que vinha em seguida — *"Você já tem um período combinado cobrindo parte dessas
+datas."* —, e o saldo do lançamento retroativo mudou de `-5` para `10`. Entrou
+um `delete from public.hr_requests` entre os dois. **Um cenário que passa a
+passar move o chão dos que vêm depois dele**, e isso não aparece no diff: só
+rodando.
+
+***O que continua dito em vez de escondido:*** `inicioDoCiclo` continua no tipo
+sem leitor nenhum em `src/`, como já estava antes desta entrega.
 
 > **E ISTO AFASTA O PRODUTO DO DESENHO DA CLT, pela primeira vez neste
 > módulo.** A nota no fim desta seção registra, três vezes, que ciclo de 12
@@ -20075,6 +20121,19 @@ perfis internos ficam o dia todo no sistema e não têm esse timeout.
   quatro ocorrências daquela frase ficam como estão: elas descrevem o que
   aconteceu naquelas entregas, e reescrevê-las seria afirmar que a bateria
   rodou quando ela não rodou. O que muda é a frase valer para a próxima.
+
+  **E ELA VALEU NA PRÓXIMA, DUAS MIGRATIONS DEPOIS, pelo mesmo motivo.** A 0145
+  e a 0146 reverteram regras que o arquivo 05 e o arquivo 18 afirmavam, e as
+  duas nasceram com a frase *"a bateria não foi rodada"* no cabeçalho — num
+  ambiente onde ela roda. **Catorze cenários ficaram vermelhos, e nenhum era do
+  produto:** eram as regras que as duas migrations existem para desfazer. A
+  Action parou, e com ela o site, porque `publicar-hostinger` tem
+  `needs: verificar`. **Hoje são 2473 cenários, todos passando**, e as duas
+  entregas ganharam atrás o que elas deviam ter trazido junto: os cenários
+  virados do avesso e as quatro mutações que os medem. **A regra que sai disto
+  é de uma linha: migration que reverte uma regra reescreve os cenários dela no
+  MESMO commit** — é a regra das duas pontas no mesmo commit, aplicada à
+  bateria.
 - **O que verifica antes do deploy é o mesmo arquivo que roda no dia a dia.**
   `deploy.yml` chama `verificar.yml` por `workflow_call` em vez de repetir os
   passos. Uma cópia da checagem envelhece em silêncio, e a que protege a

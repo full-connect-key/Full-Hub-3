@@ -381,15 +381,18 @@ delete from public.notifications;
 -- Bruno tem 15 dias. Pedir 20 estoura o contrato, e a recusa precisa falar de
 -- DESCANSO EM CONTRATO, nao de ferias por ano.
 --
--- A FRASE MUDOU NA 0085: ela dizia "conquistados a cada 12 meses", que
--- descrevia a SOMA -- cada ciclo acrescentava 15. Agora e "por ciclo de 12
--- meses", porque os dias se restauram em vez de somar.
+-- A FRASE MUDOU DUAS VEZES, e as duas por decisao do usuario. Na 0085 ela
+-- dizia "conquistados a cada 12 meses", que descrevia a SOMA -- cada ciclo
+-- acrescentava 15 -- e virou "por ciclo de 12 meses", porque os dias passaram
+-- a se restaurar. Na 0145 a palavra CICLO saiu da tela (*"no day off ta
+-- escrito sobre ciclo, pode tirar isso?"*) e o que sobrou e o contrato mais a
+-- conta: 15 dias CORRIDOS, quantos ja estao comprometidos, quantos sobram.
 select teste.recusa_com('A recusa por saldo fala de day off, nao de ferias', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', '2027-03-01', '2027-03-28', 20)
   $fmt$, :BRUNO),
-  'dias de day off por ciclo de 12 meses');
+  'Sao 15 dias de day off, contados corridos');
 
 -- E A FRASE DIZ A CONTA INTEIRA: quantos o contrato da, quantos ja estao
 -- comprometidos, quantos sobram. Quem leva um "nao" com um numero so vai
@@ -399,7 +402,7 @@ select teste.recusa_com('E ela diz quantos sobram', :BRUNO,
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', '2027-03-01', '2027-03-28', 20)
   $fmt$, :BRUNO),
-  'Neste ciclo voce ja tem 0 comprometidos, entao sobram 15');
+  'Voce ja tem 0 comprometidos, entao sobram 15');
 
 -- Quem responde continua sendo so o socio -- o que mudou foi como a recusa
 -- diz isso. "Aprovar e reprovar" saiu porque hierarquia de aprovacao e um dos
@@ -494,7 +497,16 @@ declare
     -- estava na lista do que TEM de estar, logo abaixo. Mudou de lista, que e
     -- a forma desta casa: o que saiu do produto nao volta, e quem o garante e
     -- a varredura e nao a lembranca de ninguem.
-    'O day off pode ser partido'
+    'O day off pode ser partido',
+    -- A CARENCIA DO PRIMEIRO ANO SAIU NA 0145, por decisao do usuario: *"a
+    -- pessoa pode tirar os 15 dias a partir do momento que ela entra na
+    -- agencia"*. As duas frases eram de travas de verdade -- a primeira era a
+    -- recusa propria do primeiro ciclo (0074), a segunda contava o saldo
+    -- dizendo "por ciclo", que e a palavra que o mesmo pedido mandou tirar da
+    -- tela. As duas estavam na lista do que TEM de estar, logo abaixo, e
+    -- mudaram de lista: e a 0116 de novo.
+    'O day off e conquistado a cada 12 meses de casa',
+    'dias de day off por ciclo de 12 meses'
   ];
 begin
   foreach frase in array antigas loop
@@ -526,17 +538,19 @@ declare
   frase   text;
   faltam  text[] := '{}';
   novas   text[] := array[
-    -- A FRASE DA 0085, que substituiu "conquistados a cada 12 meses": aquela
-    -- descrevia a soma, e os dias pararam de somar.
-    'dias de day off por ciclo de 12 meses',
+    -- A FRASE DEPOIS DA 0145. A 0085 trocou "conquistados a cada 12 meses"
+    -- por "por ciclo de 12 meses" (os dias pararam de somar); a 0145 tirou a
+    -- palavra ciclo da tela e o que sobrou e o contrato mais a conta. O
+    -- trecho conferido e o do CONTRATO, e nao o numero: "15" sai de
+    -- `dias_ferias_ano`, que e por pessoa.
+    'dias de day off, contados corridos',
     -- E A DICA QUE ELA GANHOU. Quem leva a recusa precisa saber QUANDO os dias
     -- voltam, senao a regra nova se lê como a antiga com um número menor.
     'O day off nao acumula',
-    -- A FRASE DO PRIMEIRO CICLO (0074). Ela e a unica recusa do modulo que
-    -- nomeia uma DATA em vez de contar numeros, e e o que separa "voce nao
-    -- pode" de "voce ainda nao pode, e e em tal dia". Sem esta linha, alguem
-    -- que simplificasse a recusa de volta para "sobram 0" passaria aqui.
-    'O day off e conquistado a cada 12 meses de casa',
+    -- A FRASE DO PRIMEIRO CICLO (0074) ESTAVA AQUI e passou para a lista das
+    -- antigas na 0145: nao ha mais carencia a nomear. O que ficou da dica
+    -- daquela recusa e a linha acima -- "O day off nao acumula" --, que
+    -- continua dizendo QUANDO os dias voltam.
     'So o socio responde aos periodos fora',
     -- A TERCEIRA RODADA DE VOCABULARIO (0107), por decisao do usuario: *"os
     -- dias tirados sao DAY OFF"*. "Saldo de day off" vive em
@@ -656,12 +670,20 @@ select teste.recusa_com('Ausencia so no fim de semana continua recusada', :CARLA
   'nenhum dia util');
 
 
--- --- O ciclo de 12 meses (0039), conquistado no fim dele (0074) -----------
+-- --- O ciclo de 12 meses (0039), e os dias valendo desde a entrada (0145) --
 --
--- O saldo nao zera em 1 de janeiro: cada ciclo de 12 meses contado da ENTRADA
--- DA PESSOA concede 15 dias. A 0074 mudou QUANDO esse bloco chega -- no fim
--- do ciclo, e nao na abertura dele --, e a 0085 fez os dias se RESTAURAREM
--- em vez de somarem.
+-- O saldo nao zera em 1 de janeiro: o que o decide e o periodo de 12 meses
+-- contado da ENTRADA DA PESSOA. A 0085 fez os dias se RESTAURAREM em vez de
+-- somarem, e a 0145 desfez a carencia que a 0074 tinha criado -- os 15 valem
+-- desde o primeiro dia, e o aniversario os devolve inteiros.
+--
+-- ESTES CENARIOS ESTAO VIRADOS DO AVESSO, e e a terceira vez que este bloco
+-- vira: a 0039 dizia "quem entrou hoje ja tem 15", a 0074 trocou por "zero
+-- ate o primeiro aniversario", e a 0145 devolveu os 15 por decisao do
+-- usuario: *"a pessoa pode tirar os 15 dias a partir do momento que ela
+-- entra na agencia. mas quando completa 1 ano, a contagem de dias volta para
+-- 15 dias"*. Se alguem devolver a carencia, os quatro de baixo falham e
+-- dizem qual regra voltou.
 --
 -- Esta secao mexe na `data_admissao` de propósito e DEVOLVE no fim: os
 -- arquivos seguintes contam com a ficha como ela estava (catorze meses).
@@ -670,62 +692,84 @@ delete from public.team_presence;
 delete from public.hr_requests;
 
 -- Sem data de entrada, a ancora e `created_at` -- e na bateria a ficha nasceu
--- agora. Zero ciclos, entao, e nao um: depois da 0074 zero dias e o estado
--- normal de quem chegou, e dar um ciclo a quem nao tem ficha daria a ela mais
--- do que quem tem ficha teria.
+-- agora. Zero CICLOS COMPLETADOS, e 15 dias: depois da 0145 as duas coisas
+-- deixaram de ser a mesma pergunta, e `ciclos_de_descanso()` parou de decidir
+-- dia nenhum. Ele continua sendo um FATO que a funcao devolve -- quantos
+-- aniversarios ja passaram --, que e a decisao de `parcelas_no_ciclo()` na
+-- 0116.
 update public.team_members set data_admissao = null where user_id = :BRUNO;
 
 select teste.conferir('Sem data de entrada, nenhum ciclo completado',
   public.ciclos_de_descanso(:BRUNO)::text, '0');
 
-select teste.conferir('E nenhum dia conquistado',
-  public.saldo_de_ferias(:BRUNO)::text, '0');
+-- E OS 15 DIAS MESMO ASSIM. O numero sai de `dias_ferias_ano`, com o default
+-- de 15 quando nao ha ficha: o que a ficha sem data custa e a DATA em que
+-- eles voltam, e nao os dias.
+select teste.conferir('E os 15 dias valem assim mesmo',
+  public.saldo_de_ferias(:BRUNO)::text, '15');
 
--- ENTROU HOJE: ZERO. Este e o cenario que trava a decisao da 0074, e ele e o
--- de antes virado do avesso -- ate ela, o que estava escrito aqui era "quem
--- entrou hoje ja esta no ciclo 1" e "ja tem 15 dias, nao zero". A 0039 dizia,
--- no proprio comentario, que para inverter bastava tirar o `+ 1` de
--- `ciclos_de_descanso()` e que a bateria avisaria. Ela avisou. Se alguem
--- devolver o `+ 1`, os dois de baixo falham e dizem qual regra voltou.
+-- ENTROU HOJE: 15. Este e o cenario que trava a decisao da 0145, e o `+ 1`
+-- que a 0039 recomendava tirar de `ciclos_de_descanso()` NAO e por onde se
+-- inverte -- devolve-lo poria `inicio_do_ciclo()` no futuro, e
+-- `descanso_usado_no_ciclo()` filtra `data_inicio >= comeca`: o day off que a
+-- pessoa JA tirou pararia de contar, e o saldo sairia 15 com cinco
+-- comprometidos. Quem decide a concessao e o `por_ano` de `saldo_de_ferias()`
+-- e de `descanso_do_ciclo()`.
 update public.team_members set data_admissao = current_date where user_id = :BRUNO;
 
 select teste.conferir('Quem entrou hoje nao completou ciclo nenhum',
   public.ciclos_de_descanso(:BRUNO)::text, '0');
 
-select teste.conferir('E nao tem dia nenhum ainda',
-  public.saldo_de_ferias(:BRUNO)::text, '0');
+select teste.conferir('E ja tem os 15 dias',
+  public.saldo_de_ferias(:BRUNO)::text, '15');
 
 -- `parcelas_concedidas()` ERA CONFERIDA AQUI e foi apagada na 0116: ela
--- devolvia o teto de vezes, e nao ha mais teto. O que o primeiro ciclo nega
--- e o DIA, que a linha acima ja mede.
+-- devolvia o teto de vezes, e nao ha mais teto.
 
--- E A TELA PRECISA DIZER QUANDO, senao a recusa e um "nao" sem instrucao.
-select teste.conferir('Os primeiros dias chegam no primeiro aniversario',
+-- E A TELA PRECISA DIZER QUANDO ELES VOLTAM. A frase deixou de ser uma
+-- recusa e passou a ser a dica do saldo, mas a data e a mesma -- e sem ela a
+-- regra nova se le como a antiga com um numero menor.
+select teste.conferir('Os dias voltam no primeiro aniversario',
   public.proximo_descanso_em(:BRUNO)::text,
   (current_date + interval '1 year')::date::text);
 
--- A RECUSA CARREGA A DATA, e nao os tres numeros da outra frase: "voce ja tem
--- 0 comprometidos, entao sobram 0" e verdade e nao ensina nada.
-select teste.recusa_com('Pedir day off no primeiro ano recusa dizendo a data', :BRUNO,
+-- E O PEDIDO PASSA, que e o pedido do usuario letra por letra. Ate a 0145 a
+-- linha abaixo era um `recusa_com` nomeando a data do primeiro aniversario;
+-- hoje ela e o cenario que prova que a carencia saiu.
+select teste.cenario('Pedir day off no primeiro ano PASSA', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', current_date + 40, current_date + 44, 5)
-  $fmt$, :BRUNO),
-  to_char((current_date + interval '1 year')::date, 'DD/MM/YYYY'));
+  $fmt$, :BRUNO), 'ok', 1);
 
--- E OS OUTROS DOIS TIPOS NAO DEPENDEM DE SALDO, que e o que a dica manda
--- fazer. Sem este cenario, a dica seria uma frase que ninguem conferiu.
-select teste.cenario('Ausencia pontual passa no primeiro ano', :BRUNO,
+-- E ELE DESCONTA, que e a outra metade: conceder sem descontar daria 15 para
+-- sempre.
+select teste.conferir('E desconta do saldo',
+  public.saldo_de_ferias(:BRUNO)::text, '10');
+
+delete from public.hr_requests where user_id = :BRUNO;
+
+-- E OS OUTROS DOIS TIPOS CONTINUAM NAO DEPENDENDO DE SALDO. O cenario nasceu
+-- ao lado da recusa do primeiro ano, para provar que a dica dela nao mandava
+-- a pessoa a um caminho fechado; com a recusa fora, ele continua medindo o
+-- que sempre mediu -- ausencia pontual nao gasta day off.
+select teste.cenario('Ausencia pontual nao gasta saldo', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ausencia', current_date + 40, current_date + 40, 1)
   $fmt$, :BRUNO), 'ok', 1);
 
+select teste.conferir('E os 15 continuam inteiros',
+  public.saldo_de_ferias(:BRUNO)::text, '15');
+
 delete from public.hr_requests where user_id = :BRUNO;
 
 -- E O LANCAMENTO RETROATIVO TAMBEM PASSA, porque ele registra o que ja
--- aconteceu: o descanso combinado por fora no primeiro ano e historico, e
--- historico se registra. O saldo fica negativo, e e a verdade.
+-- aconteceu: o day off combinado por fora e historico, e historico se
+-- registra. ATE A 0145 ELE ERA O CENARIO DO SALDO NEGATIVO -- no primeiro ano
+-- nao havia dia nenhum, e cinco lancados deixavam -5. Com os 15 valendo desde
+-- a entrada, cinco deixam 10; o negativo continua alcancavel, e e o cenario
+-- de baixo que o mede.
 update public.team_members set data_admissao = current_date - interval '6 months'
  where user_id = :BRUNO;
 
@@ -736,8 +780,23 @@ select teste.cenario('A gestao lanca um day off do primeiro ano', :ANA,
       (current_date - interval '2 months' + interval '4 days')::date)
   $fmt$, :BRUNO), 'ok');
 
+select teste.conferir('E ele desconta: sobram 10',
+  public.saldo_de_ferias(:BRUNO)::text, '10');
+
+-- O SALDO NEGATIVO CONTINUA SENDO A VERDADE, e e aqui que ele e medido: o
+-- lancamento retroativo nao olha saldo -- `validar_solicitacao` devolve antes
+-- da conta quando a origem nao e `solicitacao` --, entao a gestao registra o
+-- que foi combinado por fora e o numero diz o que aconteceu. Sem este
+-- cenario, uma trava de saldo no lancamento passaria por aqui.
+select teste.cenario('E a gestao lanca mais doze dias por cima', :ANA,
+  format($fmt$
+    select public.lancar_periodo(%L, 'ferias',
+      (current_date - interval '1 month')::date,
+      (current_date - interval '1 month' + interval '11 days')::date)
+  $fmt$, :BRUNO), 'ok');
+
 select teste.conferir('E o saldo fica negativo, que e o que aconteceu',
-  public.saldo_de_ferias(:BRUNO)::text, '-5');
+  public.saldo_de_ferias(:BRUNO)::text, '-2');
 
 delete from public.team_presence;
 delete from public.hr_requests;
@@ -830,14 +889,16 @@ select teste.cenario('Com 15 de saldo, um day off de 12 dias passa', :BRUNO,
     values (%L, 'ferias', current_date + 40, current_date + 51, 12)
   $fmt$, :BRUNO), 'ok', 1);
 
--- Sobram 3. Pedir 10 estoura, e a frase diz os tres numeros -- e agora diz
--- tambem que eles sao DESTE ciclo: sem isso, quem tirou dez no ciclo passado
--- leria "voce ja tem doze comprometidos" e procuraria os outros dez.
+-- Sobram 3. Pedir 10 estoura, e a frase diz os tres numeros. ELA DIZIA
+-- "NESTE CICLO" e a 0145 tirou, com o resto do vocabulario de ciclo que saiu
+-- da tela; o que responde a pergunta que aquelas duas palavras respondiam --
+-- de onde vem o doze -- e a DICA, que diz quando os dias voltam e e o cenario
+-- logo abaixo.
 select teste.recusa_com('E um de 10 em cima dele estoura o saldo', :BRUNO,
   format($fmt$
     insert into public.hr_requests (user_id, tipo, data_inicio, data_fim, dias_uteis)
     values (%L, 'ferias', current_date + 100, current_date + 109, 10)
-  $fmt$, :BRUNO), 'Neste ciclo voce ja tem 12 comprometidos, entao sobram 3');
+  $fmt$, :BRUNO), 'Voce ja tem 12 comprometidos, entao sobram 3');
 
 -- E A DICA DIZ QUANDO ELES VOLTAM, que e a pergunta seguinte de quem leva a
 -- recusa. Sem ela a regra nova se le como a antiga com um numero menor.

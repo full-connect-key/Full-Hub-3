@@ -525,11 +525,24 @@ select teste.conferir('Com o aviso dizendo que a pessoa saiu',
 update public.profiles set ativo = true where id = :MARINA;
 
 
--- --- O modelo sem pasta de entrega vira ERRO, nao exception ---------------
-
--- A pasta e obrigatoria desde a 0015. Sem este cenario, uma regra assim
--- derrubaria a geracao com uma mensagem sobre `link_entrega` que ninguem
--- ligaria a recorrencia -- e, pior, derrubaria a rodada inteira.
+-- --- A conta sem pasta de entrega AVISA, nao recusa (0146) -----------------
+--
+-- ESTE BLOCO ESTA VIRADO DO AVESSO. Ate a 0146 ele media o contrario: a
+-- conta sem pasta derrubava a ocorrencia, gravava `erro` no historico e
+-- deixava o relogio da regra parado. Decisao do usuario: *"quando tento abrir
+-- uma recorrencia, nao consigo pois pede a pasta de entrega da conta, tire
+-- essa regra"*.
+--
+-- A RECUSA ESTAVA NUMA TELA QUE NAO TEM ONDE SATISFAZE-LA: a pasta deixou de
+-- ser campo do modelo na 0113, e a origem dela passou a ser a ficha de cada
+-- conta -- em Gestao de Pessoas. Entao a tela de recorrencia recusava salvar
+-- por causa de um campo que ela nao tem, e o custo era a recorrencia inteira
+-- deixar de ser aberta.
+--
+-- O QUE A TRAVA PROTEGIA CONTINUA PROTEGIDO ONDE O ARGUMENTO VALE: quem
+-- publica pela TELA segue cobrado por `tasks_publicar_exige_minimo`. O que
+-- mudou e a rotina das tres da manha, onde nao ha ninguem para preencher e
+-- onde a recusa significa o cliente sem entrega.
 select teste.cenario('Uma regra sem pasta de entrega no modelo', :ANA,
   format($fmt$
     insert into public.task_recurrences
@@ -542,49 +555,64 @@ select teste.cenario('Uma regra sem pasta de entrega no modelo', :ANA,
             %L)
   $fmt$, :OPTICA, :ANA), 'ok', 1);
 
-select teste.cenario('Gerar nao estoura: vira registro de erro', :ANA,
+select teste.cenario('Gerar nao estoura e nao recusa: a demanda nasce', :ANA,
   $$select public.gerar_ocorrencia(
       (select id from public.task_recurrences where nome = 'Sem pasta'), current_date)$$, 'ok');
 
--- A RECUSA NOMEIA A CONTA, E NAO MAIS A REGRA (0113).
+-- A DEMANDA NASCEU, e e ela que a trava recusava. Sem este cenario, devolver
+-- a recusa passaria por aqui: o historico diria `erro` e ninguem notaria que
+-- a conta ficou sem entrega naquele periodo.
+select teste.conferir('A demanda nasceu mesmo sem pasta',
+  (select count(*)::text from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'Sem pasta'), '1');
+
+-- E ELA NASCEU SEM PASTA, que e a verdade: a 0146 nao inventa um endereco --
+-- inventar seria pior, porque alguem clicaria nele (0015).
+select teste.conferir('E ela nasceu SEM pasta, que e o que o aviso diz',
+  (select (link_entrega is null)::text from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'Sem pasta'), 'true');
+
+-- O AVISO NOMEIA A CONTA, E NAO A REGRA (0113).
 --
 -- Ate a 0112 a pasta era do modelo, entao o nome da regra era a unica coisa
 -- que havia para dizer. Com a regra atendendo varias contas, o nome dela nao
 -- diz QUAL delas precisa ser configurada -- e dizer qual e a diferenca entre
--- uma recusa e uma instrucao, que e a decisao da 0023.
-select teste.conferir('O erro ficou gravado no historico, com o nome da CONTA',
-  (select (status = 'erro'
-           and detalhes->>'motivo' like '%' || (select nome_empresa from public.clients where id = :OPTICA) || '%')::text
+-- uma recusa e uma instrucao, que e a decisao da 0023. O que mudou na 0146 e
+-- o CANAL: `avisos` vira `recurrence_runs.detalhes` e toca o sino do
+-- Atendimento e da gestao desde a 0041, em vez de uma demanda que nunca
+-- nasceu.
+select teste.conferir('O aviso ficou no historico, com o nome da CONTA',
+  (select (rr.status = 'gerada'
+           and rr.detalhes->>'avisos' like '%' || (select nome_empresa from public.clients where id = :OPTICA) || '%')::text
      from public.recurrence_runs rr
      join public.task_recurrences r on r.id = rr.recurrence_id
     where r.nome = 'Sem pasta'), 'true');
 
-select teste.conferir('E nenhuma task foi criada por ela',
-  (select count(*)::text from public.tasks t
-     join public.task_recurrences r on r.id = t.recurrence_id
-    where r.nome = 'Sem pasta'), '0');
-
--- E O RELOGIO DA REGRA NAO ANDOU (0113).
+-- E O RELOGIO DA REGRA ANDOU, que e o outro lado da mesma mudanca.
 --
--- Este cenario existe porque o teste de mutacao disse que a guarda
--- `primeira is not null` nao derrubava NENHUM cenario -- e ela e o que
--- preserva o comportamento da 0041, onde a funcao devolvia cedo sem tocar no
--- relogio quando faltava a pasta.
---
--- Sem a guarda, uma regra cuja unica conta nao tem pasta avancaria
--- `ultima_geracao_em` e `proxima_geracao_em` a cada madrugada: o periodo que
--- falhou ficaria para tras, e a demanda daquele mes nunca nasceria. O
--- historico diria 'erro' uma vez e a regra seguiria adiante como se nada
--- tivesse acontecido.
-select teste.conferir('O relogio da regra NAO andou, porque nada foi gerado',
-  (select (ultima_geracao_em is null)::text
+-- A 0113 tinha o cenario invertido aqui, e o argumento dela era bom enquanto a
+-- geracao falhava: sem a guarda `primeira is not null`, uma regra cuja unica
+-- conta nao tem pasta avancaria o relogio a cada madrugada e o periodo que
+-- falhou ficaria para tras -- a demanda daquele mes nunca nasceria. Com a
+-- 0146 nao ha periodo que falhe: a demanda nasce, `primeira` nao e nula, e o
+-- relogio anda porque alguma coisa FOI gerada. A guarda continua de pe e
+-- continua sendo o que protege o caso em que nada nasce.
+select teste.conferir('O relogio da regra andou, porque a demanda nasceu',
+  (select (ultima_geracao_em is not null)::text
      from public.task_recurrences where nome = 'Sem pasta'), 'true');
+
 
 -- UMA REGRA COM ERRO NAO IMPEDE AS OUTRAS DE RODAREM. Sem o bloco `exception`
 -- dentro do laco, a agencia acordaria sem nenhuma demanda gerada --
 -- descobrindo o problema pela ausencia, que e a pior forma de descobrir.
+--
+-- A 0146 tirou a PASTA da lista de motivos para uma regra falhar, e nao o
+-- bloco: o que ele protege e o erro que ninguem previu, e e por isso que o
+-- cenario mede a rotina INTEIRA em vez de uma regra so.
 select teste.como_a_rotina(
-  'A rotina roda com a regra quebrada no meio', 'select * from public.gerar_recorrencias()');
+  'A rotina roda com todas as regras no laco', 'select * from public.gerar_recorrencias()');
 
 select teste.conferir('E as OUTRAS regras geraram assim mesmo',
   (select (count(*) > 0)::text from public.tasks t
@@ -926,11 +954,18 @@ select teste.conferir('Continuam DUAS demandas, e nao quatro',
 
 -- --- A conta sem pasta nao leva junto as outras ----------------------------
 
--- ESTE E O CENARIO DO `continue`. Uma terceira conta sem pasta padrao entra na
--- regra: a ocorrencia seguinte tem de gerar para as duas que tem pasta e
--- gravar erro so para ela. Com `return` no lugar de `continue`, a conta sem
--- pasta derrubaria a ocorrencia inteira -- e qual das tres cai primeiro
--- depende da ordem que o Postgres devolver, que e o pior tipo de defeito.
+-- ESTE E O CENARIO DO `continue`, E ELE MUDOU DE SENTIDO NA 0146. Uma terceira
+-- conta sem pasta padrao entra na regra: ate a 0146 a ocorrencia tinha de
+-- gerar para as duas que tem pasta e gravar erro so para ela, e com `return`
+-- no lugar de `continue` a conta sem pasta derrubaria a ocorrencia inteira --
+-- qual das tres cairia primeiro dependia da ordem que o Postgres devolvesse,
+-- que e o pior tipo de defeito.
+--
+-- Com a pasta deixando de ser exigida, a terceira conta tambem GERA, e o que
+-- este bloco passou a medir e que as TRES nascem e que so a sem pasta leva
+-- aviso. O `continue` continua de pe e continua sendo o que separa uma conta
+-- que falha por outro motivo das outras -- o que mudou e que a pasta deixou de
+-- ser um desses motivos.
 insert into public.clients (id, nome_empresa, slug, ativo)
 values ('aaaaaaaa-0000-0000-0000-00000000f113', 'Conta Sem Pasta', 'conta-sem-pasta', true)
 on conflict (id) do nothing;
@@ -945,19 +980,32 @@ select teste.cenario('Gerar a ocorrencia de amanha', :ANA,
       (select id from public.task_recurrences where nome = 'Relatorio das duas'),
       current_date + 1)$$, 'ok');
 
-select teste.conferir('As duas contas com pasta geraram mesmo assim',
+select teste.conferir('As TRES contas geraram, a sem pasta inclusive',
   (select count(*)::text from public.tasks t
      join public.task_recurrences r on r.id = t.recurrence_id
     where r.nome = 'Relatorio das duas'
-      and t.data_inicio = current_date + 1), '2');
+      and t.data_inicio = current_date + 1), '3');
 
-select teste.conferir('E a conta sem pasta virou erro, com o nome dela',
-  (select (rr.status = 'erro' and rr.detalhes->>'motivo' like '%Conta Sem Pasta%')::text
+-- E SO A SEM PASTA LEVA AVISO. E a metade que prova que a 0146 nao afrouxou
+-- para todas: as duas com pasta geram caladas, e e por isso que o cenario le
+-- o aviso da chave DELA e nao da regra.
+select teste.conferir('E a conta sem pasta levou o aviso, com o nome dela',
+  (select (rr.status = 'gerada' and rr.detalhes->>'avisos' like '%Conta Sem Pasta%')::text
      from public.recurrence_runs rr
      join public.task_recurrences r on r.id = rr.recurrence_id
     where r.nome = 'Relatorio das duas'
       and rr.chave_ocorrencia like to_char(current_date + 1, 'YYYY-MM-DD') || '|aaaaaaaa-0000-0000-0000-00000000f113'), 'true');
 
+-- E A DEMANDA DELA NASCEU SEM PASTA, enquanto as outras duas nasceram com a
+-- da conta de cada uma: sem esta linha, uma pasta herdada de outra conta --
+-- que e o bug que a 0113 existe para impedir -- passaria por aqui, porque as
+-- tres TERIAM pasta.
+select teste.conferir('E a demanda dela nasceu sem pasta',
+  (select (t.link_entrega is null)::text from public.tasks t
+     join public.task_recurrences r on r.id = t.recurrence_id
+    where r.nome = 'Relatorio das duas'
+      and t.data_inicio = current_date + 1
+      and t.client_id = 'aaaaaaaa-0000-0000-0000-00000000f113'), 'true');
 -- --- O relogio da regra e por ocorrencia -----------------------------------
 
 -- A BATERIA PEGOU ISTO: na primeira versao da 0113, `recalcular_proxima_geracao()`
