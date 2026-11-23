@@ -505,6 +505,21 @@ const TELAS = [
   // `check:prototipo`.
   { nome: "39e-pauta-da-equipe-dia", rota: "/painel/minhas-tasks?aba=equipe", largura: 1600, altura: 1250, role: "colaborador-social", clicar: 'button:has-text("Bruno Lima, quarta")' },
   { nome: "39c-pauta-da-equipe-375", rota: "/painel/minhas-tasks?aba=equipe", largura: 375, altura: 1400, role: "colaborador" },
+  // A BUSCA POR TITULO (0147, item 1). Ela precisa de `digitar` porque a secao
+  // abre com o campo VAZIO e uma linha de ajuda: uma imagem em repouso
+  // fotografa o estado que menos interessa.
+  //
+  // O TERMO E "video" SEM ACENTO de proposito, e e ele que prova a metade
+  // mecanica da entrega: os tres titulos do exemplo escrevem "Video" com
+  // acento, e o que os acha e `sem_acento()` -- a razao de a busca ser uma
+  // funcao do banco, porque o PostgREST nao sabe por uma funcao do lado
+  // esquerdo de um filtro.
+  //
+  // E AS TRES LINHAS SAO TRES CASOS: uma etapa de UMA pessoa, uma de DUAS --
+  // que prova que a linha agrupa em vez de repetir a etapa por vinculo -- e
+  // uma SEM responsavel, que e a resposta mais cara de *quem fez*.
+  { nome: "39f-pauta-da-equipe-busca", rota: "/painel/minhas-tasks?aba=equipe", largura: 1600, altura: 1100, role: "colaborador",
+    digitar: { onde: 'input[aria-label="Achar uma etapa pelo título"]', texto: "video" } },
 
   { nome: "40-aprovacoes-internas", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 1000, role: "desenvolvedor" },
   { nome: "41-aprovacoes-internas-socio", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 1000, role: "socio" },

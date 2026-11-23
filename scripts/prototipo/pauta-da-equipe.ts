@@ -5,14 +5,24 @@ import { hojeNaAgencia, segundaDaSemana, somarDias } from "@/lib/dominio/datas";
 // dali é a definição circular que o `tsc` recusa — é a forma do stub de
 // `minhas-tasks.ts`, pela mesma razão.
 import type {
+  BuscaNaPauta,
   CargaDaEquipe,
   DiaDaCarga,
+  EtapaAchada,
   PessoaNaPauta,
 } from "../../src/lib/dados/pauta-da-equipe";
 
 import { EQUIPE_EXEMPLO } from "./dados-exemplo";
 
-export type { CargaDaEquipe, DiaDaCarga, PessoaNaPauta };
+export type {
+  BuscaNaPauta,
+  CargaDaEquipe,
+  DiaDaCarga,
+  EtapaAchada,
+  PessoaNaPauta,
+};
+
+export const MINIMO_DA_BUSCA = 2;
 
 /**
  * A carga da equipe nesta semana, para o protótipo (0144, item 22).
@@ -75,3 +85,106 @@ export async function cargaDaEquipeNaSemana(): Promise<CargaDaEquipe | null> {
  * capacidade de 540 — que é a célula que responde a pergunta da tela.
  */
 const MINUTOS = [0, 120, 300, 480, 660, 180, 540];
+
+
+/**
+ * A BUSCA POR TÍTULO, para o protótipo (0147, item 1).
+ *
+ * ---------------------------------------------------------------------------
+ * ELA ACHA DE VERDADE, e não devolve lista fixa: o termo é comparado contra os
+ * títulos do exemplo, sem acento e sem caixa, como `sem_acento()` faz no banco.
+ * Com uma lista fixa a imagem sairia mostrando resultados que não casam com o
+ * que está escrito no campo — o ambiente de exemplo mostrando o produto num
+ * estado que ele não tem, que é a lição da duplicata do Cronograma.
+ *
+ * **E O CONJUNTO TEM OS TRÊS CASOS QUE A TELA DISTINGUE:** uma etapa de UMA
+ * pessoa, uma de DUAS — que é o que prova que a linha agrupa em vez de repetir
+ * a etapa — e uma SEM responsável, que é a resposta mais cara de *quem fez*.
+ * Com as três iguais a imagem provaria que a lista desenha, e não que ela
+ * distingue.
+ * ---------------------------------------------------------------------------
+ */
+export async function acharEtapaPeloTitulo(
+  termo: string,
+  limite = 40,
+): Promise<BuscaNaPauta> {
+  const limpo = termo.trim();
+  if (limpo.length < MINIMO_DA_BUSCA) {
+    return { termo: limpo, achadas: [], total: 0 };
+  }
+
+  const alvo = semAcento(limpo);
+  const casam = ETAPAS_ACHAVEIS.filter(
+    (e) =>
+      semAcento(e.etapa).includes(alvo) || semAcento(e.demanda).includes(alvo),
+  );
+
+  return {
+    termo: limpo,
+    achadas: casam.slice(0, limite),
+    total: casam.length,
+  };
+}
+
+/** O `sem_acento()` da 0073 em TypeScript — o mesmo conjunto fechado. */
+function semAcento(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+const ETAPAS_ACHAVEIS: EtapaAchada[] = [
+  {
+    subtaskId: "b1000000-0000-4000-8000-000000000001",
+    taskId: "a1000000-0000-4000-8000-000000000001",
+    etapa: "Vídeo institucional — roteiro",
+    demanda: "Campanha de verão",
+    cliente: "Mundo Verde",
+    status: "em_andamento",
+    prazo: null,
+    pessoas: [
+      {
+        id: EQUIPE_EXEMPLO[1].id,
+        nome: EQUIPE_EXEMPLO[1].nome,
+        avatar_url: null,
+      },
+    ],
+  },
+  {
+    subtaskId: "b1000000-0000-4000-8000-000000000002",
+    taskId: "a1000000-0000-4000-8000-000000000002",
+    etapa: "Vídeo para o feed — edição",
+    demanda: "Social de outubro",
+    cliente: "Óptica Visão",
+    status: "enviada_aprovacao",
+    prazo: null,
+    // DUAS PESSOAS NA MESMA ETAPA: é o que prova que a linha AGRUPA, e não
+    // repete a etapa uma vez por vínculo — a decisão de a juncão ser na tela.
+    pessoas: [
+      {
+        id: EQUIPE_EXEMPLO[2].id,
+        nome: EQUIPE_EXEMPLO[2].nome,
+        avatar_url: null,
+      },
+      {
+        id: EQUIPE_EXEMPLO[3].id,
+        nome: EQUIPE_EXEMPLO[3].nome,
+        avatar_url: null,
+      },
+    ],
+  },
+  {
+    subtaskId: "b1000000-0000-4000-8000-000000000003",
+    taskId: "a1000000-0000-4000-8000-000000000003",
+    etapa: "Vídeo do depoimento — captação",
+    demanda: "Lançamento da linha nova",
+    cliente: "Mundo Verde",
+    status: "nao_iniciada",
+    prazo: null,
+    // SEM RESPONSÁVEL, e ela é a linha que importa: etapa sem dono não está no
+    // "Minhas Tasks" de ninguém, e é justamente ela que uma busca precisa
+    // achar.
+    pessoas: [],
+  },
+];

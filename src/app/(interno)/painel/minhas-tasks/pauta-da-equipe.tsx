@@ -4,13 +4,20 @@ import { useState } from "react";
 
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarClock, Users } from "lucide-react";
+import { CalendarClock, Search, Users } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { DateBadge } from "@/components/shared/date-badge";
 import { DiaDeTrabalho } from "@/components/shared/dia-de-trabalho";
 import { EmptyState } from "@/components/shared/empty-state";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import type { CargaDaEquipe } from "@/lib/dados/pauta-da-equipe";
+import { Input } from "@/components/ui/input";
+import {
+  MINIMO_DA_BUSCA,
+  type BuscaNaPauta,
+  type CargaDaEquipe,
+} from "@/lib/dados/pauta-da-equipe";
 import type { DiaDeDisponibilidade } from "@/lib/dominio/disponibilidade";
 import {
   COR_DO_NIVEL,
@@ -75,6 +82,7 @@ export function PautaDaEquipe({
   prazos,
   usuarioId,
   souGestor,
+  busca,
   assumeAoMexer,
 }: {
   /** Nulo quando a leitura da carga falhou — a grade diz isso em vez de mentir. */
@@ -99,6 +107,15 @@ export function PautaDaEquipe({
   prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
+  /**
+   * O QUE A BUSCA ACHOU, ou nulo quando não há termo nenhum na URL.
+   *
+   * Ela vem de fora pela razão de `linhas` e de `diaEscolhido`: a leitura é
+   * `server-only`, e esta tela é desenhada por um componente de servidor que já
+   * a resolveu — uma Server Action no `onChange` custaria uma volta ao servidor
+   * por tecla digitada.
+   */
+  busca: BuscaNaPauta | null;
   /**
    * QUEM MEXE NUMA ETAPA DAQUI PASSA A SER O DONO DELA? É a GUARDA 3 da 0144
    * do lado de cá: o gatilho `quem_mexe_na_pauta_assume` não faz a passagem
@@ -133,6 +150,29 @@ export function PautaDaEquipe({
     else proximos.set("pessoa", id);
     if (dia === null) proximos.delete("dia");
     else proximos.set("dia", dia);
+    router.replace(`${caminho}?${proximos.toString()}`, { scroll: false });
+  }
+
+  /**
+   * O TERMO DA BUSCA MORA NA URL, como a pessoa e o dia — *"achei, olha quem
+   * fez"* precisa ser um link.
+   *
+   * **E ele só vai para lá no Enter ou no `blur`**, que é a assimetria da
+   * trilha de auditoria (0135): os outros controles desta tela são um clique, e
+   * este é texto. Levando cada tecla à URL, cada letra seria uma navegação de
+   * servidor e uma varredura nova sobre `subtasks` — e quem digita um termo
+   * sabe quando acabou de digitar.
+   *
+   * **`replace` e `scroll: false`**, como `escolher()` e pela mesma razão: o
+   * campo fica embaixo da grade, e o resultado aparece abaixo dele.
+   */
+  function buscar(valor: string) {
+    const limpo = valor.trim();
+    if (limpo === (busca?.termo ?? "")) return;
+
+    const proximos = new URLSearchParams(parametros.toString());
+    if (limpo === "") proximos.delete("busca");
+    else proximos.set("busca", limpo);
     router.replace(`${caminho}?${proximos.toString()}`, { scroll: false });
   }
 
@@ -373,6 +413,178 @@ export function PautaDaEquipe({
       </section>
 
       {/* ------------------------------------------------------------------
+          ACHAR A ETAPA PELO TÍTULO
+
+          Decisão do usuário, item 1: *"poder pesquisar por titulo, para achar
+          a task caso não lembre quem fez"*.
+
+          ELA VARRE A EQUIPE E NÃO A PESSOA ESCOLHIDA, e a razão é a segunda
+          metade da frase: uma busca que exige escolher o nome primeiro não
+          responde nada a quem não sabe o nome. Por isso a resposta de cada
+          linha é a PESSOA, e o clique nela é o que abre a pauta dela.
+
+          E ELA FICA AQUI, entre a grade e as duas seções de detalhe, porque a
+          grade e a busca são as duas PORTAS da mesma resposta e o dia e a
+          pauta são os quartos. *O que isso custa, e é dito:* o dia escolhido
+          desceu uma seção da grade que o abriu. São sessenta pixels de campo,
+          e a alternativa — a busca aparecer em outro lugar conforme houver um
+          dia escolhido — seria a tela se reorganizando debaixo de quem só
+          clicou numa célula.
+         ------------------------------------------------------------------ */}
+      <section
+        aria-labelledby="pauta-busca"
+        className="bg-card rounded-card shadow-cartao border-input space-y-3 border p-4"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2
+            id="pauta-busca"
+            className="text-text-primary flex items-center gap-2 text-sm font-semibold"
+          >
+            <Search aria-hidden className="size-4" />
+            Achar uma etapa pelo título
+          </h2>
+          <div className="relative">
+            <Search
+              aria-hidden
+              className="text-text-muted pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+            />
+            <Input
+              /* O CAMPO É SOLTO, COM `key` NA PALAVRA DA URL, e não um
+                 `useState` ressincronizado por efeito: `setState` no corpo de
+                 um efeito dispara renderização em cascata, e o `react-hooks`
+                 do projeto reprova. É a decisão da busca da auditoria. */
+              key={busca?.termo ?? ""}
+              defaultValue={busca?.termo ?? ""}
+              type="search"
+              aria-label="Achar uma etapa pelo título"
+              placeholder="Título da etapa ou da demanda…"
+              className="h-9 w-64 pl-8"
+              onBlur={(e) => buscar(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  buscar(e.currentTarget.value);
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        {/* A LINHA DE AJUDA DIZ O QUE A BUSCA ALCANÇA, e ela é a metade do
+            item 1 que não precisava de código: a pauta de cada pessoa é
+            DESDE SEMPRE — `carregar()` não tem janela de data nem filtro de
+            status —, e isso não se vê, porque a lista mora embaixo de uma
+            grade da semana corrente. Quem lê a grade tem motivo para ler a
+            lista de baixo como a semana daquele nome. */}
+        {busca === null ? (
+          <p className="text-text-secondary text-xs">
+            Procura em toda a pauta da equipe, desde sempre — pelo nome da etapa
+            ou da demanda. O resultado diz de quem ela é.
+          </p>
+        ) : busca.termo.length < MINIMO_DA_BUSCA ? (
+          <p className="text-text-secondary text-xs">
+            Escreva ao menos {MINIMO_DA_BUSCA} letras.
+          </p>
+        ) : busca.achadas.length === 0 ? (
+          /* AS DUAS FRASES DO VAZIO SÃO DUAS, como na trilha de auditoria: o
+             repouso diz o que a busca alcança, e esta diz que o termo não
+             achou — sem ela, quem procura e não acha conclui que a pauta não
+             guarda o trabalho antigo. */
+          <p className="text-text-secondary text-xs">
+            Nenhuma etapa com <strong>{busca.termo}</strong> no título, nem na
+            demanda. Rascunho não entra: ele é de quem o criou.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-text-secondary text-xs">
+              {busca.achadas.length === busca.total
+                ? `${busca.total} ${busca.total === 1 ? "etapa" : "etapas"}`
+                : /* O CORTE DIZ QUANTOS SOBRARAM, que é a regra do Resumo da
+                     Agência: cortar calado faz a pessoa concluir que aquilo é
+                     tudo. E o total conta ETAPAS e não linhas, porque uma
+                     etapa com duas pessoas é uma etapa. */
+                  `${busca.achadas.length} de ${busca.total} etapas — escreva mais para estreitar`}
+            </p>
+            <ul className="space-y-2">
+              {busca.achadas.map((a) => (
+                <li
+                  key={a.subtaskId}
+                  className="border-input bg-card rounded-card flex flex-wrap items-center gap-x-3 gap-y-1 border px-3 py-2"
+                >
+                  {/* O TÍTULO TEM PISO E É O PRIMEIRO A NÃO CEDER LARGURA:
+                      ele é a única coisa que a linha existe para dizer, e é a
+                      terceira vez que esta casa paga isso. */}
+                  <div className="min-w-[14rem] flex-1">
+                    <p className="text-text-primary truncate text-sm font-medium">
+                      {a.etapa}
+                    </p>
+                    <p className="text-text-muted truncate text-xs">
+                      {a.cliente ? `${a.cliente} · ` : ""}
+                      {a.demanda}
+                    </p>
+                  </div>
+
+                  <StatusBadge status={a.status} />
+                  {a.prazo ? <DateBadge date={a.prazo} /> : null}
+
+                  {/* A RESPOSTA DA BUSCA É A PESSOA, e cada uma é um BOTÃO:
+                      clicar nela escolhe aquele nome, e a pauta dela abre logo
+                      abaixo — que é o caminho inteiro do pedido.
+
+                      E O CLIQUE LIMPA O DIA, pela mesma razão de `escolher()`:
+                      o detalhe de uma célula de outra pessoa não diz nada
+                      sobre esta. */}
+                  {a.pessoas.length === 0 ? (
+                    /* SEM DONO A LINHA DIZ ISSO, em vez de sumir: "ninguém" é
+                       a resposta mais cara de *quem fez*, porque etapa sem
+                       responsável não está no "Minhas Tasks" de ninguém — o
+                       pior tipo de trabalho, o que existe e ninguém sabe que é
+                       seu. É `--warning` e nunca `--danger`: é um cadastro a
+                       completar, não um erro. */
+                    <span className="text-warning text-xs font-medium">
+                      Sem responsável
+                    </span>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {a.pessoas.map((pes) => (
+                        <button
+                          key={pes.id}
+                          type="button"
+                          onClick={() => escolher(pes.id, null)}
+                          aria-pressed={pes.id === pessoa?.id}
+                          /* O CHÃO DE REPOUSO É DA LINHA DE BASE e não de um
+                             ramo do ternário: o `check:cores` varre
+                             `rounded-full border` e cobra um `bg-` sem prefixo
+                             de estado ali — um chip cuja cor sai do ramo é um
+                             chip que toma o chão de quem o abriga quando
+                             alguém mexe no ternário. O `tailwind-merge` do
+                             `cn` deixa o ramo ativo ganhar. */
+                          className={cn(
+                            "border-input bg-card flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs transition",
+                            pes.id === pessoa?.id
+                              ? "bg-action-soft text-action-text border-transparent"
+                              : "text-text-secondary hover:border-action-text",
+                          )}
+                        >
+                          <UserAvatar
+                            name={pes.nome}
+                            src={pes.avatar_url}
+                            size="xs"
+                            tooltip={false}
+                          />
+                          {pes.nome}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
+
+      {/* ------------------------------------------------------------------
           O DIA ESCOLHIDO: o que ocupa aquele número
 
           ELE VEM ANTES DA PAUTA, encostado na grade que o abriu: ele é o
@@ -416,6 +628,23 @@ export function PautaDaEquipe({
             >
               A pauta de {pessoa.nome}
             </h2>
+            {/* "DESDE SEMPRE" É DITO, e é a metade do item 1 que não precisava
+                de código: `carregar()` traz toda demanda publicada em que ela
+                tem uma folha, sem janela de data e sem filtro de status, e a
+                lista agrupa pelos seis status escondendo só grupo vazio.
+
+                A FRASE EXISTE PORQUE A GRADE ACIMA É DA SEMANA CORRENTE: quem
+                clica num nome ali tem motivo para ler esta lista como a semana
+                daquele nome, e a ambiguidade é da composição da tela, não da
+                consulta. Ela some junto com a lista vazia, porque aí não há o
+                que qualificar. */}
+            {linhas.length > 0 ? (
+              <p className="text-text-muted text-xs">
+                {linhas.length}{" "}
+                {linhas.length === 1 ? "etapa" : "etapas"}, de todos os meses —
+                não só desta semana.
+              </p>
+            ) : null}
             {/* A FRASE DO ITEM 23, e ela fica AQUI e não num aviso no topo:
                 quem lê isto está a um clique de mexer numa etapa que não é
                 dele, e a consequência precisa estar encostada no lugar onde

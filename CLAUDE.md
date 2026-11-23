@@ -3468,6 +3468,116 @@ que mostra a linha do corte em três. **E as três fatias são desiguais** —
 três iguais a imagem provaria que a coluna de minutos existe e não que ela
 ALINHA, que é o trabalho do `tabular-nums` ali.
 
+##### A PAUTA É DESDE SEMPRE, E SE ACHA PELO TÍTULO (0147)
+
+Decisão do usuário, em duas frases: *"preciso que a pauta que apareça seja toda
+a pauta da pessoa, desde sempre. e poder pesquisar por titulo, para achar a
+task caso não lembre quem fez"*.
+
+**A PRIMEIRA METADE JÁ ERA VERDADE, e o que faltava era a tela DIZER.**
+`carregar()` em `lib/dados/minhas-tasks.ts` não tem janela de data nem filtro
+de status, a seção chama `minhasTasks(pessoa.id, null, prazos)` — o `null` é o
+foco — e `MinhaLista` só esconde grupo VAZIO. A pauta sempre foi inteira; o que
+a fazia parecer semanal é a vizinhança: **ela mora embaixo de uma grade da
+semana corrente**, e quem lê tem razão de ler a lista como o mesmo recorte. A
+linha no cabeçalho — *"N etapas, de todos os meses — não só desta semana"* — é
+a entrega dessa metade, e ela é uma frase e não SQL.
+
+##### A BUSCA É DA EQUIPE INTEIRA, e a frase dele é que decide isso
+
+*"Caso não lembre quem fez"* — **uma busca que exige escolher o nome primeiro
+não responde nada a quem não sabe o nome.** Então ela varre a equipe toda e a
+resposta de cada linha é a PESSOA; clicar nela abre a pauta daquela pessoa, que
+é o caminho que a seção já tinha. A grade continua sendo a porta do dia a dia,
+e a busca é a porta de quem chegou com o nome de uma peça na cabeça.
+
+**E ELA NÃO É `security definer`, que é a linha que mais importa.**
+`subtasks_select` é `is_staff()` desde a 0007 e `profiles_select` passou a ser
+`is_staff() and role <> 'cliente'` na 0132 — a RLS **já permite**, então uma
+função comum deixa a policy de cada tabela valer dentro dela. É a forma de
+`busca_global()` (0073), e é ela que impede a busca de ser a porta dos fundos
+de `subtasks`: `definer` não destravaria nada e entregaria a pauta da agência a
+quem tiver a chave anon. **Medido com mutação: virando `definer`, a CLIENTE
+passa a achar quatro linhas da pauta da agência.**
+
+**ENTÃO POR QUE UMA FUNÇÃO DE BANCO, se a RLS já permite?** Por uma coisa só:
+`sem_acento()` (0073) é `immutable` e não pode ficar do lado ESQUERDO de um
+filtro do PostgREST — buscar "midia" tem de achar "mídia", e em locale C
+`lower()` não dobra acento. É a mesma razão pela qual a busca global existe
+como função, e é por isso que esta não é um `.ilike()` em `lib/dados/`.
+
+**A COMPARAÇÃO É `strpos` E NÃO `like`**, pela razão da 0073: com `like
+'%termo%'` quem busca "100%" busca qualquer coisa — o `%` vira curinga. E
+`strpos` devolve ONDE casou, que é a ordenação: posição 1 é casamento no começo
+do título, então digitar "vid" põe "Vídeo institucional" acima de "Refazer o
+vídeo".
+
+**E ELA CASA COM O TÍTULO DA DEMANDA TAMBÉM**, que é a outra metade do pedido:
+quem lembra a campanha e não a etapa acha pela campanha. A linhagem volta na
+linha — cliente, demanda, etapa —, que é o que faz a resposta ser reconhecível
+sem abrir nada.
+
+**UMA LINHA POR (ETAPA, PESSOA), e quem agrupa é a TELA.** A tentação é um
+`jsonb` de pessoas dentro do `returns table`, e ele é um molde que nenhuma
+verificação olha: **`check:tipos` liga coluna e parâmetro, e não confere a
+FORMA de um `returns table`**. Uma etapa com duas pessoas volta em duas linhas,
+e o `Map` da leitura as junta preservando a ordem.
+
+**E `total` CONTA ETAPAS E NÃO LINHAS, contado ANTES do corte** — ele é
+`count(*) over ()` dentro do CTE que acha, não depois do `join` com as pessoas:
+senão uma demanda de vinte etapas com duas pessoas cada diria quarenta, e o
+número que a tela escreve falaria de uma coisa que a pessoa não vê. **O corte é
+por ETAPA também**, porque cortando LINHAS a última etapa da lista sairia com
+uma das duas pessoas dela — pior que sair fora. E ele **diz quantos sobraram**,
+que é a regra do Resumo da Agência: *cortar calado faz a pessoa concluir que
+aquilo é tudo*.
+
+**A AGRUPADORA FICA FORA**, por `subtask_eh_agrupadora()` (0022) e não por uma
+segunda pergunta: ela não é unidade de trabalho desde que ganhou a primeira
+filha, e achá-la numa busca de trabalho levaria a uma etapa cujo relógio não
+corre. **E o RASCUNHO fica fora pela consulta e não pela RLS** — a restritiva
+da 0028 esconde o dos OUTROS, e o `publicada_em is not null` esconde o MEU, que
+é o par escrito desde aquela migration. *O cenário que mede isso tem a demanda
+de rascunho criada por quem busca*: sem isso ele mediria a RLS e a mutação não
+derrubaria nada.
+
+**O PISO É DE DUAS LETRAS**, o da paleta: com uma letra a varredura devolve
+quase a tabela, e o que chega à tela não é resposta. **Medido: com piso de uma,
+a busca por "v" devolve dez linhas.**
+
+**E O CAMPO SÓ VAI PARA A URL NO ENTER (ou no `blur`)**, ao contrário dos
+outros recortes desta tela — é a decisão da busca da auditoria (0135): os
+outros são um clique, e este é texto; levando cada tecla à URL, cada letra
+seria uma navegação de servidor e uma consulta nova. **E não é o debounce de
+600 ms da tela de task**: lá o campo é a coisa que se GRAVA, aqui ele é o
+recorte de uma lista — quem digita um termo sabe quando acabou.
+
+**A SEÇÃO DA BUSCA VEM DEPOIS DA GRADE E ANTES DO DIA ESCOLHIDO**, e o custo é
+dito em vez de escondido: ela empurra o painel do dia uns 120px para baixo em
+toda visita, inclusive nas que não buscam nada. Acima da grade ela seria a
+primeira coisa de uma tela cuja pergunta é *quem está sobrecarregado nesta
+semana* — e essa se responde varrendo uma coluna, não digitando.
+
+**São QUATRO estados e não dois:** sem termo a seção é só o campo; com uma
+letra ela diz o piso; sem resultado ela diz que não achou **com o termo
+dentro**, senão quem não achou conclui que a etapa não existe; e com resultado
+ela diz quantas achou e quantas ficaram fora do corte.
+
+***E a imagem precisou de um termo digitado*** (`39f`), porque a seção em
+repouso é um campo vazio: sem ela, nem a linha do resultado nem os chips de
+pessoa sairiam em imagem nenhuma. O stub do protótipo **casa de verdade** —
+com `semAcento` próprio, por `normalize("NFD")` — em vez de devolver uma lista
+fixa: uma lista fixa fotografaria o stub e não a busca, que é a lição da
+duplicata do Cronograma. E o exemplo tem três casos: uma etapa de uma pessoa,
+uma de DUAS (que é o que prova o agrupamento da tela) e uma SEM dono.
+
+***E a bateria ganhou treze cenários, todos por `conferir_como`*** — a função é
+`invoker`, então medir como dono do banco não mediria nada. A fixture deles é
+uma SEGUNDA demanda publicada, e não quatro etapas na primeira: o cenário de
+cima conta *as cinco etapas da demanda*, e pendurá-las ali trocaria o número de
+um cenário que mede outra coisa — quem lesse a falha iria atrás da policy, que
+está certa.
+
 ### Dependências
 
 Uma subtarefa pode depender de outras da mesma Task. Enquanto a dependência não

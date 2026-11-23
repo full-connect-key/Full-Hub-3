@@ -19,7 +19,10 @@ import {
 import { resumoDaHome } from "@/lib/dados/home";
 import { minhasNovidades } from "@/lib/dados/novidades";
 import { disponibilidadeDe } from "@/lib/dados/disponibilidade";
-import { cargaDaEquipeNaSemana } from "@/lib/dados/pauta-da-equipe";
+import {
+  acharEtapaPeloTitulo,
+  cargaDaEquipeNaSemana,
+} from "@/lib/dados/pauta-da-equipe";
 import type { FocoDoDia } from "@/lib/dominio/tasks";
 
 import { saudacaoDaAgencia } from "@/lib/dominio/datas";
@@ -127,6 +130,7 @@ async function ConteudoDaEquipe({
   souGestor,
   pessoaPedida,
   diaPedido,
+  termoPedido,
   barra,
 }: {
   usuarioId: string;
@@ -134,6 +138,7 @@ async function ConteudoDaEquipe({
   souGestor: boolean;
   pessoaPedida: string;
   diaPedido: string;
+  termoPedido: string;
   barra: React.ReactNode;
 }) {
   const prazos = prazosDeHoje();
@@ -171,7 +176,7 @@ async function ConteudoDaEquipe({
   const dia =
     pessoa && carga?.dias.includes(diaPedido) ? diaPedido : null;
 
-  const [linhas, diaEscolhido] = await Promise.all([
+  const [linhas, diaEscolhido, busca] = await Promise.all([
     pessoa
       ? minhasTasks(pessoa.id, null, prazos).then(montarLinhas)
       : Promise.resolve([]),
@@ -186,6 +191,14 @@ async function ConteudoDaEquipe({
           (dias) => dias[0] ?? null,
         )
       : Promise.resolve(null),
+    // A BUSCA NÃO DEPENDE DA PESSOA ESCOLHIDA, e é a decisão inteira dela: o
+    // pedido é *"para achar a task caso não lembre quem fez"*, então uma busca
+    // recortada por um nome não responde a quem não sabe o nome. Ela corre em
+    // paralelo com a pauta porque as duas são perguntas independentes.
+    //
+    // E ela só acontece quando há termo: sem ele, nenhuma varredura sobre
+    // `subtasks` — a tela mostra a linha que diz o que a busca alcança.
+    termoPedido ? acharEtapaPeloTitulo(termoPedido) : Promise.resolve(null),
   ]);
 
   return (
@@ -208,6 +221,7 @@ async function ConteudoDaEquipe({
         prazos={prazos}
         usuarioId={usuarioId}
         souGestor={souGestor}
+        busca={busca}
         assumeAoMexer={!souGestor && !ehDoAtendimento}
       />
     </>
@@ -236,6 +250,7 @@ export default async function PaginaDeMinhasTasks({
 
   const pessoaPedida = typeof params.pessoa === "string" ? params.pessoa : "";
   const diaPedido = typeof params.dia === "string" ? params.dia : "";
+  const termoPedido = typeof params.busca === "string" ? params.busca : "";
 
   const nome = primeiroNome(sessao.profile.nome);
 
@@ -254,6 +269,7 @@ export default async function PaginaDeMinhasTasks({
             souGestor={ehGestor(sessao.profile.role)}
             pessoaPedida={pessoaPedida}
             diaPedido={diaPedido}
+            termoPedido={termoPedido}
             barra={barra}
           />
         ) : (

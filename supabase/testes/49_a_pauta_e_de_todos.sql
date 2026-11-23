@@ -14,6 +14,16 @@
 \set ETAPA_D '''49000000-0000-0000-0000-0000000000e4'''
 \set FASE    '''49000000-0000-0000-0000-0000000000e5'''
 
+-- AS ETAPAS DA BUSCA POR TITULO (0147). Elas sao cinco e nenhuma e de enfeite:
+-- cada uma e um caso que a busca precisa distinguir.
+\set ETAPA_V '''49000000-0000-0000-0000-0000000000e6'''
+\set ETAPA_G '''49000000-0000-0000-0000-0000000000e7'''
+\set ETAPA_F '''49000000-0000-0000-0000-0000000000e8'''
+\set ETAPA_S '''49000000-0000-0000-0000-0000000000e9'''
+\set DEMANDA_V '''49000000-0000-0000-0000-0000000000d3'''
+\set RASCUNHO '''49000000-0000-0000-0000-0000000000d2'''
+\set ETAPA_R '''49000000-0000-0000-0000-0000000000ea'''
+
 -- ===========================================================================
 -- 49 - A PAUTA E DE TODOS, E QUEM MEXE NELA ASSUME (migration 0144)
 --
@@ -95,6 +105,71 @@ values
 update public.subtasks
    set requer_aprovacao = true, tipo_aprovacao = 'cliente'
  where id = :ETAPA_A;
+
+
+-- ---------------------------------------------------------------------------
+-- A SEGUNDA DEMANDA, E ELA EXISTE PARA A BUSCA POR TITULO (0147)
+--
+-- Ela e uma SEGUNDA e nao mais quatro etapas na primeira, por uma razao de
+-- medicao: o cenario de cima conta *as cinco etapas da demanda*, e pendurar
+-- as da busca ali trocaria o numero de um cenario que mede outra coisa --
+-- quem lesse a falha iria atras da policy, que esta certa.
+--
+-- E o titulo dela NAO carrega "video", de proposito: a busca casa com o
+-- titulo da DEMANDA tambem, entao um titulo com o termo dentro faria toda
+-- etapa dela casar e as distincoes abaixo deixariam de distinguir nada.
+--
+-- SAO CINCO ETAPAS E NENHUMA E DE ENFEITE -- cada uma e um caso:
+--
+--   `Video institucional`  uma pessoa, e o ACENTO: buscar "video" sem acento
+--                          tem de achar "Video" com ele, que e o que
+--                          `sem_acento()` (0073) existe para fazer e o que
+--                          nenhuma etapa da fixture antiga podia provar,
+--                          porque os titulos de lá sao todos sem acento
+--   `Videos do mes`        a AGRUPADORA, que fica fora da busca (0022)
+--   `Video 1 do mes`       a filha dela, que entra -- e ela tem DUAS pessoas,
+--                          entao ela volta em DUAS linhas
+--   `Video sem dono`       sem responsavel, que e um estado que o produto
+--                          desenha (0114): ela volta com a pessoa nula
+--   `Video do rascunho`    numa demanda NAO publicada, e a demanda e DO BRUNO
+--                          -- sem isso o cenario mediria a RLS restritiva da
+--                          0028 e nao o `publicada_em is not null` da funcao
+-- ---------------------------------------------------------------------------
+insert into public.tasks
+  (id, client_id, titulo, status, criado_por, publicada_em, link_entrega)
+values
+  (:DEMANDA_V, :VERDE, 'Institucional do trimestre', 'nao_iniciada', :CARLA,
+   now(), 'https://drive.google.com/drive/folders/institucional');
+
+insert into public.subtasks
+  (id, task_id, titulo, status, responsavel_id, prazo, ordem)
+values
+  (:ETAPA_V, :DEMANDA_V, 'Vídeo institucional', 'nao_iniciada', :BRUNO, '2027-05-10', 1),
+  (:ETAPA_G, :DEMANDA_V, 'Videos do mes',       'nao_iniciada', :BRUNO, '2027-05-12', 2),
+  (:ETAPA_S, :DEMANDA_V, 'Video sem dono',      'nao_iniciada', null,   '2027-05-16', 4);
+
+-- A FILHA ENTRA DEPOIS DA MAE, senao nao ha a quem pendurar -- e e o insert
+-- dela que faz da `Videos do mes` uma agrupadora.
+insert into public.subtasks
+  (id, task_id, parent_id, titulo, status, responsavel_id, prazo, ordem)
+values
+  (:ETAPA_F, :DEMANDA_V, :ETAPA_G, 'Video 1 do mes', 'nao_iniciada', :MARINA,
+   '2027-05-14', 1);
+
+insert into public.subtask_responsaveis (subtask_id, user_id)
+values (:ETAPA_F, :RAFAEL)
+on conflict do nothing;
+
+-- O RASCUNHO E DO BRUNO, e e ele quem busca nos cenarios abaixo.
+insert into public.tasks
+  (id, client_id, titulo, status, criado_por, publicada_em)
+values
+  (:RASCUNHO, :VERDE, 'Pensando no trimestre', 'nao_iniciada', :BRUNO, null);
+
+insert into public.subtasks
+  (id, task_id, titulo, status, responsavel_id, ordem)
+values
+  (:ETAPA_R, :RASCUNHO, 'Video do rascunho', 'nao_iniciada', :BRUNO, 1);
 
 
 -- ---------------------------------------------------------------------------
@@ -425,3 +500,128 @@ select teste.conferir('E a pergunta do vinculo nao e alcancavel de fora',
     has_function_privilege('anon', 'public.e_responsavel_pela_etapa(uuid,uuid)', 'EXECUTE')::text,
     has_function_privilege('authenticated', 'public.e_responsavel_pela_etapa(uuid,uuid)', 'EXECUTE')::text),
   'false|false');
+
+
+-- ---------------------------------------------------------------------------
+-- 12. ACHAR A ETAPA PELO TITULO (migration 0147)
+--
+-- Decisao do usuario, na segunda metade do item 1: *"poder pesquisar por
+-- titulo, para achar a task caso nao lembre quem fez"*.
+--
+-- A FRASE DECIDE QUE A BUSCA E DA EQUIPE INTEIRA, e nao da pessoa escolhida:
+-- uma busca que exige o nome primeiro nao responde nada a quem nao lembra o
+-- nome. Entao a resposta de cada linha e a PESSOA, e e por isso que os
+-- cenarios abaixo leem `pessoa` e nao so contam.
+--
+-- E ELA E `invoker` E NAO `security definer`, que e a linha que mais importa:
+-- a RLS de `subtasks` (0007) e de `profiles` (0132) ja permite, e manter a
+-- funcao `invoker` e o que impede ela de ser a porta dos fundos da tabela.
+-- Por isso TODO cenario desta secao passa por `conferir_como`, que entra como
+-- `authenticated` e seta o `sub` -- medir como dono do banco nao mediria nada.
+-- ---------------------------------------------------------------------------
+
+-- O CENARIO DO PEDIDO: o Bruno, que e Design e nao e gestao, acha a etapa da
+-- Marina sem saber que ela e da Marina -- e a busca diz de quem ela e.
+select teste.conferir_como('O Bruno acha a etapa de outra pessoa, e a busca diz de quem ela e',
+  :BRUNO,
+  $q$select string_agg(pessoa, ', ' order by pessoa)
+       from public.pauta_por_titulo('video 1')$q$,
+  'Marina Costa, Rafael Dias');
+
+-- O ACENTO NAO IMPORTA, nos dois sentidos -- e e o unico cenario da bateria
+-- que mede isso num titulo de etapa, porque os titulos da fixture antiga sao
+-- todos sem acento.
+select teste.conferir_como('O acento nao importa: "video" acha "Video"',
+  :BRUNO,
+  $q$select etapa from public.pauta_por_titulo('video institucional')$q$,
+  'Vídeo institucional');
+
+select teste.conferir_como('E a caixa tambem nao',
+  :BRUNO,
+  $q$select etapa from public.pauta_por_titulo('VIDEO INSTITUCIONAL')$q$,
+  'Vídeo institucional');
+
+-- O PISO DE DUAS LETRAS, que e o que impede uma letra de varrer a agencia
+-- inteira enquanto a pessoa digita.
+select teste.conferir_como('Uma letra nao busca nada',
+  :BRUNO,
+  $q$select count(*)::text from public.pauta_por_titulo('v')$q$,
+  '0');
+
+-- A AGRUPADORA FICA FORA E A FILHA ENTRA, e os dois num cenario so: "do mes"
+-- casa com as duas, e so uma volta.
+select teste.conferir_como('A agrupadora fica fora da busca, e a filha dela entra',
+  :BRUNO,
+  $q$select string_agg(distinct etapa, ' + ' order by etapa)
+       from public.pauta_por_titulo('do mes')$q$,
+  'Video 1 do mes');
+
+-- A ETAPA SEM DONO VOLTA, DIZENDO QUE NAO TEM -- descarta-la seria esconder
+-- justamente o pior tipo de trabalho, o que existe e ninguem sabe que e seu.
+select teste.conferir_como('A etapa sem dono volta, com a pessoa nula',
+  :BRUNO,
+  $q$select format('%s|%s', etapa, coalesce(pessoa, 'sem dono'))
+       from public.pauta_por_titulo('video sem dono')$q$,
+  'Video sem dono|sem dono');
+
+-- O RASCUNHO FICA FORA, E ELE E DO BRUNO: os dois cenarios juntos e que
+-- separam as duas metades -- o segundo prova que a RLS DEIXA ele ler a etapa,
+-- entao quem a esconde da busca e o `publicada_em is not null` da funcao.
+select teste.conferir_como('O rascunho fica fora da busca',
+  :BRUNO,
+  $q$select count(*)::text from public.pauta_por_titulo('video do rascunho')$q$,
+  '0');
+
+select teste.conferir_como('E nao e a RLS que o esconde: o rascunho e dele, e ele le a etapa',
+  :BRUNO,
+  format($q$select count(*)::text from public.subtasks where id = %L$q$, :ETAPA_R),
+  '1');
+
+-- A SEGUNDA PESSOA E UMA SEGUNDA LINHA, E `total` CONTA ETAPAS.
+--
+-- E o cenario que separa linha de etapa, e ele existe porque a funcao devolve
+-- uma linha por (etapa, pessoa) de proposito: `check:tipos` nao confere a
+-- FORMA de um `returns table`, entao um jsonb de pessoas ali seria um molde
+-- que nenhuma verificacao olha. Quem agrupa e a tela, e `total` e o que ela
+-- usa para dizer quantas ficaram de fora do corte.
+--
+-- "video" casa com quatro etapas e volta tres: a institucional (1 linha), a
+-- filha (2 linhas, duas pessoas), a sem dono (1 linha) -- a agrupadora e o
+-- rascunho ficam fora.
+select teste.conferir_como('Sao quatro linhas para tres etapas, e o total conta as etapas',
+  :BRUNO,
+  $q$select format('%s linhas, total %s', count(*), max(total))
+       from public.pauta_por_titulo('video')$q$,
+  '4 linhas, total 3');
+
+-- E A BUSCA CASA COM O TITULO DA DEMANDA TAMBEM, que e a outra metade do
+-- pedido -- quem lembra a campanha e nao a etapa acha pela campanha. E a
+-- linha volta com o nome da conta, que e o join com `clients`.
+select teste.conferir_como('O nome da demanda tambem acha, e a linha diz a conta',
+  :BRUNO,
+  $q$select distinct cliente
+       from public.pauta_por_titulo('institucional do trimestre')$q$,
+  'Mundo Verde');
+
+-- E A CLIENTE NAO ACHA NADA, que e o cenario que prova a decisao do
+-- `invoker`: a RLS de `subtasks` vale DENTRO da funcao. Com `security
+-- definer` ela devolveria a pauta da agencia para quem contratou.
+select teste.conferir_como('A Joana nao acha etapa nenhuma',
+  :JOANA,
+  $q$select count(*)::text from public.pauta_por_titulo('video')$q$,
+  '0');
+
+-- E O PRIVILEGIO E MEDIDO, nao a mensagem de recusa -- a licao da 0071: uma
+-- funcao pode recusar por dentro e continuar executavel pelo `anon`, e ai o
+-- que se mediu foi o corpo dela e nao a porta.
+select teste.conferir('O anon nao executa a busca da pauta',
+  format('%s|%s',
+    has_function_privilege('anon', 'public.pauta_por_titulo(text,integer)', 'EXECUTE')::text,
+    has_function_privilege('authenticated', 'public.pauta_por_titulo(text,integer)', 'EXECUTE')::text),
+  'false|true');
+
+-- E ELA NAO E `security definer`, medido no catalogo e nao na intencao.
+select teste.conferir('E ela nao e security definer',
+  (select prosecdef::text from pg_proc
+    where oid = 'public.pauta_por_titulo(text,integer)'::regprocedure),
+  'false');

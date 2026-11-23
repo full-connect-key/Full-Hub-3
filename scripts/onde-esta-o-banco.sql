@@ -1051,7 +1051,14 @@ from (
     ('0146', 'a pasta nao e exigida da rotina (PASSO 1, a trava)', 'no_corpo',
              'tasks_publicar_exige_minimo|full_hub.sem_pasta'),
     ('0146', 'a conta sem pasta avisa (PASSO 2, a rotina)', 'no_corpo',
-             'gerar_ocorrencia|ainda nao tem pasta de entrega na ficha')
+             'gerar_ocorrencia|ainda nao tem pasta de entrega na ficha'),
+    -- A 0147 cria UMA funcao e nada mais, entao e UMA linha -- e ela aponta
+    -- para o CORPO e nao para a existencia: `pauta_por_titulo` poderia um dia
+    -- ser recriada sem a tabela da 0114, e o que a busca precisa dizer e DE
+    -- QUEM a etapa e. O trecho e `subtask_responsaveis`, que e a unica coisa
+    -- do corpo que uma versao errada perderia.
+    ('0147', 'a busca por titulo le a tabela da 0114', 'no_corpo',
+             'pauta_por_titulo|subtask_responsaveis')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

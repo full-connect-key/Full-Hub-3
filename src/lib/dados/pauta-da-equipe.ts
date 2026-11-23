@@ -5,6 +5,7 @@ import { cache } from "react";
 import { ouFalha } from "@/lib/dados/consulta";
 import { hojeNaAgencia, segundaDaSemana, somarDias } from "@/lib/dominio/datas";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/database.types";
 
 /**
  * A CARGA DA EQUIPE NESTA SEMANA — a primeira leitura de `carga_da_equipe()`.
@@ -157,3 +158,115 @@ export const cargaDaEquipeNaSemana = cache(
     return { dias, hoje: dias.includes(hoje) ? hoje : null, pessoas };
   },
 );
+
+/** O status da etapa, como o banco o devolve — nunca `string`: `StatusBadge`
+ * pede o tipo, e um `string` aqui obrigaria a tela a converter. */
+type StatusDaSubtarefa = Database["public"]["Enums"]["subtask_status"];
+
+/**
+ * UMA ETAPA ACHADA PELO TÍTULO, com a PESSOA que a faz.
+ *
+ * `pessoa` é nula quando a etapa não tem responsável — e a tela escreve isso,
+ * em vez de esconder a linha: *"ninguém"* é a resposta mais cara de **quem
+ * fez**, porque etapa sem dono não aparece no "Minhas Tasks" de ninguém.
+ */
+export type EtapaAchada = {
+  subtaskId: string;
+  taskId: string;
+  etapa: string;
+  demanda: string;
+  cliente: string | null;
+  status: StatusDaSubtarefa;
+  prazo: string | null;
+  pessoas: { id: string; nome: string; avatar_url: string | null }[];
+};
+
+export type BuscaNaPauta = {
+  termo: string;
+  achadas: EtapaAchada[];
+  /** Quantas ETAPAS casaram no total — o número ANTES do corte. */
+  total: number;
+};
+
+/** O piso de duas letras, o mesmo da paleta de busca (0073). */
+export const MINIMO_DA_BUSCA = 2;
+
+/**
+ * ACHAR A ETAPA PELO TÍTULO — a segunda metade do pedido, *"poder pesquisar
+ * por titulo, para achar a task caso não lembre quem fez"*.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA VARRE A EQUIPE E NÃO A PESSOA ESCOLHIDA**, e a razão está na segunda
+ * metade da frase: uma busca que exige escolher o nome primeiro não responde
+ * nada a quem não sabe o nome. Por isso a resposta de cada linha é a PESSOA.
+ *
+ * **A PRIMEIRA METADE DO PEDIDO JÁ ERA VERDADE**, e ir medir antes de escrever
+ * é o que fez esta entrega ser uma função: `carregar()` em
+ * `lib/dados/minhas-tasks.ts` traz toda demanda publicada em que a pessoa tem
+ * uma folha, sem janela de data e sem filtro de status; a seção chama
+ * `minhasTasks(pessoa.id, null, …)`, e o `null` é o foco; e `MinhaLista`
+ * esconde grupo VAZIO e nada mais. A pauta já era desde sempre — o que faltava
+ * era a tela DIZER isso, porque ela mora embaixo de uma grade da semana.
+ *
+ * **O AGRUPAMENTO POR ETAPA É AQUI E NÃO NO BANCO.** A função devolve uma
+ * linha por (etapa, pessoa) de propósito: juntar as pessoas em SQL pediria um
+ * `jsonb` no `returns table`, e `check:tipos` liga coluna e parâmetro e **não**
+ * confere a forma de um `returns table` — seria um molde que nenhuma
+ * verificação olha. É a decisão do marcador do carrossel: *a conta é na tela*.
+ * ---------------------------------------------------------------------------
+ */
+export async function acharEtapaPeloTitulo(
+  termo: string,
+  limite = 40,
+): Promise<BuscaNaPauta> {
+  const limpo = termo.trim();
+
+  // O PISO É CONFERIDO DOS DOIS LADOS, e aqui ele poupa a ida ao banco: a
+  // função também devolve vazio com menos de duas letras, então quem montar a
+  // chamada à mão recebe a mesma resposta.
+  if (limpo.length < MINIMO_DA_BUSCA) {
+    return { termo: limpo, achadas: [], total: 0 };
+  }
+
+  const supabase = await criarClienteServidor();
+
+  const linhas = ouFalha(
+    "busca na pauta da equipe",
+    await supabase.rpc("pauta_por_titulo", {
+      p_termo: limpo,
+      p_limite: limite,
+    }),
+  );
+
+  // UMA ENTRADA POR ETAPA, na ordem em que o banco devolveu -- `Map` preserva
+  // a ordem de insercao, e e ela que carrega o `strpos` e o prazo.
+  const porEtapa = new Map<string, EtapaAchada>();
+  let total = 0;
+
+  for (const linha of linhas ?? []) {
+    total = linha.total;
+
+    const achada = porEtapa.get(linha.subtask_id) ?? {
+      subtaskId: linha.subtask_id,
+      taskId: linha.task_id,
+      etapa: linha.etapa,
+      demanda: linha.demanda,
+      cliente: linha.cliente,
+      status: linha.status,
+      prazo: linha.prazo,
+      pessoas: [],
+    };
+
+    if (linha.pessoa_id && linha.pessoa) {
+      achada.pessoas.push({
+        id: linha.pessoa_id,
+        nome: linha.pessoa,
+        avatar_url: linha.avatar_url,
+      });
+    }
+
+    porEtapa.set(linha.subtask_id, achada);
+  }
+
+  return { termo: limpo, achadas: [...porEtapa.values()], total };
+}

@@ -5112,6 +5112,37 @@ export interface Database {
         }[];
       };
       /**
+       * ACHAR A ETAPA PELO TÍTULO, para descobrir de quem ela é (0147).
+       *
+       * Ela **não** é `security definer`, e essa é a linha que importa:
+       * `subtasks_select` é `is_staff()` desde a 0007 e `profiles_select` é
+       * `is_staff() and role <> 'cliente'` desde a 0132 — a RLS já permite, e
+       * a policy valer dentro dela é o que impede a busca de ser a porta dos
+       * fundos de `subtasks`. Ela existe por uma razão mecânica: `sem_acento()`
+       * (0073) não cabe do lado esquerdo de um filtro do PostgREST.
+       *
+       * **Uma linha por (etapa, pessoa)**, e a etapa sem dono vem com
+       * `pessoa_id` nulo — "ninguém" é a resposta mais cara de *quem fez*,
+       * porque etapa sem responsável não está no "Minhas Tasks" de ninguém.
+       * `total` conta ETAPAS e é calculado antes do corte.
+       */
+      pauta_por_titulo: {
+        Args: { p_termo: string; p_limite?: number };
+        Returns: {
+          subtask_id: string;
+          task_id: string;
+          etapa: string;
+          demanda: string;
+          cliente: string | null;
+          status: Database["public"]["Enums"]["subtask_status"];
+          prazo: string | null;
+          pessoa_id: string | null;
+          pessoa: string | null;
+          avatar_url: string | null;
+          total: number;
+        }[];
+      };
+      /**
        * A CAMADA DE INDICADORES (0035).
        *
        * As quatro são `security definer` e recusam na PRIMEIRA linha quem não
