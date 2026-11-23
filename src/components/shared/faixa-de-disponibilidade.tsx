@@ -5,6 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
+import { DiaDeTrabalho } from "@/components/shared/dia-de-trabalho";
 import { Button } from "@/components/ui/button";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import type { Resultado } from "@/lib/acoes/resultado";
@@ -76,6 +77,11 @@ import { cn } from "@/lib/utils";
  * de 512px: cabe o número e um fio de carga, e mais nada — nem um título de
  * etapa truncado, que não identifica nenhuma. O detalhe fica numa faixa logo
  * abaixo, onde há largura para o cliente e os minutos.
+ *
+ * **E ESSA FAIXA SAIU DAQUI**, para `components/shared/dia-de-trabalho.tsx`:
+ * a grade da pauta da equipe passou a abrir o mesmo detalhe, e as duas
+ * respondem a mesma pergunta — *o que é esse número?*. A razão inteira mora no
+ * cabeçalho dela.
  */
 
 type Props = {
@@ -420,7 +426,7 @@ export function FaixaDeDisponibilidade({
           a informação em vez de dá-la. O que o período precisa dizer é o
           total e quantos dias apertam. */}
       {diasEscolhidos.length === 1 ? (
-        <DiaEscolhido dia={diasEscolhidos[0]} />
+        <DiaDeTrabalho dia={diasEscolhidos[0]} />
       ) : diasEscolhidos.length > 1 ? (
         <PeriodoEscolhido dias={diasEscolhidos} />
       ) : null}
@@ -541,52 +547,6 @@ function Celula({
         )}
       />
     </button>
-  );
-}
-
-function DiaEscolhido({ dia }: { dia: DiaDeDisponibilidade }) {
-  const motivo = rotuloDoMotivo(dia.indisponivelMotivo);
-  const dataLegivel = format(parseISO(dia.data), "EEEE, d 'de' MMMM", { locale: ptBR });
-
-  return (
-    <div className="bg-accent space-y-1.5 rounded-lg px-3 py-2">
-      <p className="text-accent-strong text-xs font-semibold first-letter:uppercase">
-        {dataLegivel}
-        {dia.capacidadeMinutos > 0
-          ? ` · ${formatarMinutosCurto(dia.cargaMinutos)} de ${formatarMinutosCurto(dia.capacidadeMinutos)}`
-          : ""}
-        {motivo && dia.capacidadeMinutos === 0 ? ` · ${motivo}` : ""}
-        {dia.ocupacaoPct !== null && dia.capacidadeMinutos > 0 ? ` · ${dia.ocupacaoPct}%` : ""}
-      </p>
-
-      {dia.itens.length > 0 ? (
-        <ul className="space-y-0.5">
-          {dia.itens.map((item) => (
-            <li key={item.id} className="flex items-baseline gap-2 text-[11px]">
-              <span className="min-w-[38px] font-semibold tabular-nums">
-                {formatarMinutosCurto(item.minutos)}
-              </span>
-              <span className="min-w-0 grow truncate">{item.titulo}</span>
-              {item.cliente ? (
-                <span className="text-muted-foreground shrink-0 text-[10px]">{item.cliente}</span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : dia.capacidadeMinutos > 0 ? (
-        <p className="text-muted-foreground text-[11px]">Nenhuma etapa neste dia.</p>
-      ) : null}
-
-      {/* A FUNÇÃO DEVOLVE ATÉ CINCO, e o resto é contagem. Sem esta linha, um
-          dia com oito etapas pareceria ter cinco — e a decisão de prazo seria
-          tomada sobre um número incompleto. */}
-      {dia.etapas > dia.itens.length ? (
-        <p className="text-muted-foreground text-[10px]">
-          e mais {dia.etapas - dia.itens.length}{" "}
-          {dia.etapas - dia.itens.length === 1 ? "etapa" : "etapas"}
-        </p>
-      ) : null}
-    </div>
   );
 }
 

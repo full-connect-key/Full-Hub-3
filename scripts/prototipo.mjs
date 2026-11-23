@@ -482,6 +482,28 @@ const TELAS = [
   // lado: cinco colunas de dia mais a de nomes passam de 34rem, então aqui se
   // confere que a página NÃO rola junto e que a região focável aparece — é o
   // achado do axe que a tabela de composição da campanha já pagou uma vez.
+  // E O DIA DE UMA PESSOA, que é o pedido do usuário em quantas palavras: *"eu
+  // não quero ver só, se a pessoa tem uma task, quero poder ver, qual task
+  // aquela pessoa tem"*. A célula era um `<span>` morto — o número dizia que
+  // há trabalho e não dizia qual —, e sem este clique o painel do dia não sai
+  // em imagem nenhuma.
+  //
+  // É A QUARTA DO BRUNO, e a célula é escolhida: ela é a que PASSA da
+  // capacidade (11h de 9h), que é a pergunta da tela, e a única com quatro
+  // etapas — então ela é também a que mostra a linha *"e mais 1 etapa"* do
+  // corte em três. Numa célula de folga a imagem provaria que o painel abre, e
+  // não que ele responde.
+  //
+  // E O QUE ELA PROVA DE VERDADE É A CONCORDÂNCIA: os minutos do painel somam
+  // exatamente o número da célula acima. Lido com o padrão (`projetando`), ele
+  // listaria etapas que `carga_da_equipe()` não contou — duas respostas para a
+  // mesma pergunta, a dois centímetros, que é o modo de falha desta casa.
+  //
+  // O SELETOR SAI DO RÓTULO ACESSÍVEL da célula, e não do texto visível: "11h"
+  // é calculado e repete em outras células; o nome mais o dia da semana
+  // identificam uma só. O dia da semana é do date-fns — ver `INTERPOLADOS` no
+  // `check:prototipo`.
+  { nome: "39e-pauta-da-equipe-dia", rota: "/painel/minhas-tasks?aba=equipe", largura: 1600, altura: 1250, role: "colaborador-social", clicar: 'button:has-text("Bruno Lima, quarta")' },
   { nome: "39c-pauta-da-equipe-375", rota: "/painel/minhas-tasks?aba=equipe", largura: 375, altura: 1400, role: "colaborador" },
 
   { nome: "40-aprovacoes-internas", rota: "/painel/gestao-tasks?aba=aprovacoes-internas", largura: 1440, altura: 1000, role: "desenvolvedor" },

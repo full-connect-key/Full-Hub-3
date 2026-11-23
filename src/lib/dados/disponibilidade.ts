@@ -22,11 +22,28 @@ import { criarClienteServidor } from "@/lib/supabase/server";
  * desta função chega como ERRO e não como lista vazia, então sem ele um
  * cliente logado veria uma grade de dias livres — que é a pior resposta
  * possível numa tela cujo trabalho é dizer onde não cabe mais nada.
+ *
+ * **`projetando` É A PERGUNTA, E NÃO UMA SEGUNDA LEITURA.** A 0081 escreve
+ * isso em quantas palavras — *"o cálculo continua UM; o que muda é a pergunta,
+ * e ela é um booleano e não uma segunda função"*. Projetando, a etapa VENCIDA
+ * cai no dia de hoje: ela continua pendente e compete pelo tempo de hoje, que
+ * é a verdade para quem vai delegar. É isso que a faixa de disponibilidade
+ * pede, e por isso o padrão é o dela — nada muda onde já estava certo.
+ *
+ * **A PAUTA DA EQUIPE PEDE `false`, e a razão é que o número já está na
+ * tela.** A grade daquela seção sai de `carga_da_equipe()`, que chama
+ * `carga_do_dia()`, que passa `p_daqui_pra_frente = false` desde a 0081 — o
+ * retrato de uma semana não projeta, senão toda etapa vencida da agência
+ * desaguaria na coluna de hoje. Lendo com `true`, o painel do dia listaria
+ * etapas que a célula ao lado não contou: **o número e a lista discordando a
+ * dois centímetros**, que é o modo de falha desta casa. O booleano é o que
+ * mantém as duas respondendo a mesma pergunta.
  */
 export async function disponibilidadeDe(
   userId: string,
   inicio: string,
   fim: string,
+  projetando = true,
 ): Promise<DiaDeDisponibilidade[]> {
   const supabase = await criarClienteServidor();
 
@@ -42,9 +59,7 @@ export async function disponibilidadeDe(
       // a outra pergunta e tem outra tela.
       p_modo: "distribuida",
       p_incluir_concluidas: false,
-      // A porta de delegar projeta sempre, e o terceiro parâmetro é ignorado
-      // por ela — está aqui para o tipo bater com a assinatura do banco.
-      p_daqui_pra_frente: true,
+      p_daqui_pra_frente: projetando,
     }),
   );
 

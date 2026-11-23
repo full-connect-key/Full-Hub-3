@@ -282,6 +282,11 @@ const INTERPOLADOS = {
   // `46d` é escopado por ele porque "editar" aparece em toda entrega que tem
   // nota. O que fica conferido é o sufixo, que é a parte escrita.
   "Criar KV final.pdf": " final.pdf`",
+  // O rótulo acessível da célula da grade da equipe: `{p.nome}, {format(
+  // parseISO(d.dia), "EEEE", { locale: ptBR })}`. O nome sai do conjunto de
+  // exemplo e o dia da semana do date-fns, então o que fica conferido é o
+  // trecho escrito — se alguém trocar o token ou a coluna, a checagem cai.
+  "Bruno Lima, quarta": 'format(parseISO(d.dia), "EEEE"',
 };
 
 /** Os textos literais que dá para extrair de um seletor. */

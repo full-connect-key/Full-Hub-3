@@ -7,9 +7,11 @@ import { ptBR } from "date-fns/locale";
 import { CalendarClock, Users } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { DiaDeTrabalho } from "@/components/shared/dia-de-trabalho";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import type { CargaDaEquipe } from "@/lib/dados/pauta-da-equipe";
+import type { DiaDeDisponibilidade } from "@/lib/dominio/disponibilidade";
 import {
   COR_DO_NIVEL,
   ROTULOS_DE_NIVEL,
@@ -69,6 +71,7 @@ export function PautaDaEquipe({
   carga,
   pessoa,
   linhas,
+  diaEscolhido,
   prazos,
   usuarioId,
   souGestor,
@@ -80,6 +83,19 @@ export function PautaDaEquipe({
   pessoa: { id: string; nome: string } | null;
   /** A pauta de quem está escolhido. Vazia quando ninguém está. */
   linhas: LinhaPessoal[];
+  /**
+   * O DIA ESCOLHIDO NA GRADE, com as etapas que o ocupam.
+   *
+   * Nulo quando ninguém clicou numa célula — e aí não há seção nenhuma, em vez
+   * de uma caixa vazia dizendo que não há dia escolhido. É a regra dos blocos
+   * de exceção do Início.
+   *
+   * **ELE VEM DE FORA e não de uma busca aqui**, pela razão de `prazos` e de
+   * `linhas`: esta tela é desenhada por um componente de servidor que já
+   * resolveu a pessoa, e uma Server Action no clique custaria uma volta ao
+   * servidor para responder o que a navegação já responde.
+   */
+  diaEscolhido: DiaDeDisponibilidade | null;
   prazos: Prazos;
   usuarioId: string;
   souGestor: boolean;
@@ -102,12 +118,28 @@ export function PautaDaEquipe({
     : undefined;
   const destinoDaTaskAberta = linhaAberta ? destinoDaEtapa(linhaAberta) : null;
 
-  function escolher(id: string | null) {
+  /**
+   * A PESSOA E O DIA MORAM NA URL, os dois, e por isso eles entram e saem
+   * juntos: *"olha a quarta da Marina"* precisa ser um link.
+   *
+   * **O NOME SEMPRE LIMPA O DIA**, e é a assimetria que separa as duas
+   * perguntas: a célula responde *o que é esse número?* e o nome responde *o
+   * que ela tem?*. Mantendo o dia ao trocar de nome, a pauta de uma pessoa
+   * abriria com o detalhe de um dia que a outra tinha cheio.
+   */
+  function escolher(id: string | null, dia: string | null) {
     const proximos = new URLSearchParams(parametros.toString());
     if (id === null) proximos.delete("pessoa");
     else proximos.set("pessoa", id);
+    if (dia === null) proximos.delete("dia");
+    else proximos.set("dia", dia);
     router.replace(`${caminho}?${proximos.toString()}`, { scroll: false });
   }
+
+  // O DIA MARCADO SAI DO QUE O SERVIDOR RESOLVEU, nunca do parâmetro cru: é a
+  // mesma régua da pessoa, que se resolve pela lista da grade. Um `?dia=` de
+  // outra semana não marca célula nenhuma, porque não existe célula dele.
+  const diaAtual = diaEscolhido?.data ?? null;
 
   return (
     <div className="space-y-5">
@@ -239,7 +271,9 @@ export function PautaDaEquipe({
                           responsável, pelo outro lado. */}
                       <button
                         type="button"
-                        onClick={() => escolher(p.id === pessoa?.id ? null : p.id)}
+                        onClick={() =>
+                          escolher(p.id === pessoa?.id ? null : p.id, null)
+                        }
                         aria-pressed={p.id === pessoa?.id}
                         className={cn(
                           "flex items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors",
@@ -261,14 +295,44 @@ export function PautaDaEquipe({
                       const nivel = nivelDaCarga(d, p.capacidadeMinutos);
                       return (
                         <td key={d.dia} className="px-1.5 py-2 text-center">
-                          {/* A CÉLULA DIZ O NÚMERO E A COR, e o rótulo
-                              acessível diz a frase: quem usa leitor de tela
-                              não tem a cor, e "4h 30min" sozinho não diz se
-                              aquilo é folga ou estouro. */}
-                          <span
+                          {/* A CÉLULA É O BOTÃO QUE ABRE O DIA — decisão do
+                              usuário: *"eu não quero ver só, se a pessoa tem
+                              uma task, quero poder ver, qual task aquela
+                              pessoa tem"*.
+
+                              **ELA ERA UM `<span>` MORTO**, e é a quarta vez
+                              que este produto encontra um: o número dizia que
+                              há trabalho ali e não dizia qual, e o único
+                              clique da linha era o NOME — que abre a pauta
+                              inteira, e não o dia. Quem olhava "8h" na quarta
+                              da Marina clicava na célula, nada acontecia, e a
+                              resposta estava a uma consulta de distância.
+
+                              **E TODA CÉLULA ABRE, inclusive a vazia e a de
+                              quem está fora.** O painel sempre tem o que
+                              dizer — a capacidade, o motivo da ausência, ou
+                              "nenhuma etapa neste dia" —, e numa grade de
+                              cinco colunas por pessoa um alvo inerte no meio
+                              de alvos vivos faz a pessoa adivinhar quais
+                              respondem.
+
+                              O rótulo acessível diz a frase: quem usa leitor
+                              de tela não tem a cor, e "4h 30min" sozinho não
+                              diz se aquilo é folga ou estouro. */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              escolher(
+                                p.id,
+                                p.id === pessoa?.id && d.dia === diaAtual
+                                  ? null
+                                  : d.dia,
+                              )
+                            }
+                            aria-pressed={p.id === pessoa?.id && d.dia === diaAtual}
                             title={`${p.nome} · ${format(parseISO(d.dia), "d 'de' MMMM", { locale: ptBR })} · ${d.etapas} etapa(s), ${ROTULOS_DE_NIVEL[nivel]}`}
                             className={cn(
-                              "text-text-primary inline-flex min-w-11 justify-center rounded-md px-1.5 py-1 text-xs tabular-nums",
+                              "text-text-primary focus-visible:ring-ring inline-flex min-w-11 justify-center rounded-md px-1.5 py-1 text-xs tabular-nums transition-shadow focus-visible:ring-2 focus-visible:outline-none",
                               COR_DO_NIVEL[nivel],
                               /* FORA É FORMA E NÃO COR: a ausência vem do
                                  Day Off e não da carga, e pintá-la com um
@@ -277,18 +341,26 @@ export function PautaDaEquipe({
                                  distinção que a célula de "sem alocação" da
                                  matriz faz. */
                               d.ausente && "border-text-muted border border-dashed",
+                              /* O ESCOLHIDO É UM ANEL E NUNCA UM FUNDO: o
+                                 fundo da célula É a carga, e trocá-lo
+                                 apagaria a única informação que ela tem. E a
+                                 cor não é o único sinal — o painel logo
+                                 abaixo nomeia o dia por extenso. */
+                              p.id === pessoa?.id &&
+                                d.dia === diaAtual &&
+                                "ring-accent-strong ring-offset-card ring-2 ring-offset-1",
                             )}
                           >
                             <span className="sr-only">
                               {p.nome}, {format(parseISO(d.dia), "EEEE", { locale: ptBR })}:{" "}
                               {d.ausente ? "fora, " : ""}
                               {d.etapas} etapa{d.etapas === 1 ? "" : "s"},{" "}
-                              {ROTULOS_DE_NIVEL[nivel]}.{" "}
+                              {ROTULOS_DE_NIVEL[nivel]}. Abrir o dia.{" "}
                             </span>
                             <span aria-hidden>
                               {d.etapas === 0 ? "—" : formatarMinutos(d.minutos)}
                             </span>
-                          </span>
+                          </button>
                         </td>
                       );
                     })}
@@ -301,6 +373,31 @@ export function PautaDaEquipe({
       </section>
 
       {/* ------------------------------------------------------------------
+          O DIA ESCOLHIDO: o que ocupa aquele número
+
+          ELE VEM ANTES DA PAUTA, encostado na grade que o abriu: ele é o
+          detalhe de uma célula, e a pauta é outra pergunta — tudo o que a
+          pessoa tem. Depois da lista, ele seria o detalhe de uma coisa que
+          saiu do campo de visão.
+
+          E É O MESMO `DiaDeTrabalho` DA FAIXA DE DISPONIBILIDADE, com o mesmo
+          desenho: as duas telas respondem *o que é esse número?*, e uma
+          segunda cópia divergiria na linha que diz "e mais N etapas" — sem
+          ela, um dia com oito etapas parece ter cinco.
+         ------------------------------------------------------------------ */}
+      {pessoa !== null && diaEscolhido !== null ? (
+        <section aria-labelledby="pauta-do-dia" className="space-y-2">
+          <h2
+            id="pauta-do-dia"
+            className="text-text-primary text-sm font-semibold"
+          >
+            O dia de {pessoa.nome}
+          </h2>
+          <DiaDeTrabalho dia={diaEscolhido} />
+        </section>
+      ) : null}
+
+      {/* ------------------------------------------------------------------
           A PAUTA DE QUEM FOI ESCOLHIDO
          ------------------------------------------------------------------ */}
       {pessoa === null ? (
@@ -308,7 +405,7 @@ export function PautaDaEquipe({
           className="bg-card rounded-card shadow-cartao border-solid"
           icon={Users}
           title="Escolha uma pessoa"
-          description="Clique num nome da grade acima para ver a pauta dela, etapa por etapa."
+          description="Clique num nome da grade acima para ver a pauta dela, etapa por etapa — ou num dia, para ver o que ocupa aquele dia."
         />
       ) : (
         <section aria-labelledby="pauta-da-pessoa" className="space-y-3">

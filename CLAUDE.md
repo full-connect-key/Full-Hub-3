@@ -3246,6 +3246,96 @@ família do 500 que o gerador passou a reprovar quando `ehAba` morava no
 não há como abrir a pauta de alguém sem passar pela grade — se a carga falhar, a
 seção diz isso e não oferece a pauta de ninguém. Os dois são decisão própria.
 
+##### E A CÉLULA DIZ QUANTO, NUNCA O QUÊ — a quarta `<span>` morto do produto
+
+Decisão do usuário: *"eu não quero ver só, se a pessoa tem uma task, quero poder
+ver, qual task aquela pessoa tem"*.
+
+**A GRADE RESPONDIA METADE DA PERGUNTA.** A célula desenha os minutos, a cor do
+degrau e um `title` — e `title` não existe para quem usa toque. O único clique da
+linha era o NOME, que abre a pauta INTEIRA daquela pessoa: quem olhava "11h" na
+quarta do Bruno clicava na célula, nada acontecia, e a resposta estava a uma
+consulta de distância. **É a quarta vez que este produto encontra um `<span>`
+morto** — o nome da etapa, o `link_entrega`, o responsável na linha —, e a razão
+é sempre a mesma: a ponte estava construída e ninguém a atravessava.
+
+**NÃO HÁ MIGRATION, e a ponte é `disponibilidade()` (0081).** Ela devolve, por
+dia, a capacidade, o motivo da ausência, os minutos, a ocupação e **até cinco
+títulos com cliente e fatia** — `security definer` com `is_staff()` na porta,
+justamente para quem delega ver o dia de outra pessoa. A faixa do painel da etapa
+a lê desde o sprint dela; o que faltava era esta tela perguntar.
+
+###### `projetando: false` É O QUE FAZ O PAINEL CONCORDAR COM A CÉLULA
+
+A grade sai de `carga_da_equipe()`, que chama `carga_do_dia()`, que passa
+`p_daqui_pra_frente = false` desde a 0081 — **o retrato de uma semana não
+projeta**, senão toda etapa vencida da agência desaguaria na coluna de hoje. A
+faixa pede o contrário, e está certa: quem vai delegar precisa que a etapa
+vencida compita pelo tempo de HOJE.
+
+Lendo o dia com o padrão, o painel listaria etapas que o número ao lado não
+contou: **o número e a lista discordando a dois centímetros**, que é o modo de
+falha desta casa — é o cartão de "11 entregues" com sete na lista embaixo. Então
+`disponibilidadeDe()` ganhou um quarto parâmetro, e ele é **a pergunta e não uma
+segunda leitura**: a 0081 escreve isso em quantas palavras, *"o cálculo continua
+UM; o que muda é a pergunta, e ela é um booleano e não uma segunda função"*.
+
+**E A LISTA NÃO SE FILTRA NA TELA**, que era o caminho curto: `linhas` já está em
+mãos, e bastaria ficar com as etapas cuja janela cobre o dia. Duas coisas
+quebram. A janela começa em `coalesce(data_inicio, prazo)` e é **empurrada pelo
+`max(prazo)` das dependências em aberto**, que `LinhaPessoal` não carrega — e,
+pior, isso seria o gêmeo em TypeScript que o cabeçalho de
+`lib/dominio/disponibilidade.ts` proíbe por escrito: *"daria dois números para a
+mesma pessoa no mesmo dia"*.
+
+###### O DIA SE RESOLVE PELA GRADE, como a pessoa
+
+`?dia=` é um foco em cima de `?pessoa=`, e só vira consulta se for uma das cinco
+colunas desta semana — a doutrina do `?pessoa=`, que nunca chega cru a
+`minhasTasks()`. Um `?dia=2019-01-01` colado na URL não existe como célula, então
+não existe como leitura; e `disponibilidade()` tem teto de 62 dias, que é outra
+razão para o parâmetro não atravessar. **A leitura a mais só acontece quando há
+um dia escolhido**, e ela corre em paralelo com a pauta.
+
+**E O NOME SEMPRE LIMPA O DIA.** Trocar de pessoa mantendo o `?dia=` deixaria o
+painel respondendo por quem não está mais escolhido — e a célula com o anel, numa
+linha que ninguém selecionou.
+
+###### TODA CÉLULA ABRE, inclusive a vazia e a de quem está fora
+
+O painel sempre tem o que dizer: a capacidade, o motivo da ausência, ou *"nenhuma
+etapa neste dia"*. Numa grade de cinco colunas por pessoa, **um alvo inerte no
+meio de alvos vivos faz a pessoa adivinhar quais respondem** — é a decisão do
+chevron em repouso do seletor de responsável, pelo mesmo motivo.
+
+**O ESCOLHIDO É UM ANEL E NUNCA UM FUNDO:** o fundo da célula É a carga, e
+trocá-lo apagaria a única informação que ela tem. E a cor não é o único sinal —
+o painel logo abaixo nomeia o dia por extenso, e o `aria-pressed` diz o estado a
+quem não vê nenhum dos dois.
+
+###### `DiaDeTrabalho` saiu da faixa, porque são DUAS telas
+
+O painel era `DiaEscolhido`, privado de `faixa-de-disponibilidade.tsx`. As duas
+telas respondem a mesma pergunta — *o que é esse número?* —, e uma segunda cópia
+divergiria onde menos se olha: a linha **"e mais N etapa(s)"**, que é a única
+coisa deste painel que nenhuma outra tela do produto desenha. É a história das
+sete cópias de `abas.tsx` em miniatura.
+
+**Ele não é `"use client"`**, e a ausência é consequência: não há gancho nenhum
+dentro dele — a faixa o desenha de um componente de cliente e a pauta de um de
+servidor, e os dois funcionam porque ele é só marcação.
+
+***E o stub do protótipo lê a GRADE, nunca uma segunda tabela de minutos.***
+Com duas tabelas independentes a imagem sairia com a célula dizendo "11h" e o
+painel dizendo outra coisa — **o bug que esta entrega existe para não ter,
+fotografado como se fosse o produto**. É a lição da duplicata do Cronograma. A
+tela é `39e`, e a célula é escolhida: a quarta do Bruno é a que PASSA da
+capacidade (11h de 9h, 122%) e a única com quatro etapas, então ela é também a
+que mostra a linha do corte em três. **E as três fatias são desiguais** —
+5h30 / 3h18 / 2h12, somando exatamente os 660 minutos da célula —, porque com
+três iguais a imagem provaria que a coluna de minutos existe e não que ela
+ALINHA, que é o trabalho do `tabular-nums` ali.
+
 ### Dependências
 
 Uma subtarefa pode depender de outras da mesma Task. Enquanto a dependência não

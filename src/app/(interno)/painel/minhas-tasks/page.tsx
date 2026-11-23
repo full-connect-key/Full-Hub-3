@@ -18,6 +18,7 @@ import {
 } from "@/lib/dados/minhas-tasks";
 import { resumoDaHome } from "@/lib/dados/home";
 import { minhasNovidades } from "@/lib/dados/novidades";
+import { disponibilidadeDe } from "@/lib/dados/disponibilidade";
 import { cargaDaEquipeNaSemana } from "@/lib/dados/pauta-da-equipe";
 import type { FocoDoDia } from "@/lib/dominio/tasks";
 
@@ -125,12 +126,14 @@ async function ConteudoDaEquipe({
   nome,
   souGestor,
   pessoaPedida,
+  diaPedido,
   barra,
 }: {
   usuarioId: string;
   nome: string;
   souGestor: boolean;
   pessoaPedida: string;
+  diaPedido: string;
   barra: React.ReactNode;
 }) {
   const prazos = prazosDeHoje();
@@ -161,9 +164,29 @@ async function ConteudoDaEquipe({
   const pessoa =
     carga?.pessoas.find((p) => p.id === pessoaPedida) ?? null;
 
-  const linhas = pessoa
-    ? montarLinhas(await minhasTasks(pessoa.id, null, prazos))
-    : [];
+  // O DIA SE RESOLVE PELA GRADE, como a pessoa: só vira consulta se for uma
+  // das cinco colunas desta semana. Um `?dia=2019-01-01` colado na URL não
+  // existe como célula, então não existe como leitura — e `disponibilidade()`
+  // tem teto de 62 dias, que é outra razão para o parâmetro nunca chegar cru.
+  const dia =
+    pessoa && carga?.dias.includes(diaPedido) ? diaPedido : null;
+
+  const [linhas, diaEscolhido] = await Promise.all([
+    pessoa
+      ? minhasTasks(pessoa.id, null, prazos).then(montarLinhas)
+      : Promise.resolve([]),
+    // `projetando: false` É O QUE FAZ O PAINEL CONCORDAR COM A CÉLULA.
+    // `carga_da_equipe()` chama `carga_do_dia()`, que passa
+    // `p_daqui_pra_frente = false` desde a 0081 — o retrato de uma semana não
+    // projeta a etapa vencida para hoje. Lendo com o padrão (`true`), o
+    // painel listaria etapas que o número ao lado não contou: duas respostas
+    // para a mesma pergunta, a dois centímetros.
+    pessoa && dia
+      ? disponibilidadeDe(pessoa.id, dia, dia, false).then(
+          (dias) => dias[0] ?? null,
+        )
+      : Promise.resolve(null),
+  ]);
 
   return (
     <>
@@ -181,6 +204,7 @@ async function ConteudoDaEquipe({
         carga={carga}
         pessoa={pessoa ? { id: pessoa.id, nome: pessoa.nome } : null}
         linhas={linhas}
+        diaEscolhido={diaEscolhido}
         prazos={prazos}
         usuarioId={usuarioId}
         souGestor={souGestor}
@@ -211,6 +235,7 @@ export default async function PaginaDeMinhasTasks({
     : null;
 
   const pessoaPedida = typeof params.pessoa === "string" ? params.pessoa : "";
+  const diaPedido = typeof params.dia === "string" ? params.dia : "";
 
   const nome = primeiroNome(sessao.profile.nome);
 
@@ -228,6 +253,7 @@ export default async function PaginaDeMinhasTasks({
             nome={nome}
             souGestor={ehGestor(sessao.profile.role)}
             pessoaPedida={pessoaPedida}
+            diaPedido={diaPedido}
             barra={barra}
           />
         ) : (
