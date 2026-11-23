@@ -269,7 +269,11 @@ export async function enviarParaAprovacao(
     });
 
     revalidar(subtarefa.task_id);
-    return sucesso(`Enviada para aprovação — rodada ${numero}.`);
+    // "AVAL INTERNO PEDIDO" e nao "Enviada para aprovacao": esta e a frase de
+    // uma ACAO que acabou de acontecer, e o vocabulario de cada acao e um so
+    // desde a 0092 — abrir a rodada interna se chama *pedir aval interno*. O
+    // rotulo antigo repetia o nome de um STATUS que nem se chama mais assim.
+    return sucesso(`Aval interno pedido — rodada ${numero}.`);
   });
 }
 

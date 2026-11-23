@@ -96,7 +96,6 @@ type Tom =
   | "neutro"
   | "marca"
   | "laranja"
-  | "marrom"
   | "atencao"
   | "positivo"
   | "lima"
@@ -123,7 +122,6 @@ const PONTO: Record<Tom, string> = {
   neutro: "bg-neutral",
   marca: "bg-accent-strong",
   laranja: "bg-laranja",
-  marrom: "bg-marrom",
   atencao: "bg-warning",
   positivo: "bg-success",
   lima: "bg-lima",
@@ -158,7 +156,6 @@ const TONS: Record<Tom, string> = {
   neutro: "bg-neutral-soft text-neutral border-transparent",
   marca: "bg-accent text-accent-foreground border-blue-muted",
   laranja: "bg-laranja-soft text-laranja border-transparent",
-  marrom: "bg-marrom-soft text-marrom border-transparent",
   atencao: "bg-warning-soft text-warning border-transparent",
   positivo: "bg-success-soft text-success border-transparent",
   lima: "bg-lima-soft text-lima border-transparent",
@@ -202,7 +199,6 @@ const TONS_CHEIOS: Record<Tom, string> = {
   neutro: TONS.neutro,
   marca: "bg-status-marca text-status-marca-foreground",
   laranja: "bg-status-laranja text-status-laranja-foreground",
-  marrom: "bg-status-marrom text-status-marrom-foreground",
   atencao: "bg-status-atencao text-status-atencao-foreground",
   positivo: "bg-status-positivo text-status-positivo-foreground",
   lima: "bg-status-lima text-status-lima-foreground",
@@ -232,7 +228,6 @@ const HOVER_CHEIO: Record<Tom, string> = {
   neutro: "",
   marca: "group-hover:bg-status-marca-hover",
   laranja: "group-hover:bg-status-laranja-hover",
-  marrom: "group-hover:bg-status-marrom-hover",
   atencao: "group-hover:bg-status-atencao-hover",
   positivo: "group-hover:bg-status-positivo-hover",
   lima: "group-hover:bg-status-lima-hover",
@@ -310,11 +305,21 @@ const STATUS: Record<Status, { label: string; tom: Tom }> = {
   // precisa de uma resposta".
   aguardando_informacoes: { label: "Aguardando informações", tom: "laranja" },
   em_producao: { label: "Em produção", tom: "marca" },
-  // MARROM e nao azul: ele dividia o azul com "Em producao", e para o cliente
-  // esta e a unica linha que quer dizer *esperando VOCE* — era a distincao
-  // mais importante do fluxo dele, escondida dentro da cor do trabalho em
-  // andamento. Era tambem o unico consumidor do tom `info`.
-  em_aprovacao: { label: "Aguardando aprovação", tom: "marrom" },
+  // AMARELO (decisao do usuario: *"mude a cor de Aguardando Aprovacao para
+  // amarelo, na plataforma toda"*). Ele ja saiu do azul uma vez — dividia com
+  // "Em producao", e para o cliente esta e a unica linha que quer dizer
+  // *esperando VOCE* — e o marrom que entrou no lugar era escuro demais para
+  // a palavra "amarelo" descrever.
+  //
+  // **E ELE DIVIDE O ÂMBAR COM "Ajustes", de propósito.** Os dois sao os dois
+  // estados em que a peca esta FORA da producao esperando uma decisao, e e a
+  // legenda que diz isso: a do calendario do portal AGRUPA quem divide a cor
+  // desde que ela nasceu. Dar ao "Aguardando aprovacao" um amarelo PROPRIO,
+  // ao lado do ambar, seria pior — duas cores a um passo de distancia que a
+  // pessoa procura distinguir, nao distingue, e passa a desconfiar das
+  // outras. Quando duas coisas vao parecer iguais, e melhor que elas SEJAM o
+  // mesmo tom.
+  em_aprovacao: { label: "Aguardando aprovação", tom: "atencao" },
   ajustes: { label: "Ajustes", tom: "atencao" },
   aprovado: { label: "Aprovado", tom: "positivo" },
   rejeitado: { label: "Rejeitado", tom: "negativo" },
@@ -350,10 +355,13 @@ const STATUS: Record<Status, { label: string; tom: Tom }> = {
   cancelada: { label: "Cancelada", tom: "pausado" },
   // Subtarefa
   //
-  // MARROM, junto com `em_aprovacao`: as duas dizem a mesma coisa num nivel
-  // diferente — o material esta esperando uma decisao. Deixar uma marrom e a
-  // outra azul seria a divergencia que este arquivo existe para nao ter.
-  enviada_aprovacao: { label: "Enviada para aprovação", tom: "marrom" },
+  // ÂMBAR, junto com `em_aprovacao`: as duas dizem a mesma coisa num nivel
+  // diferente — o material esta esperando uma decisao. Deixar uma amarela e a
+  // outra marrom seria a divergencia que este arquivo existe para nao ter.
+  //
+  // E O RÓTULO É "Em aprovação", nao mais "Enviada para aprovacao": ele mora
+  // em `ROTULOS_DE_SUBTAREFA` tambem, e a razao esta la.
+  enviada_aprovacao: { label: "Em aprovação", tom: "atencao" },
   concluida: { label: "Concluída", tom: "positivo" },
 };
 

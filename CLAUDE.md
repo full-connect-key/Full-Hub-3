@@ -9018,6 +9018,75 @@ acaso — um ramo do agrupamento por CLIENTE tinha ficado sem o campo. Os outros
 dois ramos dizem `icone: undefined` por extenso, com a razão escrita: um cliente
 e uma pessoa não têm cor nem forma neste produto.
 
+###### E O MARROM SAIU, DOIS SPRINTS DEPOIS DE ENTRAR
+
+Decisão do usuário: *"mude a cor de Aguardando Aprovação para amarelo, na
+plataforma toda, e enviada para aprovação deve ser Em aprovação"*.
+
+**ELE DESFAZ METADE DA ENTREGA ACIMA, e a reversão é declarada.** A dívida que
+aquele sprint pagou era real — três pares de status dividiam o mesmo tom —, e a
+cor que ele escolheu para `em_aprovacao` não era o amarelo: era um marrom, pela
+razão escrita ali, *o âmbar já era de "Em ajuste" e de "Entregue"*. A segunda
+parte daquela frase **venceu no mesmo commit**: "Em ajuste" foi para o vermelho
+e "Entregue" para o lima, e o âmbar ficou com um consumidor só — o "Ajustes" do
+fluxo do CLIENTE, que é outro vocabulário e outra tela. **O marrom passou a ser
+a resposta de uma pergunta que ninguém mais fazia.**
+
+**NÃO NASCE UM TOKEN `amarelo`, e a recusa é medida.** Um amarelo novo ao lado
+do âmbar cairia a um passo dele — e a regra desta casa está escrita desde a
+0109: *duas cores a um passo de distância são duas verdades esperando
+divergir*, e **dois chips do mesmo tom numa grade são piores que um**, porque a
+pessoa procura a diferença, não acha, e passa a desconfiar do resto. O que o
+pedido descreve — "amarelo" — é o que `--status-atencao` já é.
+
+**ENTÃO OS DOIS STATUS DE APROVAÇÃO FICAM NO ÂMBAR, e isso é escolha e não
+acaso.** `em_aprovacao` na Task e `enviada_aprovacao` na etapa são o mesmo fato
+em dois níveis — *está com quem decide* —, e o produto já tem o mecanismo para
+duas coisas dividirem um tom: **a legenda do portal AGRUPA quem divide a cor**,
+lendo `corDoPontoDeStatus`, desde o Sprint 12. Ela se reorganiza de sete
+entradas para seis sem uma linha de código, pelo mesmo caminho por onde foi de
+cinco para sete dois sprints atrás.
+
+**E O MARROM FOI APAGADO, nunca estacionado**, que é a 0023 aplicada a um tom:
+ele saiu da união `Tom`, dos quatro mapas de `status-badge.tsx`, dos três
+blocos do `globals.css` (claro, escuro e os dois `@theme`) e das três linhas do
+`check:cores`. Um tom sem consumidor é o que alguém reaproveita três sprints
+depois achando que ele quer dizer alguma coisa.
+
+***O que isso devolve, e é medido:*** os sete pares abaixo do piso de
+daltonismo viraram **cinco**, e o pior deles subiu de **ΔE 0,8** (marrom ×
+negativo, em deuteranopia no escuro) para **ΔE 3,4** (lima × negativo). A
+decisão de deixá-los fora dos grupos continua a mesma e pelo mesmo motivo — o
+NOME está escrito dentro da caixa —, e o que mudou é que a lista encurtou sem
+ninguém ter mexido na paleta.
+
+**"ENVIADA PARA APROVAÇÃO" ERA O ENVIO, E O SELO DIZ O ESTADO.** A segunda
+metade do pedido é de vocabulário e ela conserta uma assimetria: o rótulo
+nomeava um INSTANTE — alguém enviou — num campo que responde *em que pé está
+isto agora*. "Em aprovação" é o estado, e é a palavra que a Task já usava um
+nível acima. **E ela nunca colide com o botão**, que continua sendo "Enviar
+para aprovação": infinitivo é ação, e é a mesma distinção que a 0127 fez entre
+*"Solicitar ajustes"* no botão e *"Ajustes solicitados"* no histórico.
+
+**SÃO DOIS MAPAS DE RÓTULO E OS DOIS MUDARAM**, que é o furo que esta troca
+podia abrir: `STATUS` em `status-badge.tsx` desenha o selo e
+`ROTULOS_DE_SUBTAREFA` em `state-machine.ts` escreve a recusa do banco e o
+cabeçalho da coluna do board. Mexendo num só, a coluna diria uma palavra e o
+chip dentro dela diria outra, a dois centímetros. **E a frase da recusa de
+`validar_transicao_de_subtarefa` não é tocada**, porque ela nomeia o BOTÃO
+(*"A rodada é criada pela ação Enviar para aprovação"*), que não mudou de nome.
+
+**"Enviada para aprovação" NÃO entrou na lista de nomes mortos do
+`check:cores`**, pela razão que "Descanso" e "Pulso" já escreveram: a frase
+continua viva como ação em três telas, e uma entrada ali reprovaria o
+vocabulário do próprio produto — a armadilha que aquela lista já pagou sete
+vezes. O que protege a troca é a imagem: nenhuma varredura mede rótulo de selo.
+
+*E o toast de `pedirAvalInterno` foi junto* — ele dizia *"Enviado para
+aprovação interna"* e passou a dizer **"Aval interno pedido"**, que é o nome
+que a 0092 deu àquela ação: um nome por ação, e a frase do clique é o primeiro
+lugar onde o nome velho volta.
+
 ##### E O FILTRO DE RESPONSÁVEIS GANHOU A FOTO
 
 Decisão do usuário, na mesma frase: *"no filtro de Responsáveis, quero que a

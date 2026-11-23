@@ -198,10 +198,13 @@ const DISTINGUIVEL = 10;
 // OS SETE TONS DE STATUS NÃO SÃO UM GRUPO, e a ausência é declarada com o
 // número porque sem ele ela pareceria conveniência.
 //
-// Rodando os sete chãos como grupo, SETE pares ficam abaixo do piso: o pior é
-// `--marrom-soft` × `--danger-soft` a ΔE 0,8 em deuteranopia no tema escuro —
-// "Aguardando aprovação" e "Em ajuste" com o mesmo chão para quem não separa
-// vermelho de verde. Nas frentes, `--marrom` × `--danger` dá ΔE 1,9.
+// Rodando os chãos como grupo, vários pares ficam abaixo do piso: `--lima` ×
+// `--danger` dá ΔE 3,4 em deuteranopia — "Entregue" e "Em ajuste" com a mesma
+// frente para quem não separa vermelho de verde.
+//
+// (O pior par era `--marrom-soft` × `--danger-soft`, a ΔE 0,8 no tema escuro,
+// e ele saiu com o tom: o marrom tinha dois consumidores, e os dois passaram
+// para o âmbar por decisão do usuário.)
 //
 // Eles ficam de fora porque a cor NUNCA é o único sinal ali: o nome do status
 // é escrito dentro da caixa, em caixa alta, e o selo carrega o rótulo por
@@ -485,14 +488,12 @@ const PARES = [
   // no dia em que uma das duas andar, cada linha continua medindo a sua.
   ["--status-marca-foreground", "--status-marca", NORMAL, "caixa de em andamento"],
   ["--status-laranja-foreground", "--status-laranja", NORMAL, "caixa de aguardando informações"],
-  ["--status-marrom-foreground", "--status-marrom", NORMAL, "caixa de aguardando aprovação"],
   ["--status-atencao-foreground", "--status-atencao", NORMAL, "caixa de ajustes (fluxo do cliente)"],
   ["--status-positivo-foreground", "--status-positivo", NORMAL, "caixa de concluído"],
   ["--status-lima-foreground", "--status-lima", NORMAL, "caixa de entregue"],
   ["--status-negativo-foreground", "--status-negativo", NORMAL, "caixa de em ajuste"],
   ["--status-marca-foreground", "--status-marca-hover", NORMAL, "caixa de em andamento, com o ponteiro em cima"],
   ["--status-laranja-foreground", "--status-laranja-hover", NORMAL, "caixa de aguardando informações, com o ponteiro em cima"],
-  ["--status-marrom-foreground", "--status-marrom-hover", NORMAL, "caixa de aguardando aprovação, com o ponteiro em cima"],
   ["--status-atencao-foreground", "--status-atencao-hover", NORMAL, "caixa de ajustes (fluxo do cliente), com o ponteiro em cima"],
   ["--status-positivo-foreground", "--status-positivo-hover", NORMAL, "caixa de concluído, com o ponteiro em cima"],
   ["--status-lima-foreground", "--status-lima-hover", NORMAL, "caixa de entregue, com o ponteiro em cima"],
@@ -533,7 +534,6 @@ const PARES = [
   // da troca do mapa de tons, que é a regra da casa: sem isso a troca seria
   // uma afirmação sobre números que ninguém mediu.
   ["--laranja", "--laranja-soft", NORMAL, "selo de aguardando informações"],
-  ["--marrom", "--marrom-soft", NORMAL, "selo de aguardando aprovação"],
   ["--lima", "--lima-soft", NORMAL, "selo de entregue"],
   // Na matriz o quadrado de férias é só cor, sem texto: vale a régua de
   // elemento de interface.
@@ -1132,7 +1132,6 @@ const COM_PAR_SUAVE = [
   // nascem: um par nomeado que ainda não tem como ser escrito com opacidade é
   // um par que alguém escreve com opacidade na primeira tela nova.
   "laranja",
-  "marrom",
   "lima",
 ];
 

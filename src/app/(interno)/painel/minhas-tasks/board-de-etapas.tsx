@@ -58,7 +58,7 @@ import { STATUS_EM_ORDEM, type LinhaPessoal } from "./linhas";
  *
  * **As colunas são os SEIS status da etapa**, não os sete da Task. São enums
  * diferentes no banco (`subtask_status` × `task_status`): a etapa tem
- * "Enviada para aprovação" e não tem "Entregue" nem "Concluído" separados.
+ * "Em aprovação" e não tem "Entregue" nem "Concluído" separados.
  * Usar as colunas da Task obrigaria a inventar um de-para, e um de-para entre
  * dois enums é o lugar onde as duas verdades começam a divergir.
  *

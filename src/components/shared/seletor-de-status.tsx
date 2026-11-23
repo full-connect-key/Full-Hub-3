@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
  *
  * **NA SUBTAREFA NADA É DESLIGADO TAMBÉM, e o que o banco recusa vira a
  * mensagem.** As travas da etapa continuam todas de pé: concluir sem
- * aprovação, ir para "Enviada para aprovação" sem rodada, estacionar em "Em
+ * aprovação, ir para "Em aprovação" sem rodada, estacionar em "Em
  * ajustes" sem ninguém ter pedido ajuste. A diferença é onde a pessoa
  * descobre — antes num item cinza que ela não podia clicar, agora numa frase
  * que diz o caminho ("A rodada é criada pela ação Pedir aval interno").

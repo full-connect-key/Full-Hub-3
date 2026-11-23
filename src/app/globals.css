@@ -528,12 +528,21 @@
      mais comum da lista nao pode ser a pilula mais barulhenta da tela. Os
      dois continuam com o par suave e a borda tracejada que ja tinham.
 
-     Medidos: 5,66 / 5,57 / 8,48 / 10,54 / 5,02 / 4,99 / 6,47 em repouso, e
-     7,02 / 6,90 / 10,31 / 8,51 / 5,94 / 6,20 / 7,57 no hover.
+     Medidos: 5,66 / 5,57 / 10,54 / 5,02 / 4,99 / 6,47 em repouso, e
+     7,02 / 6,90 / 8,51 / 5,94 / 6,20 / 7,57 no hover.
+
+     E O MARROM SAIU (decisao do usuario: *"mude a cor de Aguardando
+     Aprovacao para amarelo"*). Ele tinha DOIS consumidores — `em_aprovacao`
+     e `enviada_aprovacao` —, e os dois passaram para o ambar que "Ajustes"
+     ja usava: um chao sem consumidor nenhum e o que alguem reaproveita tres
+     sprints depois achando que ele quer dizer alguma coisa, entao ele e
+     apagado e nao aposentado. E a razao de os dois dividirem o ambar com
+     "Ajustes", em vez de ganharem um amarelo proprio ao lado dele, esta
+     escrita em `status-badge.tsx`.
 
      E A SEPARACAO ENTRE OS CHAOS NAO PASSA NO PISO DE DALTONISMO, o que e
-     dito com o numero em vez de afirmado: marrom x vermelho fica a deltaE
-     1,9 em protanopia, e lima x vermelho a 3,4 em deuteranopia. Eles ficam
+     dito com o numero em vez de afirmado: lima x vermelho fica a deltaE 3,4
+     em deuteranopia, e ambar x laranja a 4,3 em protanopia. Eles ficam
      fora dos grupos do `check:cores` pela regra escrita -- um grupo existe
      onde a cor e o UNICO sinal --, e e justamente por essa medicao que a
      caixa ganhou ICONE junto com a cor: o nome ja estava escrito dentro
@@ -545,9 +554,6 @@
   --status-laranja: #B4440C;
   --status-laranja-hover: #9C3B0A;
   --status-laranja-foreground: #FFFFFF;
-  --status-marrom: #6B4423;
-  --status-marrom-hover: #5A391D;
-  --status-marrom-foreground: #FFFFFF;
   --status-atencao: #FBBF24;
   --status-atencao-hover: #E2AC20;
   --status-atencao-foreground: #17191D;
@@ -610,7 +616,7 @@
   --rosa: #BE185D;
   --rosa-soft: #FCE7F3;
 
-  /* --- AS TRES CORES QUE OS SETE STATUS PEDIRAM -------------------------
+  /* --- AS TRES CORES QUE OS SETE STATUS PEDIRAM, E O MARROM QUE SAIU ----
      Decisao do usuario, com a paleta por extenso: *"na lista da gestao de
      task, deixe o a produzir cinza, em producao azul, aguardando informacoes
      laranja, aguardando aprovacao marrom, ajuste e vermelho, e entregue verde
@@ -627,14 +633,24 @@
      fluxo da equipe, o verde escuro e do concluido. Laranja, marrom e lima
      nao existiam.
 
+     E O MARROM DUROU DOIS SPRINTS. Decisao do usuario depois: *"mude a cor de
+     Aguardando Aprovacao para amarelo, na plataforma toda"*, e marrom nao e o
+     que a palavra amarelo descreve. Ele tinha dois consumidores e os dois
+     passaram para o AMBAR que o "Ajustes" do fluxo do cliente ja usava —
+     nenhum token novo, e a razao de nao ser um amarelo PROPRIO ao lado do
+     ambar esta escrita em `status-badge.tsx`: quando duas cores vao ficar a
+     um passo de distancia, e melhor que elas sejam a MESMA, porque a legenda
+     do portal agrupa quem divide a cor e ninguem fica procurando uma
+     diferenca que nao existe.
+
      POR QUE O VERDE DO "entregue" E LIMA e nao um verde mais claro na mesma
      matiz: o que se le como "mais claro" e a MATIZ junto com o chao — lima-700
      sobre lima-100 le amarelado ao lado de green-700 sobre green-100, e um
      green-600 sobre green-50 daria 3,0:1, abaixo do minimo. A matiz e o que
      resolve os dois de uma vez.
 
-     Medidos: **4,86:1** (laranja), **6,89:1** (marrom) e **4,60:1** (lima) no
-     claro; **6,57:1**, **8,47:1** e **9,03:1** no escuro.
+     Medidos: **4,86:1** (laranja) e **4,60:1** (lima) no claro; **6,57:1** e
+     **9,03:1** no escuro. O marrom media 6,89 e 8,47, e saiu com o tom.
 
      ELES NAO ENTRAM NO GRUPO DE DALTONISMO, e a ausencia foi MEDIDA e nao
      presumida: os oito chaos de status ficam a ΔE **1,9** no pior par
@@ -650,8 +666,6 @@
      cliente. */
   --laranja: #B4440C;
   --laranja-soft: #FFEDD5;
-  --marrom: #6B4423;
-  --marrom-soft: #F1E6DA;
   /* "lima" e nao "verde-claro", pela razao do proprio `--roxo`: o nome diz a
      COR e o papel aponta para ele. Um `--verde-claro` ao lado de `--success`
      mandaria quem vier depois procurar qual dos dois e o verde. */
@@ -883,8 +897,6 @@
      serie e a do proprio roxo acima. 6,57 / 8,47 / 9,03. */
   --laranja: #FB923C;
   --laranja-soft: #3A2208;
-  --marrom: #E3B88A;
-  --marrom-soft: #2E2216;
   --lima: #A3E635;
   --lima-soft: #263209;
 
@@ -1092,9 +1104,6 @@
   --color-status-laranja: var(--status-laranja);
   --color-status-laranja-hover: var(--status-laranja-hover);
   --color-status-laranja-foreground: var(--status-laranja-foreground);
-  --color-status-marrom: var(--status-marrom);
-  --color-status-marrom-hover: var(--status-marrom-hover);
-  --color-status-marrom-foreground: var(--status-marrom-foreground);
   --color-status-atencao: var(--status-atencao);
   --color-status-atencao-hover: var(--status-atencao-hover);
   --color-status-atencao-foreground: var(--status-atencao-foreground);
@@ -1117,8 +1126,6 @@
   --color-rosa-soft: var(--rosa-soft);
   --color-laranja: var(--laranja);
   --color-laranja-soft: var(--laranja-soft);
-  --color-marrom: var(--marrom);
-  --color-marrom-soft: var(--marrom-soft);
   --color-lima: var(--lima);
   --color-lima-soft: var(--lima-soft);
   --color-ferias: var(--ferias);

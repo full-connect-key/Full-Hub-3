@@ -47,7 +47,13 @@ export const ROTULOS_DE_SUBTAREFA: Record<SubtaskStatus, string> = {
   nao_iniciada: "Não iniciada",
   em_andamento: "Em andamento",
   aguardando_informacoes: "Aguardando informações",
-  enviada_aprovacao: "Enviada para aprovação",
+  // **"EM APROVAÇÃO" E NÃO "ENVIADA PARA APROVAÇÃO"** (decisão do usuário). O
+  // rótulo antigo descrevia o ENVIO, que é um instante; este descreve o
+  // ESTADO, que é onde a etapa fica — e é a mesma palavra do selo da Task
+  // (`em_aprovacao`), que diz a mesma coisa um nível acima. E ele nunca
+  // concorreu com o botão: quem abre a rodada se chama "Enviar para
+  // aprovação", no infinitivo, que é a ação e não o estado.
+  enviada_aprovacao: "Em aprovação",
   em_ajustes: "Em ajustes",
   concluida: "Concluída",
 };

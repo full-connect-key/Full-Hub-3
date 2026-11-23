@@ -1106,11 +1106,11 @@ const SEMENTES_DE_TASK: SementeDeTask[] = [
     data_inicio: dia(-14),
     data_fim: dia(-1),
   },
-  // AS DUAS DEMANDAS QUE FALTAVAM, e elas entraram com as sete cores de
-  // status. Os exemplos cobriam CINCO dos sete valores de `task_status` --
+  // AS DUAS DEMANDAS QUE FALTAVAM, e elas entraram com as cores de status. Os
+  // exemplos cobriam CINCO dos sete valores de `task_status` --
   // `aguardando_informacoes` e `em_ajustes` nao existiam em demanda nenhuma --,
-  // e sao justamente duas das tres que ganharam cor propria: a Lista sairia em
-  // imagem com o marrom e o lima novos e SEM o laranja e o vermelho.
+  // e sao justamente duas das que ganharam cor propria: a Lista sairia em
+  // imagem com o lima novo e SEM o laranja e o vermelho.
   //
   // E a imagem e a unica conferencia que esta mudanca tem: cor de caixa nao e
   // tipo, nao e arvore de acessibilidade, e o `check:cores` mede o par e nao
