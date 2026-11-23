@@ -2776,6 +2776,53 @@ duas: é a ordem da decisão — escolher a pessoa, ver os dias dela, escrever a
 data —, e os dois campos que o clique preenche ficam encostados nela. Acima
 dos campos ela responderia sobre um responsável que ainda não existe.
 
+##### E ELA OLHAVA A PESSOA GRAVADA, não a escolhida
+
+Relato do usuário: *"preciso que o calendário que mostra o quão cheia a pessoa
+está de job apareça antes de fechar o job, está aparecendo depois só, pode
+corrigir"*. Ele estava certo, e o furo é meu.
+
+**A CONDIÇÃO DA FAIXA ERA `subtarefa.responsavel`, que é a linha do BANCO** — e
+a frase de cima, *"acima dos campos ela responderia sobre um responsável que
+ainda não existe"*, descrevia o modal de quando o clique no seletor ERA a
+escrita: a pessoa gravada e a pessoa escolhida eram a mesma coisa no instante
+seguinte. **Com o botão de Salvar escolher alguém deixou de gravar**, e a
+faixa — que é a única peça da tela que responde *"ela aguenta?"* — passou a
+chegar **depois** de a decisão já estar tomada. É a frase dele em quantas
+palavras.
+
+**É A METADE QUE O SALVAR DEIXOU PARA TRÁS, e as duas metades já discordavam
+dentro da própria faixa:** as datas que ela pinta vêm de `valor.data_inicio` e
+`valor.prazo`, com o argumento escrito ao lado desde aquele sprint — *"quem
+acabou de escrever uma data no campo precisa ver a faixa pintada nela, senão
+as duas metades da mesma decisão discordariam a dois centímetros"*. **A pessoa
+era o único campo dela que ainda vinha do banco.**
+
+**O NOME SAI DA EQUIPE E CAI NA LINHA GRAVADA quando ela não está lá**, que é o
+terceiro estado de `SeletorDeResponsavel` lido de outro ângulo: `equipe` traz
+quem está ativo, então a etapa no nome de alguém que saiu da agência não tem
+linha na lista — e ali o que a tela sabe é o nome que veio com a subtarefa.
+*"Responsável fora da equipe"* continua tendo a faixa dele, porque a etapa
+continua sendo trabalho de alguém.
+
+***O que isto NÃO alcança, e é dito em vez de escondido:*** a faixa continua
+não existindo na LINHA da lista, onde o clique no seletor É a escrita — e ali
+"antes" não existe: a decisão e a gravação são o mesmo gesto. Dar uma grade de
+mês a cada linha seriam onze calendários numa lista de onze etapas, que é a
+razão escrita de o seletor da linha ser o avatar e não o campo. **Quem quiser
+ver a carga antes de distribuir abre o modal**, que é onde ela está — agora no
+instante da escolha.
+
+***E a imagem precisou de uma etapa SEM dono.*** A `46` abre "Criar KV", que já
+tem o Bruno gravado: ali a faixa aparece com o conserto **e sem ele**, e a
+imagem não separa as duas versões. `46e-faixa-antes-do-salvar` abre "Capa do
+destaque" — a única etapa do exemplo sem responsável — e escolhe a pessoa no
+seletor: a faixa nasce do rascunho, a barra do pé conta *"1 alteração por
+salvar"* ao lado dela, e a linha da lista embaixo ainda diz **"sem
+responsável"**, que é o que prova que nada foi gravado. **E o último clique
+fecha a lista**, então a imagem não paga os três nós de `aria-hidden-focus` que
+um `Select` aberto custa.
+
 **A LEGENDA É A DA LINHA DO TEMPO**, pelos mesmos quatro degraus e com os
 mesmos limiares: `nivelDaCarga()` e `COR_DO_NIVEL` vêm de
 `lib/dominio/calendario.ts`. Duas escalas para a mesma pergunta seriam

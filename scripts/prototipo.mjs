@@ -765,6 +765,26 @@ const TELAS = [
   // tela que ela nao e.
   { nome: "46d-entrega-observacao", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio",
     clicar: ['button:has-text("Criar KV")', 'li:has-text("Criar KV final.pdf") button:has-text("editar")'] },
+  // A FAIXA APARECENDO ANTES DO SALVAR, e ela PRECISA de uma etapa sem dono.
+  //
+  // Relato do usuario: *"preciso que o calendario que mostra o quao cheia a
+  // pessoa esta de job apareca antes de fechar o job, esta aparecendo depois
+  // so"*. A condicao da faixa era `subtarefa.responsavel`, ou seja a linha do
+  // BANCO -- com o rascunho do Salvar, escolher alguem deixou de gravar, e a
+  // faixa so chegava DEPOIS de oficializar.
+  //
+  // A `46` abre "Criar KV", que JA TEM o Bruno gravado: ali a faixa aparece
+  // com o conserto e sem ele, e a imagem nao separa as duas versoes. Esta abre
+  // "Capa do destaque", que e a unica etapa do exemplo sem responsavel, e
+  // escolhe a pessoa no seletor: a faixa nasce do rascunho, e a barra do pe
+  // conta "1 alteracao por salvar" ao lado dela.
+  //
+  // E O CLIQUE NA LISTA FECHA A LISTA, que e o que deixa esta tela barata: a
+  // ultima acao e escolher a opcao, entao o `Select` do Radix fecha e a imagem
+  // nao paga os tres nos de `aria-hidden-focus` que um seletor ABERTO custa --
+  // a razao escrita na `22c`.
+  { nome: "46e-faixa-antes-do-salvar", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 1300, role: "socio",
+    clicar: ['button:has-text("Capa do destaque")', '[role="dialog"] [aria-label="Responsável: Sem responsável"]', '[role="option"]:has-text("Bruno Lima")'] },
   { nome: "47-task-historico", rota: "/painel/gestao-tasks/11111111-1111-1111-1111-111111111111", largura: 1600, altura: 900, role: "socio", clicar: '[role="tab"]:has-text("Histórico")' },
   // O MESMO HISTORICO EM 375px, e ele entrou com a forma nova: a linha e
   // avatar + nome + frase + duas pilulas + hora, e a hora e `ms-auto`. Num

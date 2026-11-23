@@ -273,6 +273,43 @@ export function PainelDaSubtarefa({
       rascunho.estimativa ?? tempoParaCampo(subtarefa.estimativa_minutos),
   };
 
+  /* --------------------------------------------------------------------------
+     A FAIXA OLHA A PESSOA DO RASCUNHO, e não a que está gravada.
+
+     Relato do usuário: *"preciso que o calendário que mostra o quão cheia a
+     pessoa está de job apareça antes de fechar o job, está aparecendo depois
+     só"*. Ele estava certo, e o furo é meu: a condição da faixa era
+     `subtarefa.responsavel`, que é a linha DO BANCO.
+
+     **É a metade que o botão de Salvar deixou para trás.** Antes dele o clique
+     no seletor era a escrita, então a pessoa gravada e a pessoa escolhida eram
+     a mesma coisa no instante seguinte. Com o rascunho, escolher alguém deixou
+     de gravar — e a faixa, que é a única coisa da tela que responde *"ela
+     aguenta?"*, só aparecia DEPOIS do Salvar. Quer dizer que ela chegava no
+     instante em que a decisão já estava tomada, que é precisamente a frase
+     dele.
+
+     **E as duas metades da faixa já discordavam dentro dela mesma:** as datas
+     que ela pinta vêm de `valor.data_inicio` e `valor.prazo`, ou seja do
+     rascunho, com o argumento escrito ao lado — *"quem acabou de escrever uma
+     data no campo precisa ver a faixa pintada nela"*. A pessoa era o único
+     campo dela que ainda vinha do banco.
+
+     **O NOME SAI DA EQUIPE, e cai na linha gravada quando ela não está lá.**
+     `equipe` traz quem está ativo, então a etapa no nome de alguém que saiu da
+     agência não tem linha na lista — e ali o que a tela sabe é o nome que veio
+     com a subtarefa. É o terceiro estado de `SeletorDeResponsavel` lido de
+     outro ângulo: *"Responsável fora da equipe"* continua tendo a faixa dele,
+     porque a etapa continua sendo trabalho de alguém.
+     -------------------------------------------------------------------------- */
+  const quemVaiReceber =
+    valor.responsavel_id === null || valor.responsavel_id === undefined
+      ? null
+      : (equipe.find((pessoa) => pessoa.id === valor.responsavel_id) ??
+        (subtarefa.responsavel?.id === valor.responsavel_id
+          ? subtarefa.responsavel
+          : null));
+
   /**
    * Põe ou tira a segunda pessoa (0114).
    *
@@ -594,10 +631,10 @@ export function PainelDaSubtarefa({
               campos ela responderia sobre um responsável que ainda não
               existe; lá embaixo, depois da estimativa e das dependências,
               ninguém a veria ao datar. */}
-          {podeGerenciar && subtarefa.responsavel ? (
+          {podeGerenciar && quemVaiReceber ? (
             <FaixaDeDisponibilidade
-              userId={subtarefa.responsavel.id}
-              nome={subtarefa.responsavel.nome}
+              userId={quemVaiReceber.id}
+              nome={quemVaiReceber.nome}
               /* ELA MOSTRA O RASCUNHO, e não o que está no banco: quem
                  acabou de escrever uma data no campo ao lado precisa ver a
                  faixa pintada nela, senão as duas metades da mesma decisão

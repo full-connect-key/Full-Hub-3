@@ -287,6 +287,11 @@ const INTERPOLADOS = {
   // exemplo e o dia da semana do date-fns, então o que fica conferido é o
   // trecho escrito — se alguém trocar o token ou a coluna, a checagem cai.
   "Bruno Lima, quarta": 'format(parseISO(d.dia), "EEEE"',
+  // `aria-label={`Responsável: ${rotulo}`}` em seletor-de-responsavel.tsx — o
+  // rótulo é a pessoa, ou a frase de quando não há nenhuma. O que fica
+  // conferido é o prefixo, que é a parte escrita; "Sem responsável" é literal
+  // no `SelectItem` ao lado e já é conferido por ele.
+  "Responsável: Sem responsável": "Responsável: ${",
 };
 
 /** Os textos literais que dá para extrair de um seletor. */
