@@ -1662,8 +1662,18 @@ novas. O que o produto pode fazer por um documento antigo é o que ele já faz:
 quem reaplicar a cor pelo menu grava o token. **E o preço está medido e sai em
 imagem:** o exemplo do protótipo guarda um parágrafo com `#b91c1c` literal — o
 MESMO valor que `--rico-vermelho` tem no claro —, e o axe acusa ele **só no tema
-escuro**, a 2,75:1 contra 5,57:1 no claro. As duas cores lado a lado no mesmo
+escuro**, a 2,47:1 contra 6,47:1 no claro. As duas cores lado a lado no mesmo
 documento, uma congelada e uma que acompanha o tema, são o argumento inteiro.
+
+***E OS DOIS NÚMEROS TROCARAM DE CHÃO SEM A PROSA ACOMPANHAR.*** Eles eram
+**2,72 e 5,57**, e estavam certos: medidos contra `--surface-page`, porque o
+editor da demanda morava direto na PÁGINA — o parágrafo acima diz isso em
+quantas palavras. O sprint do botão branco deu a ele `bg-card border-input`,
+com a razão escrita (*ele é CONTEÚDO, como "Arquivos da entrega" ao lado*), e o
+par passou a ser medido contra o CARTÃO sem ninguém reler esta linha. Fica
+registrado como a classe de coisa que este arquivo mais paga: **um número
+afirmado aqui é lido como verdade por quem vier depois**, e o que o mantém
+honesto é o axe medindo o par de hoje, em `25d-task-briefing-escuro`.
 
 ##### A CAIXA, e por que ela é um `Node` e não um `blockquote` pintado
 
