@@ -263,7 +263,7 @@ export function CaixaDeEntrada({
           }
         />
       ) : (
-        <div className="divide-y rounded-lg border">
+        <div className="bg-card divide-y rounded-lg border">
           {visiveis.map((p) => {
             const dias = diasEsperando(p.created_at, hojeISO);
             const esquecido = estaEsquecida(p, hojeISO);

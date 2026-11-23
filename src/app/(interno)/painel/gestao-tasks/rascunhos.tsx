@@ -31,7 +31,7 @@ export function GrupoDeRascunhos({ rascunhos }: { rascunhos: RascunhoDaLista[] }
   if (rascunhos.length === 0) return null;
 
   return (
-    <section className="rounded-lg border">
+    <section className="bg-card rounded-lg border">
       <button
         type="button"
         onClick={() => setAberto(!aberto)}

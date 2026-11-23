@@ -397,7 +397,7 @@ export function Workflows({
               // qualquer dá uma cor que ninguém mediu, e a 50% o nome do
               // workflow reprova o contraste. O selo "Arquivado" logo abaixo já
               // diz o mesmo, e diz por escrito.
-              className="rounded-lg border p-4"
+              className="bg-card rounded-lg border p-4"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <button

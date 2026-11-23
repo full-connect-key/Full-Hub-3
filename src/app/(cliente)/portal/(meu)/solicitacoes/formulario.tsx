@@ -583,7 +583,7 @@ export function FormularioDePedido({
             uma escolha e não o padrão.
             ---------------------------------------------------------------- */}
         {campos.length > 0 ? (
-          <section className="space-y-4 rounded-lg border p-4">
+          <section className="bg-card space-y-4 rounded-lg border p-4">
             <h3 className="text-sm font-semibold">Sobre este material</h3>
 
             {campos.map((c) => {

@@ -261,7 +261,7 @@ export function DetalheDoPedido({
       ) : null}
 
       {respostas.length > 0 ? (
-        <dl className="divide-y rounded-lg border">
+        <dl className="bg-card divide-y rounded-lg border">
           {respostas.map((r) => (
             <div
               key={r.rotulo}
@@ -282,7 +282,7 @@ export function DetalheDoPedido({
             Nenhum arquivo anexado.
           </p>
         ) : (
-          <ul className="divide-y rounded-lg border">
+          <ul className="bg-card divide-y rounded-lg border">
             {pedido.anexos.map((a) => (
               <li key={a.id} className="flex items-center gap-2 p-3 text-sm">
                 <Paperclip

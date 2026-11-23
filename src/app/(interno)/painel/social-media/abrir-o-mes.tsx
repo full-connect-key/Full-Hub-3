@@ -612,7 +612,7 @@ export function AbrirOMes({
           {linhas.map((linha, i) => (
             <li
               key={linha.id}
-              className="border-border space-y-2 rounded-lg border p-3"
+              className="bg-card border-border space-y-2 rounded-lg border p-3"
             >
               <div className="flex items-center gap-2">
                 <Label htmlFor={`qtd-${linha.id}`} className="text-xs">

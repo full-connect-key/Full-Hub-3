@@ -687,7 +687,7 @@ export function PainelDaSubtarefa({
                 }}
               />
             ) : subtarefa.descricao_rica ? (
-              <div className="rounded-lg border p-4">
+              <div className="bg-card rounded-lg border p-4">
                 <VisualizadorRico
                   conteudo={subtarefa.descricao_rica as JSONContent}
                 />

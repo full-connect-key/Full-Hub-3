@@ -83,7 +83,7 @@ export function EditorDoTermo({ corpo }: { corpo: string }) {
 
       <aside className="space-y-2">
         <h2 className="text-text-primary text-sm font-semibold">O que dá para usar</h2>
-        <ul className="divide-border divide-y rounded-lg border text-xs">
+        <ul className="bg-card divide-border divide-y rounded-lg border text-xs">
           {VARIAVEIS_DO_TERMO.map((v) => (
             <li key={v.chave} className="px-3 py-2">
               <code className="text-accent-strong">{`{{${v.chave}}}`}</code>

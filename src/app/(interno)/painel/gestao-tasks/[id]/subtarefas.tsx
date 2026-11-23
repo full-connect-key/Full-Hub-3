@@ -366,7 +366,7 @@ export function Subtarefas({
             items={arvore.map(({ etapa }) => etapa.id)}
             strategy={verticalListSortingStrategy}
           >
-            <ul className="divide-y rounded-lg border">
+            <ul className="bg-card divide-y rounded-lg border">
               {arvore.map(({ etapa, filhas }) => (
                 <ItemArrastavel
                   key={etapa.id}

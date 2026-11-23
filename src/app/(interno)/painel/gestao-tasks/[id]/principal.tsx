@@ -89,7 +89,7 @@ export function PrincipalDaTask({
             }}
           />
         ) : task.briefing_rico ? (
-          <div className="rounded-lg border p-4">
+          <div className="bg-card rounded-lg border p-4">
             <VisualizadorRico conteudo={task.briefing_rico as JSONContent} />
           </div>
         ) : (

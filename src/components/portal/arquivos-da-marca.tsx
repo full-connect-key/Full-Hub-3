@@ -357,7 +357,7 @@ function Arquivo({
               href={arquivo.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:bg-accent inline-flex min-h-9 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
+              className="hover:bg-accent border-input bg-card inline-flex min-h-9 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
             >
               <ExternalLink aria-hidden className="size-4" />
               Abrir
@@ -367,7 +367,7 @@ function Arquivo({
             <a
               href={arquivo.href}
               download={arquivo.nome}
-              className="hover:bg-accent inline-flex min-h-9 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
+              className="hover:bg-accent border-input bg-card inline-flex min-h-9 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
             >
               <Download aria-hidden className="size-4" />
               Baixar

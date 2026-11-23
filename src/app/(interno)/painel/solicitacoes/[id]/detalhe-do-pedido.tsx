@@ -245,7 +245,7 @@ export function DetalheDoPedido({
       {respostas.length > 0 ? (
         <section className="space-y-2">
           <h2 className="text-sm font-semibold">O briefing</h2>
-          <dl className="divide-y rounded-lg border">
+          <dl className="bg-card divide-y rounded-lg border">
             {respostas.map((r) => (
               <div
                 key={r.rotulo}
@@ -275,7 +275,7 @@ export function DetalheDoPedido({
           <h2 className="text-sm font-semibold">
             Arquivos ({pedido.anexos.length})
           </h2>
-          <ul className="divide-y rounded-lg border">
+          <ul className="bg-card divide-y rounded-lg border">
             {pedido.anexos.map((a) => (
               <li key={a.id} className="flex items-center gap-2 p-3 text-sm">
                 <Paperclip
@@ -436,7 +436,7 @@ export function DetalheDoPedido({
       )}
 
       {recusando ? (
-        <div className="space-y-2 rounded-lg border p-3">
+        <div className="bg-card space-y-2 rounded-lg border p-3">
           <Label htmlFor="motivo-da-recusa">Por que não vamos seguir</Label>
           <Textarea
             id="motivo-da-recusa"

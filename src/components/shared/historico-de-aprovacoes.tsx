@@ -82,7 +82,7 @@ export function HistoricoDeAprovacoes({
         const desfecho = DESFECHO_DA_RODADA[rodada.status];
 
         return (
-          <li key={rodada.id} className="rounded-md border">
+          <li key={rodada.id} className="bg-card rounded-md border">
             <button
               type="button"
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm"

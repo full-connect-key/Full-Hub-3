@@ -859,7 +859,7 @@ export function EditorDeRecorrencia({
                   {modelo.subtarefas.map((etapa, i) => (
                     <li
                       key={i}
-                      className="border-border grid gap-3 rounded-lg border p-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_auto]"
+                      className="bg-card border-border grid gap-3 rounded-lg border p-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_auto]"
                     >
                       <div className="space-y-1.5">
                         <Label htmlFor={`etapa-${i}`}>Etapa {i + 1}</Label>

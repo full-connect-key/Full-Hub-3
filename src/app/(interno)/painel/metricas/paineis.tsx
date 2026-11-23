@@ -51,7 +51,7 @@ function Vazio({ frase }: { frase: string }) {
 
 function Tabela({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-card overflow-x-auto border">
+    <div className="bg-card rounded-card overflow-x-auto border">
       <table className="w-full text-sm">{children}</table>
     </div>
   );

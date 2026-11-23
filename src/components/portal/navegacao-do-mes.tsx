@@ -75,7 +75,11 @@ export function NavegacaoDoMes({
         </Button>
       ) : null}
 
-      <div className="ml-auto flex items-center gap-1 rounded-lg border p-1">
+      {/* A CAIXA É BRANCA, como a do `SeletorDeVisao` — é a quarta cópia dele
+          escrita à mão, e a decisão de lá vale aqui: sem chão, ela é a
+          página cinza dentro da página cinza, e o que separa os três itens
+          passa a ser um fio de 1,07:1. */}
+      <div className="bg-card border-input ml-auto flex items-center gap-1 rounded-lg border p-1">
         {(
           [
             ["calendario", "Calendário", CalendarDays],

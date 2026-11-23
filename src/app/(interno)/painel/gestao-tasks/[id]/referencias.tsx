@@ -179,7 +179,7 @@ export function Referencias({
       ) : null}
 
       {outras.length > 0 ? (
-        <ul className="divide-y rounded-lg border">
+        <ul className="bg-card divide-y rounded-lg border">
           {outras.map((referencia) => (
             <li key={referencia.id} className="flex items-center gap-2 p-2.5 text-sm">
               {referencia.tipo === "link" ? (

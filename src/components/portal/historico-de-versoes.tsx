@@ -90,7 +90,7 @@ export function HistoricoDeVersoes({
           ) : null}
 
           {outra && atual ? (
-            <div className="space-y-3 rounded-xl border p-3">
+            <div className="bg-card space-y-3 rounded-xl border p-3">
               <p className="text-sm font-medium">
                 Versão {outra.numero} e versão {atual.numero}
               </p>

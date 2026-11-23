@@ -571,7 +571,7 @@ function EditorDoFluxo({
                 </div>
                 <div className="space-y-2">
                 {elo.papel === "producao" ? (
-                  <div className="flex items-center justify-between gap-3 rounded-lg border p-2">
+                  <div className="bg-card flex items-center justify-between gap-3 rounded-lg border p-2">
                     {/* `flex-col items-start` NO PRÓPRIO LABEL: o do shadcn é
                         `flex items-center gap-2`, então um `block` no filho não
                         o tira do fluxo flex — a frase saía NA MESMA LINHA do
@@ -620,7 +620,7 @@ function EditorDoFluxo({
                     papel. */}
                 {elo.papel === "entrega" ||
                 (elo.papel === "producao" && elo.aprovacao_cliente) ? (
-                  <div className="flex items-center justify-between gap-3 rounded-lg border p-2">
+                  <div className="bg-card flex items-center justify-between gap-3 rounded-lg border p-2">
                     <Label
                       htmlFor={`elo-aval-${elo.id}`}
                       className="cursor-pointer flex-col items-start gap-0.5 text-xs"
@@ -687,7 +687,7 @@ function EditorDoFluxo({
       {/* A PRÉVIA DA CORRENTE, embaixo do editor e não em cima: ela é o
           resultado do que a pessoa acabou de montar, e é o que ela confere
           antes de salvar — como as cinco próximas ocorrências da recorrência. */}
-      <div className="rounded-lg border p-3">
+      <div className="bg-card rounded-lg border p-3">
         <p className="text-text-secondary text-xs font-medium">Como ela vai ficar</p>
         <Corrente etapas={elos} />
       </div>

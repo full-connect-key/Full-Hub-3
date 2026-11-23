@@ -146,7 +146,7 @@ export function FormularioDaConfig({
         </p>
       </div>
 
-      <div className="border-border space-y-2 rounded-lg border p-3">
+      <div className="bg-card border-border space-y-2 rounded-lg border p-3">
         <div className="flex items-center justify-between gap-3">
           <Label htmlFor="config-revisao" className="cursor-pointer">
             Exigir revisão humana antes do envio

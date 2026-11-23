@@ -1410,6 +1410,108 @@ if (semChao.length > 0) {
   console.log(`  ok      os ${linhasDeChip.length} chips nomeiam o chão de repouso`);
 }
 
+// --- a caixa de conteúdo nomeia o chão dela --------------------------------
+//
+// **O CINZA NÃO FICA SOBRE O CINZA, e esta é a classe de bug que o produto já
+// encontrou QUATRO vezes à mão** — os três contêineres de Minhas Tasks, a
+// `DataTable` de seis telas, o board da Gestão de Tasks e o editor de
+// briefing. O defeito é sempre o mesmo e é uma AUSÊNCIA: um contêiner com
+// `rounded-*` e `border` e **nenhum `bg-`** mostra a PÁGINA por dentro, e a
+// página é cinza. Com o fio a 1,07:1 o que sobra é um retângulo que não se lê.
+//
+// E está escrito neste arquivo, desde a varredura de Minhas Tasks, que
+// *"`check:cores` não pega isso: a ausência de uma classe não é cor literal
+// nem classe inexistente"*. Esta seção é essa frase deixando de valer.
+//
+// A REGRA É A MESMA DO CHIP, um nível acima: a linha precisa nomear um chão de
+// REPOUSO — um `bg-` sem prefixo de estado. `hover:bg-muted` sozinho passaria
+// numa caixa que só tem cor quando o ponteiro está em cima, que é o defeito.
+//
+// **DUAS COISAS FICAM FORA POR CONSTRUÇÃO, e não por isenção de arquivo.** A
+// moldura TRACEJADA: o `EmptyState` desenha a borda pontilhada justamente para
+// dizer que existe uma região ali, e pintá-la de branco apagaria a distinção
+// entre "não há nada" e "há isto" — `border-dashed` na linha é a declaração.
+// E `border-current`: ele toma a borda da cor de TEXTO da superfície, então só
+// se lê onde a superfície tem cor própria — é o botão fantasma na faixa âmbar,
+// e um `bg-card` ali partiria a faixa. Sobre a página cinza ele daria uma
+// borda escura e visível, ou seja o defeito desta seção não o alcança.
+//
+// AS ISENÇÕES SÃO DECLARADAS COM O MOTIVO, que é a decisão do `-- SEM LINHA:`
+// do `onde-esta-o-banco.sql` e das `ISENTAS` do `check:acoes`: uma lista de
+// arquivos a ignorar sem razão ao lado é onde o furo seguinte se esconde.
+// São duas famílias, e nenhuma é descuido:
+//
+//   • **moldura de IMAGEM** — a imagem É o chão, e um `bg-card` por baixo dela
+//     não aparece em pixel nenhum. Pintar seria o chão de uma coisa que não
+//     tem como aparecer;
+//   • **caixa DENTRO de um cartão** — ali a superfície já é branca, e um
+//     segundo branco é cartão dentro de cartão: a decisão escrita do
+//     `EmptyState` dentro de "Meu dia", onde a moldura SAI por ser esse caso.
+
+console.log("\nA caixa de conteúdo nomeia o chão dela\n");
+
+const CAIXAS_SEM_CHAO_SALVAS = [
+  // moldura de imagem: a imagem é o chão
+  ["src/app/(interno)/painel/academy/[slug]/detalhe.tsx", "a capa do item, com a imagem por dentro"],
+  ["src/app/(interno)/painel/aprovacoes/campanhas/[id]/arvore-de-producao.tsx", "a miniatura de cada peça"],
+  ["src/app/(interno)/painel/gestao-tasks/[id]/referencias.tsx", "o botão que é a miniatura da referência"],
+  ["src/app/(interno)/painel/pessoas/clientes/[id]/identidade-do-portal.tsx", "a capa e o logo da conta"],
+  ["src/app/(interno)/painel/recomendacoes/feed.tsx", "a capa do que foi indicado"],
+  ["src/components/portal/cartao-de-item.tsx", "a miniatura do material"],
+  // caixa dentro de um cartão: o chão já é branco
+  ["src/app/(interno)/painel/academy/[slug]/montar.tsx", "dentro do cartão do módulo"],
+  ["src/app/(interno)/painel/comodatos/[id]/page.tsx", "dentro do cartão da folha do equipamento"],
+  ["src/app/(interno)/painel/social-media/fluxos-de-social.tsx", "dentro do cartão do elo do fluxo"],
+];
+
+const RAIO_DE_CAIXA = /\brounded-(?:lg|xl|2xl|3xl|md|card)\b/;
+const BORDA_DE_CAIXA = /(?:^|\s)border(?:-[a-z0-9/[\]-]+)?(?=\s|$)/;
+const CHAO_DE_REPOUSO = /(?:^|[^:a-z-])bg-/;
+
+const salvas = new Set(CAIXAS_SEM_CHAO_SALVAS.map(([a]) => a));
+const caixasSemChao = [];
+let caixasConferidas = 0;
+
+let telas = [];
+try {
+  telas = execSync("find src -name '*.tsx' | sort", { encoding: "utf8" })
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+} catch {
+  telas = [];
+}
+
+for (const arquivo of telas) {
+  const linhas = semComentarios(readFileSync(arquivo, "utf8")).split("\n");
+  for (let i = 0; i < linhas.length; i++) {
+    for (const classe of linhas[i].matchAll(/(?:className|class)="([^"]*)"/g)) {
+      const c = classe[1];
+      if (!RAIO_DE_CAIXA.test(c) || !BORDA_DE_CAIXA.test(c)) continue;
+      if (c.includes("dashed") || c.includes("border-current")) continue;
+      caixasConferidas++;
+      if (CHAO_DE_REPOUSO.test(c)) continue;
+      if (salvas.has(arquivo)) continue;
+      caixasSemChao.push(`${arquivo}:${i + 1}  ${c.slice(0, 100)}`);
+    }
+  }
+}
+
+if (caixasSemChao.length > 0) {
+  falhas++;
+  console.log(
+    `  FALHA   ${caixasSemChao.length} caixa(s) sem chão — o que aparece por dentro é a página cinza`,
+  );
+  for (const linha of caixasSemChao) console.log(`          ${linha}`);
+  console.log(`          Dê a cada uma \`bg-card\`, ou declare a isenção com o motivo`);
+  console.log(`          em CAIXAS_SEM_CHAO_SALVAS, se ela for moldura de imagem ou`);
+  console.log(`          já estiver dentro de um cartão.`);
+} else {
+  console.log(
+    `  ok      as ${caixasConferidas} caixas nomeiam o chão (${salvas.size} arquivos isentos, com o motivo)`,
+  );
+}
+
 // --- hex fora do arquivo de tokens -----------------------------------------
 
 console.log("\nCor literal fora de globals.css\n");

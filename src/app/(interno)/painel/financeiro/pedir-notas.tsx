@@ -216,7 +216,7 @@ export function PedirNotas({
               </p>
 
               {/* QUEM VAI RECEBER, PELO NOME. */}
-              <div className="rounded-lg border p-3">
+              <div className="bg-card rounded-lg border p-3">
                 {contando ? (
                   <p className="text-text-muted flex items-center gap-2 text-sm">
                     <Loader2 aria-hidden className="size-3.5 animate-spin" />

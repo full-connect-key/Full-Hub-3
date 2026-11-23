@@ -286,7 +286,7 @@ export function MinhasNotas({
           description="Todo mês, anexe o PDF da sua nota fiscal aqui. O sócio confere, e você acompanha o pagamento por esta tela."
         />
       ) : (
-        <ul className="divide-y rounded-xl border">
+        <ul className="bg-card divide-y rounded-xl border">
           {visiveis.map((nota) => (
             <li key={nota.id} className="flex flex-wrap items-start gap-3 p-4">
               <div className="min-w-[10rem] flex-1">

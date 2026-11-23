@@ -517,7 +517,7 @@ function PorPessoa({ pessoas }: { pessoas: PessoaComEquipamento[] }) {
           description="Nenhuma pessoa e nenhum equipamento casam com o que você digitou."
         />
       ) : (
-        <ul className="divide-border divide-y rounded-xl border">
+        <ul className="bg-card divide-border divide-y rounded-xl border">
           {lista.map((p) => {
             const atrasados = contarAtrasados(p.itens, hoje);
             return (

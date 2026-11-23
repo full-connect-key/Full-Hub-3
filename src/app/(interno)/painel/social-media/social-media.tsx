@@ -641,7 +641,7 @@ export function SocialMedia({
                             type="button"
                             onClick={() => abrir(p.id)}
                             title={`${p.tema} — ${p.cliente} · ${ROTULO_DA_MAO[maoDoPost(p)]}${p.responsavel ? ` · com ${p.responsavel}` : ""}${p.programado ? " · programado" : ""}`}
-                            className="border-border hover:bg-muted flex w-full items-center gap-1.5 rounded-md border px-1 py-0.5 text-left"
+                            className="border-input bg-card hover:bg-muted flex w-full items-center gap-1.5 rounded-md border px-1 py-0.5 text-left"
                           >
                             <span
                               aria-hidden

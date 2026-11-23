@@ -189,7 +189,7 @@ export function UsuariosDoCliente({
           description="Convide o contato da empresa para ele acompanhar os conteúdos e as campanhas pelo portal."
         />
       ) : (
-        <ul className="divide-y rounded-xl border">
+        <ul className="bg-card divide-y rounded-xl border">
           {usuarios.map((usuario) => (
             <li key={usuario.vinculoId} className="flex flex-wrap items-center gap-3 p-3">
               <UserAvatar name={usuario.nome} />

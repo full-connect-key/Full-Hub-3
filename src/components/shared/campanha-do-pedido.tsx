@@ -64,7 +64,7 @@ export function CampanhaDoPedido({
 
       {linhas.length > 0 ? (
         <>
-          <ul className="divide-y rounded-lg border">
+          <ul className="bg-card divide-y rounded-lg border">
             {linhas.map((l) => (
               <li key={l.tipo} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 p-3">
                 <span className="text-sm font-medium tabular-nums">{l.quantidade}</span>

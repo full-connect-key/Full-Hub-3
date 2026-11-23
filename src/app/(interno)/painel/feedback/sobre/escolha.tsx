@@ -40,7 +40,7 @@ export function EscolhaDeFeedback({ recebe }: { recebe: boolean }) {
   }
 
   return (
-    <div className="border-border flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
+    <div className="bg-card border-border flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
       <div className="min-w-0 flex-1">
         <label
           htmlFor="receber-feedback"

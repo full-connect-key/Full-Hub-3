@@ -122,7 +122,7 @@ export function Desligamento({
               <li>• Nada é apagado. Isso é desligamento, não exclusão.</li>
             </ul>
 
-            <div className="rounded-lg border p-3">
+            <div className="bg-card rounded-lg border p-3">
               <p className="mb-2 text-sm font-medium">O que está no nome dela hoje:</p>
               <ul className="text-muted-foreground space-y-1 text-sm">
                 <li>{vinculos.tasksAbertas} subtarefa(s) em aberto</li>

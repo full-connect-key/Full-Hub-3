@@ -184,7 +184,7 @@ export function DialogoDeEquipamento({
               tripé pareceria ter metade dos campos em branco por descuido. Com
               o título, a ausência num tripé se lê como "não se aplica". */}
           {mostrarFicha ? (
-            <fieldset className="space-y-3 rounded-lg border p-3">
+            <fieldset className="bg-card space-y-3 rounded-lg border p-3">
               <legend className="text-text-secondary px-1 text-xs font-medium">
                 Configuração
               </legend>

@@ -335,7 +335,7 @@ export function ConfiguracoesDoFluxo({
             description="Os fluxos são as cadeias de etapas que uma demanda percorre. Eles são cadastrados em Workflows."
           />
         ) : (
-          <ul className="divide-y rounded-xl border">
+          <ul className="bg-card divide-y rounded-xl border">
             {fluxos.map((fluxo) => (
               <li key={fluxo.id} className="flex flex-wrap items-start gap-3 p-4">
                 <div className="min-w-[12rem] flex-1">
@@ -482,7 +482,7 @@ export function ConfiguracoesDoFluxo({
                 da agência. É a decisão da frase do interruptor da 0076 —
                 dizer o que ACONTECE, e não que a opção está escolhida. */}
             {fluxoEscolhido ? (
-              <div className="rounded-lg border p-3">
+              <div className="bg-card rounded-lg border p-3">
                 <p className="text-xs">
                   {fluxoEscolhido.etapas.map((e, i) => (
                     <span key={e.nome}>
@@ -570,7 +570,7 @@ export function ConfiguracoesDoFluxo({
             description="Uma recorrência é a regra que abre a mesma demanda todo mês, toda segunda ou todo dia 5."
           />
         ) : (
-          <ul className="divide-y rounded-xl border">
+          <ul className="bg-card divide-y rounded-xl border">
             {recorrencias.map((regra) => (
               <li key={regra.id} className="flex items-center justify-between gap-3 p-4">
                 <div className="min-w-0">

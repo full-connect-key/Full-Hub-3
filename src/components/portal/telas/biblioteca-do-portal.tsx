@@ -260,7 +260,7 @@ function Cartao({
             <a
               href={arquivo.arquivo.href}
               download={arquivo.arquivo.nome}
-              className="hover:bg-accent inline-flex min-h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
+              className="hover:bg-accent border-input bg-card inline-flex min-h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
             >
               <Download aria-hidden className="size-4" />
               Baixar
@@ -279,7 +279,7 @@ function Cartao({
           ) : arquivo.caminho ? (
             <Link
               href={arquivo.caminho}
-              className="hover:bg-accent inline-flex min-h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
+              className="hover:bg-accent border-input bg-card inline-flex min-h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
             >
               Abrir
               <ArrowRight aria-hidden className="size-4" />

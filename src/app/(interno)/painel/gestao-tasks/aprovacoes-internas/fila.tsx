@@ -209,7 +209,7 @@ function Cabecalho({ item }: { item: ItemDaFila }) {
                 href={anexo.url}
                 target="_blank"
                 rel="noreferrer"
-                className="text-muted-foreground hover:text-accent-strong inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs"
+                className="text-muted-foreground hover:text-accent-strong border-input bg-card inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs"
               >
                 <Paperclip className="size-3" aria-hidden />
                 {anexo.nome}
@@ -243,7 +243,7 @@ function ItemEsperando({ item }: { item: ItemDaFila }) {
   const [motivo, setMotivo] = useState("");
 
   return (
-    <li className="flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3">
+    <li className="bg-card flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3">
       <Cabecalho item={item} />
 
       {/* Quem chega nesta fila é gestão, e desde a migration 0029 a gestão
@@ -363,7 +363,7 @@ function ItemProntaParaOCliente({ item }: { item: ItemDaFila }) {
   }
 
   return (
-    <li className="flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3">
+    <li className="bg-card flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3">
       <Cabecalho item={item} />
       <Button size="sm" onClick={() => setEnviando(true)}>
         <Send aria-hidden />

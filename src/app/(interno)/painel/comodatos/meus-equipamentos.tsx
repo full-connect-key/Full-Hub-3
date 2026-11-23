@@ -88,7 +88,7 @@ export function MeusEquipamentos({ comodatos, hoje }: { comodatos: MeuComodato[]
             Já devolvidos{" "}
             <span className="text-text-muted font-normal tabular-nums">{devolvidos.length}</span>
           </h2>
-          <ul className="divide-border divide-y rounded-xl border">
+          <ul className="bg-card divide-border divide-y rounded-xl border">
             {devolvidos.map((c) => (
               <li key={c.loan_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
                 {/* O CÓDIGO É ITEM PRÓPRIO DA LINHA, e não um trecho dentro do

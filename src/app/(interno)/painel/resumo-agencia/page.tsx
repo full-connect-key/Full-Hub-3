@@ -68,7 +68,7 @@ export default async function PaginaDoResumoDaAgencia({
             <Link
               href={`/painel/resumo-agencia?semana=${somarDias(semana, -7)}`}
               aria-label="Semana anterior"
-              className="hover:bg-muted rounded-lg border p-2"
+              className="border-input bg-card hover:bg-muted rounded-lg border p-2"
             >
               <ChevronLeft aria-hidden className="size-4" />
             </Link>
@@ -79,7 +79,7 @@ export default async function PaginaDoResumoDaAgencia({
             <Link
               href={`/painel/resumo-agencia?semana=${somarDias(semana, 7)}`}
               aria-label="Semana seguinte"
-              className="hover:bg-muted rounded-lg border p-2"
+              className="border-input bg-card hover:bg-muted rounded-lg border p-2"
             >
               <ChevronRight aria-hidden className="size-4" />
             </Link>
@@ -89,7 +89,7 @@ export default async function PaginaDoResumoDaAgencia({
             {estaSemana ? null : (
               <Link
                 href="/painel/resumo-agencia"
-                className="hover:bg-muted ml-1 rounded-lg border px-3 py-2 text-sm"
+                className="border-input bg-card hover:bg-muted ml-1 rounded-lg border px-3 py-2 text-sm"
               >
                 Esta semana
               </Link>

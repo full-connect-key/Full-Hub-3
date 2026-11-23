@@ -413,7 +413,7 @@ export function DetalheDoConteudo({
             <a
               href={modelo.download.href}
               download={modelo.download.nome}
-              className="hover:bg-accent inline-flex min-h-9 items-center gap-2 rounded-md border px-3.5 text-sm font-medium transition-colors"
+              className="hover:bg-accent border-input bg-card inline-flex min-h-9 items-center gap-2 rounded-md border px-3.5 text-sm font-medium transition-colors"
             >
               <Download aria-hidden className="size-4" />
               Baixar arquivo

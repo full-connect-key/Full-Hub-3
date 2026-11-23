@@ -168,7 +168,7 @@ export function ArquivosDaEntrega({
                           href={entrega.assinado}
                           target="_blank"
                           rel="noreferrer"
-                          className="hover:bg-accent inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors"
+                          className="hover:bg-accent border-input bg-card inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors"
                         >
                           {entrega.tipo === "arquivo" ? (
                             <>
