@@ -9,6 +9,7 @@ import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/result
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { TIPOS_DE_MATERIAL } from "@/lib/dominio/campanhas";
 import { FRENTES_DA_SOLICITACAO } from "@/lib/dominio/solicitacoes";
+import type { Json } from "@/lib/supabase/database.types";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -54,7 +55,26 @@ const esquemaDoPedido = z.object({
   client_id: z.string().uuid("Escolha a empresa."),
   request_type_id: z.string().uuid().optional().nullable(),
   titulo: z.string().trim().min(3, "Dê um nome ao que você precisa."),
+  /**
+   * O BRIEFING, nas duas metades (0148).
+   *
+   * `descricao` é o texto puro — o que a busca lê e o que viaja para
+   * `tasks.briefing_texto` na conversão — e `briefing_rico` é o documento do
+   * TipTap que o editor desenha. O nome `descricao` ficou pela decisão de
+   * `prazo` e de `dias_uteis`: renomear coluna em uso é migration arriscada
+   * sem nada em troca, e esta tem quatro leitores.
+   *
+   * **`z.unknown()` no documento**, que é a forma de `briefing_rico` na action
+   * da task: o conteúdo do TipTap é JSON arbitrário, e um esquema que
+   * descrevesse os nós seria uma segunda definição do formato dele — a que
+   * recusaria a extensão nova no dia em que o editor ganhasse uma.
+   *
+   * **E o teto de 4000 é só do TEXTO**, de propósito: ele é a medida do que a
+   * pessoa escreveu, e o documento é a mesma coisa com a marcação em volta —
+   * um teto no jsonb recusaria uma tabela de três linhas por causa das chaves.
+   */
   descricao: z.string().trim().max(4000).optional().nullable(),
+  briefing_rico: z.unknown().optional().nullable(),
   /**
    * A CAMPANHA É OPCIONAL, E A COERÊNCIA É DO BANCO (0112).
    *
@@ -75,9 +95,15 @@ const esquemaDoPedido = z.object({
    *
    * **O `.nullable()` é a reversão da 0124**, por decisão do usuário: *"não
    * precisa ser social ou campanha necessariamente"*. O enum continua com DOIS
-   * valores — a terceira opção da tela é a AUSÊNCIA de um deles, e ela viaja
-   * como nulo (`OPCAO_SEM_FRENTE`, no domínio). Um terceiro valor no enum poria
-   * no relatório uma categoria "nenhuma" onde o que existe é não ter categoria.
+   * valores, e a ausência de um deles viaja como nulo: um terceiro valor ali
+   * poria no relatório uma categoria "nenhuma" onde o que existe é não ter
+   * categoria.
+   *
+   * **E DESDE A 0148 A TELA NÃO PERGUNTA MAIS A FRENTE**: ela vem do TIPO de
+   * trabalho escolhido (`request_types.frente`), e o tipo cuja frente é nula —
+   * "Material impresso", "Outro" — é o que antes era o cartão *"Não sei
+   * dizer"*. O campo continua no esquema porque é ele que a action grava, e
+   * porque quem monta a chamada à mão continua passando por aqui.
    *
    * **E o que o banco ainda recusa continua recusado:** `is distinct from` do
    * ramo 3 alcança o nulo, então um pedido com campanha e sem frente é negado
@@ -171,6 +197,7 @@ const esquemaDoPedido = z.object({
 const ROTULOS = {
   client_id: "empresa",
   titulo: "o que você precisa",
+  descricao: "briefing",
   data_desejada: "data desejada",
   campaign_id: "campanha",
   frente: "Social ou Campanha",
@@ -220,7 +247,15 @@ export async function abrirSolicitacao(dados: unknown): Promise<Resultado<string
         frente: entrada.frente ?? null,
         vertente_id: entrada.vertente_id || null,
         titulo: entrada.titulo,
+        // AS DUAS METADES ANDAM JUNTAS, e quem decide é o TEXTO: um documento
+        // do TipTap sem nada dentro ainda é um parágrafo vazio, então guardá-lo
+        // seria guardar o formato do nada — e `briefingRicoDoPedido()` leria um
+        // documento onde não há briefing. É a decisão dos briefings do lado de
+        // dentro, palavra por palavra.
         descricao: entrada.descricao?.trim() || null,
+        briefing_rico: entrada.descricao?.trim()
+          ? ((entrada.briefing_rico ?? null) as Json | null)
+          : null,
         respostas: entrada.respostas,
         data_desejada: entrada.data_desejada?.trim() || null,
         // O PERÍODO E A COMPOSIÇÃO (0138), e os três caem para NULO quando

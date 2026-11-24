@@ -6,6 +6,7 @@ import {
 import type {
   CampoDoRoteiro,
   ClientRequest,
+  Json,
   SolicitacaoFrente,
   SolicitacaoStatus,
 } from "@/lib/supabase/database.types";
@@ -143,10 +144,28 @@ export const TOM_DA_SOLICITACAO: Record<
 // chip da fila, a ação de classificar, o bloco do relatório — fica inteiro.
 //
 // **O NULO DEIXOU DE SER SÓ O PEDIDO ANTIGO.** Ele era isso até a 0137: uma
-// linha anterior à regra, que a fila desenha como "Sem classificação". Agora
-// ele é um estado que a tela OFERECE — `OPCAO_SEM_FRENTE`, logo abaixo —, e
-// quem classifica passa a ser o cliente OU o Atendimento, pela ação que existe
-// desde a 0124 justamente para o pedido anterior a ela.
+// linha anterior à regra, que a fila desenha como "Sem classificação". Depois
+// dela ele é um estado que a tela OFERECE, e quem classifica passa a ser o
+// cliente OU o Atendimento, pela ação que existe desde a 0124 justamente para
+// o pedido anterior a ela.
+//
+// **E QUEM A OFERECE PASSOU A SER O TIPO DE TRABALHO (0148).** A 0137 a
+// oferecia num cartão próprio — *"Não sei dizer"*, ao lado de Social e
+// Campanha —, e o usuário pediu o contrário: *"Nas solicitações do portal do
+// cliente, pode tirar o onde isso entra. quero que mude o que tipo de trabalho
+// é, para permitir campanhas tbm"*. A frente virou coluna de
+// `request_types`, então ela SAI da escolha do cliente e vem do cartão que ele
+// já escolhia: "Peça para redes" é social, "Campanha" é campanha, e "Material
+// impresso" e "Outro" são o terceiro cartão — eles têm `frente` nula, que é
+// exatamente *"não sei dizer"* dito pelo nome do trabalho. **Duas perguntas
+// para a mesma resposta eram uma pergunta a mais**, e a que o cliente sabia
+// responder é a do trabalho.
+//
+// É por isso que `EXPLICACAO_DA_FRENTE` e `OPCAO_SEM_FRENTE` saíram deste
+// arquivo: as duas eram da fileira de cartões que a 0148 desfez, e um
+// `export` sem chamador é o que alguém reaproveita três sprints depois achando
+// que a escolha ainda existe — a 0023. O que fica é `ROTULOS_DE_FRENTE`, que a
+// fila e a ação de classificar leem, e `rotuloDaFrente()`, que nomeia o nulo.
 //
 // **E a frente continua sendo uma DECLARAÇÃO e não uma conta**, que é a linha
 // central daquele cabeçalho: `campaign_id is not null ? "campanha" : "social"`
@@ -180,42 +199,6 @@ export const ROTULOS_DE_FRENTE: Record<SolicitacaoFrente, string> = {
   social: "Social",
   campanha: "Campanha",
 };
-
-/**
- * A frase embaixo de cada opção, na abertura.
- *
- * Ela existe porque o rótulo sozinho não decide: "Social" e "Campanha" são
- * claros para quem trabalha na agência e ambíguos para quem está pedindo uma
- * arte. Sem a frase, a escolha vira um palpite — e é ela que o relatório soma.
- */
-export const EXPLICACAO_DA_FRENTE: Record<SolicitacaoFrente, string> = {
-  social: "Entra na linha do mês — feed, stories, o conteúdo que vai ao ar.",
-  campanha: "Faz parte de uma ação com começo e fim, com várias peças juntas.",
-};
-
-/**
- * A TERCEIRA OPÇÃO DA TELA, que não é um valor do enum (0137).
- *
- * Ela existe porque *"sem categoria"* precisa ser uma coisa que a pessoa
- * ESCOLHE, e não um campo que ela pula. Um formulário em que a classificação
- * simplesmente não é cobrada deixa quem abre sem saber se esqueceu alguma
- * coisa; um terceiro cartão ao lado dos dois diz que não escolher é uma
- * resposta — e é a mesma decisão de *"Não é de nenhuma em especial"* no
- * seletor de vertente e de *"Nenhuma, é um pedido solto"* no de campanha.
- *
- * **Ela NÃO entra em `FRENTES_DA_SOLICITACAO`**, e a ausência é o que mantém o
- * `satisfies` daquela tupla valendo contra o enum do banco: um valor "nenhuma"
- * ali não compilaria, e inventá-lo no enum poria no relatório uma terceira
- * categoria onde o que existe é a ausência de categoria. O que viaja para a
- * action é `null`.
- *
- * **E a explicação dela é uma promessa, não uma ressalva:** quem escolhe este
- * cartão precisa saber que o pedido segue do mesmo jeito.
- */
-export const OPCAO_SEM_FRENTE = {
-  rotulo: "Não sei dizer",
-  explicacao: "A gente organiza isso por aqui depois de ler.",
-} as const;
 
 export function ehFrenteDaSolicitacao(
   valor: string | undefined | null,
@@ -454,20 +437,48 @@ function emDiaMes(iso: string | null | undefined): string {
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : iso;
 }
 
-export function briefingDoPedido(
-  pedido: {
-    descricao: string | null;
-    respostas: Record<string, string>;
-    data_desejada: string | null;
-    empresa: string | null;
-    frente: SolicitacaoFrente | null;
-    campanha_inicio?: string | null;
-    campanha_fim?: string | null;
-    composicao?: unknown;
-  },
+/**
+ * O que o briefing da demanda diz sobre o pedido, pedaço por pedaço.
+ *
+ * **ELE É UM CONSTRUTOR DE PARTES E NÃO UMA STRING, e a razão é a 0148.** Com
+ * o briefing do cliente passando a ter duas metades — o texto e o documento
+ * rico —, a conversão escreve as duas em `tasks`: `briefing_texto` e
+ * `briefing_rico`. Duas funções montando a mesma sequência de frases em volta
+ * dele seriam duas verdades sobre o mesmo briefing, e a que divergiria é a
+ * rica, porque ninguém a relê — o editor da demanda é a única tela que a
+ * desenha, e ela só abre depois da conversão.
+ *
+ * Então a sequência mora aqui, uma vez, com um MARCADOR no lugar do briefing:
+ * `briefingDoPedido()` o substitui pelo texto e `briefingRicoDoPedido()` pelos
+ * nós do documento. As duas não têm como discordar da ordem.
+ *
+ * **O marcador só é emitido quando há TEXTO**, e isso é a regra do par: um
+ * documento do TipTap sem nada dentro ainda é um parágrafo vazio, então quem
+ * decide se há briefing é o texto — e um `briefing_rico` gravado sem
+ * `descricao`, que só um PATCH alcança, não vira parte nenhuma.
+ */
+type ParteDoBriefing = { tipo: "linha"; texto: string } | { tipo: "briefing" };
+
+type PedidoParaOBriefing = {
+  descricao: string | null;
+  respostas: Record<string, string>;
+  data_desejada: string | null;
+  empresa: string | null;
+  frente: SolicitacaoFrente | null;
+  campanha_inicio?: string | null;
+  campanha_fim?: string | null;
+  composicao?: unknown;
+};
+
+function partesDoBriefingDoPedido(
+  pedido: PedidoParaOBriefing,
   campos: ReturnType<typeof camposDoRoteiro>,
-): string {
-  const linhas: string[] = ["Pedido aberto pelo cliente no Portal.", ""];
+): ParteDoBriefing[] {
+  const partes: ParteDoBriefing[] = [];
+  const escrever = (texto: string) => partes.push({ tipo: "linha", texto });
+
+  escrever("Pedido aberto pelo cliente no Portal.");
+  escrever("");
 
   // ---------------------------------------------------------------------
   // A CLASSIFICAÇÃO ENTRA NO TEXTO, E NÃO NUMA COLUNA DE `tasks` (0124).
@@ -491,18 +502,18 @@ export function briefingDoPedido(
   // troca a vertente da demanda.
   // ---------------------------------------------------------------------
   if (pedido.frente) {
-    linhas.push(
-      `O cliente classificou como: ${ROTULOS_DE_FRENTE[pedido.frente]}.`,
-      "",
-    );
+    escrever(`O cliente classificou como: ${ROTULOS_DE_FRENTE[pedido.frente]}.`);
+    escrever("");
   }
 
+  // O BRIEFING ENTRA COMO MARCADOR, e é aqui que as duas metades se encontram.
   if (pedido.descricao?.trim()) {
-    linhas.push(pedido.descricao.trim(), "");
+    partes.push({ tipo: "briefing" });
+    escrever("");
   }
 
   for (const r of respostasParaLer(campos, pedido.respostas)) {
-    linhas.push(`${r.rotulo}: ${r.valor}`);
+    escrever(`${r.rotulo}: ${r.valor}`);
   }
 
   // ---------------------------------------------------------------------
@@ -525,15 +536,16 @@ export function briefingDoPedido(
   // fosse escrito ali.
   // ---------------------------------------------------------------------
   if (pedido.campanha_inicio || pedido.campanha_fim) {
-    linhas.push(
-      "",
+    escrever("");
+    escrever(
       `O cliente pediu a campanha de ${emDiaMes(pedido.campanha_inicio) || "(sem início)"} a ${emDiaMes(pedido.campanha_fim) || "(sem encerramento)"}.`,
     );
   }
 
   const materiais = composicaoDoPedido(pedido.composicao);
   if (materiais.length > 0) {
-    linhas.push("", "Os materiais que ele pediu:");
+    escrever("");
+    escrever("Os materiais que ele pediu:");
     for (const m of materiais) {
       const medida = [m.formato, m.dimensoes].filter(Boolean).join(" · ");
       // O SINGULAR QUANDO É UMA PEÇA SÓ: `SINGULAR_DO_TIPO` existe desde a
@@ -542,18 +554,76 @@ export function briefingDoPedido(
       // erro de português que aquele mapa foi escrito para não cometer.
       const rotulo =
         m.quantidade === 1 ? SINGULAR_DO_TIPO[m.tipo] : ROTULO_DO_TIPO[m.tipo];
-      linhas.push(`- ${m.quantidade} ${rotulo}${medida ? ` (${medida})` : ""}`);
+      escrever(`- ${m.quantidade} ${rotulo}${medida ? ` (${medida})` : ""}`);
     }
   }
 
   if (pedido.data_desejada) {
-    linhas.push(
-      "",
+    escrever("");
+    escrever(
       `O cliente gostaria para ${emDiaMes(pedido.data_desejada)}. É o desejo dele, não o prazo combinado — o prazo é o que a agência assumir aqui.`,
     );
   }
 
-  return linhas.join("\n").trim();
+  return partes;
+}
+
+/** O briefing da demanda em texto puro — o que vai para `briefing_texto`. */
+export function briefingDoPedido(
+  pedido: PedidoParaOBriefing,
+  campos: ReturnType<typeof camposDoRoteiro>,
+): string {
+  const briefing = pedido.descricao?.trim() ?? "";
+  return partesDoBriefingDoPedido(pedido, campos)
+    .map((p) => (p.tipo === "briefing" ? briefing : p.texto))
+    .join("\n")
+    .trim();
+}
+
+/**
+ * O MESMO briefing como documento do TipTap — o que vai para `briefing_rico`.
+ *
+ * **Sem ele a conversão escrevia metade**, e isso era um defeito de verdade que
+ * esta entrega encontrou: `converterEmDemanda` gravava `briefing_texto` e nunca
+ * `briefing_rico`, e o detalhe da demanda **só desenha a coluna rica** — então
+ * a demanda convertida abria com o editor VAZIO para quem edita e "Sem
+ * briefing." para quem não edita. Medido: nenhuma demanda do banco veio de um
+ * pedido, então ele nunca mordeu — o que torna o conserto barato agora.
+ *
+ * **Ele devolve NULO quando o pedido não tem documento rico**, e é o que mantém
+ * o pedido anterior à 0148 funcionando como antes: a conversão grava só o texto,
+ * e a tela cai na frase de sempre. Um documento montado só com as frases em
+ * volta seria pior — ele afirmaria que há um briefing escrito onde não há.
+ *
+ * **E os nós do cliente entram INTEIROS**, tabela, grifo e cor dentro: o que
+ * ele escreveu é o conteúdo, e reescrevê-lo em parágrafos de texto puro jogaria
+ * fora exatamente o que o item 11 pediu.
+ */
+export function briefingRicoDoPedido(
+  pedido: PedidoParaOBriefing & { briefing_rico?: unknown },
+  campos: ReturnType<typeof camposDoRoteiro>,
+): Json | null {
+  const doc = pedido.briefing_rico as { content?: unknown } | null | undefined;
+  const dentro = Array.isArray(doc?.content) ? doc.content : null;
+  if (!dentro || dentro.length === 0) return null;
+
+  const nos: unknown[] = [];
+  for (const parte of partesDoBriefingDoPedido(pedido, campos)) {
+    if (parte.tipo === "briefing") {
+      nos.push(...dentro);
+      continue;
+    }
+    // A LINHA VAZIA NÃO VIRA PARÁGRAFO: no texto ela é o que separa os blocos,
+    // e num documento o parágrafo já tem o respiro dele — um vazio a cada duas
+    // linhas dobraria o espaçamento do briefing inteiro.
+    if (!parte.texto) continue;
+    nos.push({
+      type: "paragraph",
+      content: [{ type: "text", text: parte.texto }],
+    });
+  }
+
+  return { type: "doc", content: nos } as Json;
 }
 
 /** As respostas que faltam, pelo rótulo — para a frase dizer QUAIS. */

@@ -108,6 +108,17 @@ from (
          where n.nspname = 'public'
            and t.typname = split_part(v.nome, '|', 1)
            and e.enumlabel = split_part(v.nome, '|', 2))
+      -- ROTEIRO DE PEDIDO, e a 0148 e a primeira migration que mexe no
+      -- CONTEUDO de um catalogo que a gestao edita na tela. Nenhum dos tipos
+      -- acima responde por ela: as duas colunas dela nascem no PASSO 1 e no
+      -- PASSO 2, e o que a colagem inteira produz e um `campos_json` com a
+      -- opcao nova dentro -- entao o marcador do fim pergunta ao proprio
+      -- catalogo. `nome|trecho`, e e PRESENCA e nao ausencia, que e a licao
+      -- das cinco linhas quebradas do pacote da 3K.
+      when 'roteiro' then exists (
+        select 1 from public.request_types t
+         where t.nome = split_part(v.nome, '|', 1)
+           and t.campos_json::text like '%' || split_part(v.nome, '|', 2) || '%')
       -- Corpo de funcao, e nao ausencia de objeto: a 0029 nao cria nada, ela
       -- TIRA a pergunta de dentro de `pode_aprovar_subtarefa()`. Procurar um
       -- objeto que sumiu diria "ok" tambem para um banco que nunca teve a
@@ -1058,7 +1069,19 @@ from (
     -- QUEM a etapa e. O trecho e `subtask_responsaveis`, que e a unica coisa
     -- do corpo que uma versao errada perderia.
     ('0147', 'a busca por titulo le a tabela da 0114', 'no_corpo',
-             'pauta_por_titulo|subtask_responsaveis')
+             'pauta_por_titulo|subtask_responsaveis'),
+    -- A 0148 TEM SETE PASSOS E DUAS LINHAS. O PASSO 1 e o briefing rico do
+    -- pedido, e ele nao e pre-requisito de nada do resto: pela regra que a
+    -- 0138 escreveu, passo de que nenhum outro depende precisa da linha dele
+    -- -- a colagem que salta o comeco deixaria o editor gravando num lugar
+    -- que nao existe, e o marcador do fim diria `ok`. A segunda linha e o
+    -- PASSO 6.5, que e a ULTIMA coisa que o arquivo faz, e e por isso que ela
+    -- e o update do `formato`: sem ela a colagem morreu no meio -- com as duas
+    -- colunas de pe, o tipo "Campanha" criado e os roteiros pela metade.
+    ('0148', 'o briefing rico do pedido (PASSO 1)', 'coluna',
+             'client_requests|briefing_rico'),
+    ('0148', 'o video e peca para rede (PASSO 6.5, o fim)', 'roteiro',
+             'Peça para redes|Reels ou vídeo')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

@@ -51,12 +51,27 @@ function daquiA(quantos: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * O catálogo de tipos de trabalho, espelhando o do banco depois da 0148.
+ *
+ * **A `frente` é coluna desde a 0148**, e é ela que o formulário lê para saber
+ * se a seção de campanha aparece — o cliente deixou de escolher a frente num
+ * cartão próprio. Um stub sem ela faria a imagem do formulário sair sem a
+ * seção de campanha em tela nenhuma.
+ *
+ * **E "Vídeo" vem DESATIVADO**, que é o pedido do usuário — *"videos tbm são
+ * peças para rede"*: ele some do formulário do cliente por RLS
+ * (`request_types_select` é `is_staff() or ativo`), e a tela da gestão continua
+ * listando os cinco. Com ele ativo aqui, a imagem mostraria um cartão que o
+ * produto não oferece mais.
+ */
 const TIPOS: RequestType[] = [
   {
     id: "d0000000-0000-0000-0000-000000000001",
     nome: "Peça para redes",
     descricao: "Post, story, carrossel ou reels para as suas redes.",
     icone: "Share2",
+    frente: "social",
     campos_json: [
       {
         chave: "rede",
@@ -69,17 +84,32 @@ const TIPOS: RequestType[] = [
         chave: "formato",
         rotulo: "Formato",
         tipo: "escolha",
-        opcoes: ["Feed", "Stories", "Reels", "Não sei ainda"],
-      },
-      {
-        chave: "mensagem",
-        rotulo: "O que esta peça precisa dizer",
-        tipo: "texto_longo",
-        obrigatorio: true,
-        ajuda: "Em uma ou duas frases.",
+        obrigatorio: false,
+        opcoes: ["Feed", "Stories", "Carrossel", "Reels ou vídeo", "Não sei ainda"],
+        ajuda: "Vídeo entra aqui também — gravação, edição ou animação.",
       },
     ],
     ordem: 10,
+    ativo: true,
+    created_at: diasAtras(90),
+    updated_at: diasAtras(90),
+  },
+  {
+    id: "d0000000-0000-0000-0000-000000000005",
+    nome: "Campanha",
+    descricao: "Uma ação com começo e fim, com várias peças dentro.",
+    icone: "Megaphone",
+    frente: "campanha",
+    campos_json: [
+      {
+        chave: "publico",
+        rotulo: "Para quem",
+        tipo: "texto",
+        obrigatorio: false,
+        ajuda: "Quem a campanha precisa alcancar.",
+      },
+    ],
+    ordem: 15,
     ativo: true,
     created_at: diasAtras(90),
     updated_at: diasAtras(90),
@@ -89,9 +119,29 @@ const TIPOS: RequestType[] = [
     nome: "Material impresso",
     descricao: "Folder, banner, cartão, lâmina — o que vai para a gráfica.",
     icone: "Printer",
+    frente: null,
     campos_json: [
-      { chave: "peca", rotulo: "Que peça é", tipo: "texto", obrigatorio: true },
-      { chave: "medida", rotulo: "Medida", tipo: "texto" },
+      {
+        chave: "peca",
+        rotulo: "Que peça é",
+        tipo: "texto",
+        obrigatorio: true,
+        ajuda: "Folder A5, banner de 2x1, cartão de visita…",
+      },
+      {
+        chave: "medida",
+        rotulo: "Medida",
+        tipo: "texto",
+        obrigatorio: false,
+        ajuda: "Se a gráfica já pediu um tamanho, é aqui.",
+      },
+      { chave: "quantidade", rotulo: "Quantas", tipo: "texto", obrigatorio: false },
+      {
+        chave: "onde_usa",
+        rotulo: "Onde vai ser usada",
+        tipo: "texto",
+        obrigatorio: false,
+      },
     ],
     ordem: 20,
     ativo: true,
@@ -103,17 +153,25 @@ const TIPOS: RequestType[] = [
     nome: "Vídeo",
     descricao: "Gravação, edição ou animação.",
     icone: "Video",
+    frente: null,
     campos_json: [
-      { chave: "duracao", rotulo: "Duração aproximada", tipo: "texto" },
       {
-        chave: "mensagem",
-        rotulo: "O que o vídeo precisa dizer",
-        tipo: "texto_longo",
-        obrigatorio: true,
+        chave: "duracao",
+        rotulo: "Duração aproximada",
+        tipo: "texto",
+        obrigatorio: false,
+      },
+      { chave: "onde", rotulo: "Onde vai ao ar", tipo: "texto", obrigatorio: false },
+      {
+        chave: "tem_material",
+        rotulo: "Já existe material gravado?",
+        tipo: "escolha",
+        obrigatorio: false,
+        opcoes: ["Sim, vou anexar", "Sim, mando depois", "Não"],
       },
     ],
     ordem: 30,
-    ativo: true,
+    ativo: false,
     created_at: diasAtras(90),
     updated_at: diasAtras(90),
   },
@@ -122,14 +180,17 @@ const TIPOS: RequestType[] = [
     nome: "Outro",
     descricao: "Não se encaixa nos anteriores — conte o que você precisa.",
     icone: "CircleHelp",
-    campos_json: [
-      {
-        chave: "mensagem",
-        rotulo: "O que você precisa",
-        tipo: "texto_longo",
-        obrigatorio: true,
-      },
-    ],
+    frente: null,
+    /**
+     * O ROTEIRO DELE ESTÁ VAZIO, e é a 0148.
+     *
+     * Ele perguntava *"O que você precisa"* num campo de texto longo
+     * obrigatório, e com o BRIEFING sendo o campo principal da seção 1 aquela
+     * pergunta passou a ser a mesma coisa pedida duas vezes na mesma tela. O
+     * `campos.length > 0` do formulário é o que faz o roteiro simplesmente não
+     * nascer.
+     */
+    campos_json: [],
     ordem: 40,
     ativo: true,
     created_at: diasAtras(90),
@@ -145,6 +206,7 @@ const PEDIDOS: PedidoNaLista[] = [
     criado_por: JOANA.id,
     titulo: "Arte para o Dia das Mães",
     descricao: "Queria uma peça bonita para o feed, com a linha visual da loja.",
+    briefing_rico: null,
     respostas: {
       rede: "Instagram",
       formato: "Feed",
@@ -186,6 +248,7 @@ const PEDIDOS: PedidoNaLista[] = [
     criado_por: JOANA.id,
     titulo: "Lâmina A5 para a feira",
     descricao: null,
+    briefing_rico: null,
     respostas: { peca: "Lâmina A5, frente e verso", medida: "14,8 × 21 cm" },
     data_desejada: null,
     campaign_id: null,
@@ -229,6 +292,7 @@ const PEDIDOS: PedidoNaLista[] = [
     criado_por: JOANA.id,
     titulo: "Vídeo de 30s para a vitrine",
     descricao: null,
+    briefing_rico: null,
     respostas: { duracao: "30 segundos", mensagem: "A coleção nova chegou." },
     data_desejada: null,
     campaign_id: "camp-1",
@@ -264,6 +328,7 @@ const PEDIDOS: PedidoNaLista[] = [
     criado_por: JOANA.id,
     titulo: "Reimprimir os cartões antigos",
     descricao: null,
+    briefing_rico: null,
     respostas: { mensagem: "Os mesmos do ano passado, sem mudar nada." },
     data_desejada: null,
     campaign_id: null,
@@ -302,6 +367,77 @@ const PEDIDOS: PedidoNaLista[] = [
     criado_por: JOANA.id,
     titulo: "Banner do site para a Black Friday",
     descricao: "Um para a home e um quadrado para o feed, com o desconto em destaque.",
+    /**
+     * O BRIEFING RICO (0148), e ele é de UM dos seis.
+     *
+     * Com os seis preenchidos a imagem provaria que o `BriefingDoPedido`
+     * desenha, e não que ele **escolhe**: o outro ramo dele é o pedido
+     * anterior à migration, que tem só o texto — e é o pedido 1 que mostra
+     * esse, com a `descricao` dele e `briefing_rico` nulo. É a razão do evento
+     * de cada par da legenda do calendário.
+     *
+     * E ele carrega uma TABELA e um DESTAQUE de propósito: são as duas
+     * ferramentas que o usuário nomeou — *"com tabelas, grifando"* —, e um
+     * briefing de parágrafos soltos sairia idêntico ao texto puro do ramo de
+     * baixo.
+     */
+    briefing_rico: {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "São duas peças para a " },
+            { type: "text", marks: [{ type: "bold" }], text: "Semana do Cliente" },
+            { type: "text", text: ": uma para a home do site e uma quadrada para o feed." },
+          ],
+        },
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "O desconto " },
+            {
+              type: "text",
+              // O REALCE E ATRIBUTO DE `textStyle`, e nunca uma marca propria:
+              // `BackgroundColor` mora dentro de `@tiptap/extension-text-style` e
+              // acrescenta o atributo aquela marca, como `Color` faz com a cor.
+              // Escrito como marca, o documento inteiro e INVALIDO -- e o TipTap
+              // nao estoura: ele cai para um paragrafo vazio, entao a tela sai com
+              // a secao do briefing em branco. Foi a imagem que mostrou.
+              marks: [{ type: "textStyle", attrs: { backgroundColor: "var(--rico-realce-amarelo)" } }],
+              text: "precisa aparecer em destaque",
+            },
+            { type: "text", text: " nas duas." },
+          ],
+        },
+        {
+          type: "table",
+          content: [
+            {
+              type: "tableRow",
+              content: [
+                { type: "tableHeader", content: [{ type: "paragraph", content: [{ type: "text", text: "Peça" }] }] },
+                { type: "tableHeader", content: [{ type: "paragraph", content: [{ type: "text", text: "Medida" }] }] },
+              ],
+            },
+            {
+              type: "tableRow",
+              content: [
+                { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "Banner da home" }] }] },
+                { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "1920 x 600" }] }] },
+              ],
+            },
+            {
+              type: "tableRow",
+              content: [
+                { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "Post do feed" }] }] },
+                { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "1080 x 1080" }] }] },
+              ],
+            },
+          ],
+        },
+      ],
+    },
     respostas: { rede: "Site", formato: "Banner", mensagem: "Até 40% em toda a loja." },
     data_desejada: diasAtras(6),
     campaign_id: null,
@@ -335,6 +471,7 @@ const PEDIDOS: PedidoNaLista[] = [
     criado_por: JOANA.id,
     titulo: "Trocar o telefone no rodapé do site",
     descricao: null,
+    briefing_rico: null,
     respostas: { mensagem: "O número mudou na semana passada." },
     data_desejada: null,
     campaign_id: null,

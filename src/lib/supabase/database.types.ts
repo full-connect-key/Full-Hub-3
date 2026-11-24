@@ -1043,6 +1043,17 @@ export interface Database {
           descricao: string | null;
           icone: string | null;
           campos_json: CampoDoRoteiro[];
+          /**
+           * Que frente de produção este tipo implica (0148), ou nulo.
+           *
+           * É dela que `client_requests.frente` sai na abertura: a tela
+           * pergunta o TIPO, uma vez, e a frente vem junto — os três cartões
+           * de frente da 0124 saíram com a seção "Onde isso entra". Ela é
+           * COLUNA e não um de-para na tela pela razão da 0087: o catálogo é
+           * editável sem deploy, e um mapa escrito no cliente deixaria o tipo
+           * novo sem frente nenhuma, calado.
+           */
+          frente: SolicitacaoFrente | null;
           ordem: number;
           ativo: boolean;
           created_at: string;
@@ -1054,6 +1065,7 @@ export interface Database {
           descricao?: string | null;
           icone?: string | null;
           campos_json?: CampoDoRoteiro[];
+          frente?: SolicitacaoFrente | null;
           ordem?: number;
           ativo?: boolean;
         };
@@ -1062,6 +1074,7 @@ export interface Database {
           descricao?: string | null;
           icone?: string | null;
           campos_json?: CampoDoRoteiro[];
+          frente?: SolicitacaoFrente | null;
           ordem?: number;
           ativo?: boolean;
         };
@@ -1257,7 +1270,28 @@ export interface Database {
           request_type_id: string | null;
           criado_por: string | null;
           titulo: string;
+          /**
+           * O briefing do cliente, em texto puro — a metade que a busca lê e a
+           * que viaja para `tasks.briefing_texto` na conversão.
+           *
+           * **O nome ficou**, e é a decisão de `prazo` e de `dias_uteis`:
+           * renomear coluna em uso é migration arriscada sem nada em troca, e
+           * esta tem quatro leitores. O que ela guarda desde a 0148 é o
+           * briefing, e o par dela é `briefing_rico`.
+           */
           descricao: string | null;
+          /**
+           * O MESMO briefing, como documento do TipTap (0148).
+           *
+           * Decisão do usuário: *"ele tenha espaço para escrever o briefing
+           * igual o atendimento da agência. com tabelas, grifando"*. É o par
+           * de sempre — `tasks.briefing_rico`/`briefing_texto`,
+           * `subtasks.descricao_rica`/`descricao_texto` —, e **as duas andam
+           * juntas**: um documento do TipTap sem nada dentro ainda é um
+           * parágrafo vazio, então quem decide se há briefing é o TEXTO, e o
+           * vazio deixa as duas nulas.
+           */
+          briefing_rico: Json | null;
           respostas: Record<string, string>;
           data_desejada: string | null;
           /**
@@ -1330,6 +1364,7 @@ export interface Database {
           request_type_id?: string | null;
           titulo: string;
           descricao?: string | null;
+          briefing_rico?: Json | null;
           respostas?: Record<string, string>;
           data_desejada?: string | null;
           campaign_id?: string | null;
@@ -1367,6 +1402,7 @@ export interface Database {
           motivo_recusa?: string | null;
           titulo?: string;
           descricao?: string | null;
+          briefing_rico?: Json | null;
           request_type_id?: string | null;
           campaign_id?: string | null;
           /**

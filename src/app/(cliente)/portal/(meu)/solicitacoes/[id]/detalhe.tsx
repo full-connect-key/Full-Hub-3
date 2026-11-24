@@ -19,6 +19,7 @@ import {
 } from "@/app/(cliente)/portal/_actions/solicitacoes";
 import { subirAnexoDoPedido } from "@/app/(cliente)/portal/(meu)/solicitacoes/subir-anexo";
 import { CartaoDeItem } from "@/components/portal/cartao-de-item";
+import { BriefingDoPedido } from "@/components/shared/briefing-do-pedido";
 import { CampanhaDoPedido } from "@/components/shared/campanha-do-pedido";
 import { PageHeader } from "@/components/shared/page-header";
 import { SeloDaSolicitacao } from "@/components/shared/selo-da-solicitacao";
@@ -254,11 +255,11 @@ export function DetalheDoPedido({
         composicao={pedido.composicao}
       />
 
-      {pedido.descricao ? (
-        <p className="text-text-secondary text-sm whitespace-pre-wrap">
-          {pedido.descricao}
-        </p>
-      ) : null}
+      {/* O BRIEFING QUE ELE ESCREVEU, de volta para ele com a formatação
+          (0148): o editor da abertura guarda tabela, grifo e cor, e um `<p>`
+          aqui devolveria o texto sem nenhuma das três. É o mesmo componente
+          do detalhe do lado da agência. */}
+      <BriefingDoPedido texto={pedido.descricao} rico={pedido.briefing_rico} />
 
       {respostas.length > 0 ? (
         <dl className="bg-card divide-y rounded-lg border">

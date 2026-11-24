@@ -3,8 +3,8 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import type { JSONContent } from "@tiptap/core";
 import {
-  CircleDashed,
   CircleHelp,
   Megaphone,
   Paperclip,
@@ -16,6 +16,7 @@ import {
 
 import { abrirSolicitacao } from "@/app/(cliente)/portal/_actions/solicitacoes";
 import { EditorDaComposicao } from "@/components/shared/editor-da-composicao";
+import { EditorRico } from "@/components/shared/editor-rico";
 import type { LinhaDaComposicao } from "@/lib/dominio/campanhas";
 import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { Button } from "@/components/ui/button";
@@ -31,106 +32,114 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { chamarEMostrar } from "@/lib/acoes/cliente";
 import type { CampanhaParaEscolher } from "@/lib/dados/campanhas";
-import {
-  EXPLICACAO_DA_FRENTE,
-  FRENTES_DA_SOLICITACAO,
-  OPCAO_SEM_FRENTE,
-  ROTULOS_DE_FRENTE,
-  camposDoRoteiro,
-  respostasQueFaltam,
-} from "@/lib/dominio/solicitacoes";
-import { vertentesParaEscolher, type Vertente } from "@/lib/dominio/vertentes";
-import type {
-  RequestType,
-  SolicitacaoFrente,
-} from "@/lib/supabase/database.types";
+import { camposDoRoteiro, respostasQueFaltam } from "@/lib/dominio/solicitacoes";
+import type { RequestType } from "@/lib/supabase/database.types";
 
 import { subirAnexoDoPedido } from "./subir-anexo";
 
 /** O teto é do banco; a tela conta para não oferecer um caminho sem saída. */
 const TETO_DE_ARQUIVOS = 10;
 
-/** Os ícones que os tipos iniciais da 0068 pedem, pelo nome gravado. */
-const ICONES = { Share2, Printer, Video, CircleHelp } as const;
-
 /**
- * A ESCOLHA DE FRENTE TEM TRÊS VALORES E UM QUARTO ESTADO, e a diferença entre
- * os dois últimos é o que faz o terceiro cartão existir.
+ * Os ícones dos tipos de trabalho, pelo nome gravado em `request_types.icone`.
  *
- * `"social"` e `"campanha"` são o enum do banco. `"nenhuma"` é o terceiro
- * cartão — a pessoa DIZ que não é nem um nem outro —, e `null` é não ter
- * tocado em nada. **Os dois viajam como nulo**, então para o banco eles são a
- * mesma linha; para a TELA não são: com um estado só, o terceiro cartão
- * nasceria marcado, e *a opção pré-marcada é a que ninguém lê*. Um cartão que
- * já vem escolhido não diz nada sobre quem o escolheu.
- */
-type EscolhaDeFrente = SolicitacaoFrente | "nenhuma";
-
-/**
- * As três opções, na ordem em que elas aparecem.
+ * **`Megaphone` entrou com a 0148**, que é o ícone do tipo "Campanha" — e ele
+ * é o mesmo que a fileira de frentes usava para aquela palavra, de propósito:
+ * o cartão é o mesmo gesto com outro nome em cima.
  *
- * **O tipo é escrito e não inferido**, porque `[...FRENTES_DA_SOLICITACAO,
- * "nenhuma"]` infere `string[]` — e aí o terceiro deixaria de ser
- * distinguível de um valor de enum torto, que é o que a tupla do domínio
- * existe para travar. Com a anotação, acrescentar um valor ao enum do banco
- * acrescenta um cartão aqui sem uma linha de mudança, e um valor inventado não
- * compila.
+ * **E `Video` FICA, num tipo que o cliente não vê.** A 0148 desativou "Vídeo"
+ * — *"videos tbm são peças para rede"* —, e desativar não é apagar
+ * (`skills.ativa`): a gestão o reativa sem deploy, e um mapa sem o ícone dele
+ * faria o cartão nascer com o `CircleHelp` do "Outro" no dia em que ela
+ * reativasse.
  */
-const OPCOES_DE_FRENTE: EscolhaDeFrente[] = [
-  ...FRENTES_DA_SOLICITACAO,
-  "nenhuma",
-];
+const ICONES = { Share2, Megaphone, Printer, Video, CircleHelp } as const;
 
 /**
  * O formulário de um pedido novo.
  *
  * ---------------------------------------------------------------------------
- * **A ORDEM É O QUE MAIS MUDOU, e ela é a resposta a *"gere um novo layout de
- * nova solicitação, de maneira que faça sentido e que fique o mais completo
- * possível"*.**
+ * **A ORDEM É DE QUEM PEDE, e não da fila que recebe.**
  *
  * Ele começava pela CLASSIFICAÇÃO — empresa, vertente, Social ou Campanha,
  * tipo de trabalho — e só no sexto campo perguntava o que a pessoa quer. Essa
- * é a ordem da AGÊNCIA: são as quatro perguntas de que a fila precisa para
- * encaminhar o pedido. A ordem de quem PEDE é a inversa: ela abriu o portal
- * porque precisa de uma coisa, e a primeira tela do pedido tem de ser sobre
- * essa coisa.
+ * é a ordem da AGÊNCIA: são as perguntas de que a fila precisa para encaminhar
+ * o pedido. A ordem de quem PEDE é a inversa: ela abriu o portal porque
+ * precisa de uma coisa, e a primeira tela do pedido tem de ser sobre essa
+ * coisa.
  *
- * São quatro seções numeradas, cada uma com uma pergunta:
+ * São cinco seções numeradas, cada uma com uma pergunta:
  *
- *   1. **O que você precisa** — o nome, o texto livre e os anexos
- *   2. **Que tipo de trabalho é** — opcional, e é ela que acrescenta o roteiro
- *   3. **Onde isso entra** — empresa, vertente, Social/Campanha, campanha
+ *   1. **O que você precisa** — o nome, a empresa e o BRIEFING
+ *   2. **Que tipo de trabalho é** — o cartão, a campanha e o roteiro
+ *   3. **Referências** — os anexos
  *   4. **Para quando** — a data desejada, com o que ela significa
+ *   5. **Quantos materiais de cada tipo** — só na frente Campanha (0138)
  *
  * **E são numeradas pela razão escrita em `SecaoDoFormulario`:** o número dá à
  * conversa um jeito de apontar ("faltou a 3") sem descrever onde o campo está
  * na tela — e aqui a conversa com o Atendimento acontece na tela ao lado.
  * ---------------------------------------------------------------------------
  *
- * **NADA DE CATEGORIA É OBRIGATÓRIO, e isso é a reversão da 0124** — decisão
- * do usuário: *"não precisa ser social ou campanha necessariamente, o cliente
- * deve poder especificar o que ele quer sem colocar em alguma categoria,
- * podendo escrever caso ele queira"*. A frente ganhou um terceiro cartão, *Não
- * sei dizer*, que viaja como nulo; e o TIPO deixou de vir pré-selecionado.
+ * **O BRIEFING É O MESMO EDITOR DA AGÊNCIA (0148)** — decisão do usuário, em
+ * duas frases: *"quero que quando o cliente pede algo, no portal do cliente,
+ * ele tenha espaço para escrever o briefing igual o atendimento da agência.
+ * com tabelas, grifando. e no lugar de conte com suas palavras, esteja escrito
+ * briefing msm"* e *"toda caixa de texto deve ser igual o do briefing interno
+ * da agencia, com aquelas funcionalidades"*.
+ *
+ * Era um `<Textarea>` chamado *"Conte com as suas palavras"*. Hoje é o
+ * `EditorRico` — o mesmo componente dos três editores de briefing do lado de
+ * dentro —, com a caixa, a tabela e a paleta nomeada que a 0127 mediu.
+ *
+ * **"ONDE ISSO ENTRA" SAIU** — decisão do usuário: *"Nas solicitações do
+ * portal do cliente, pode tirar o onde isso entra. quero que mude o que tipo
+ * de trabalho é, para permitir campanhas tbm"*. Era a seção da classificação,
+ * e cada campo dela foi para onde ele decide alguma coisa:
+ *
+ *   - **a empresa** subiu para a seção 1. Ela não podia sair: `client_id` é
+ *     `not null`, e é ela que decide a pasta do anexo e a policy do envio. E
+ *     continua só aparecendo com mais de uma, pela razão de sempre;
+ *   - **a frente** deixou de ser perguntada: ela vem do TIPO escolhido
+ *     (`request_types.frente`), e os dois tipos sem frente — "Material
+ *     impresso" e "Outro" — são o que antes era o cartão *"Não sei dizer"*;
+ *   - **a campanha** desceu para a seção 2, embaixo dos cartões: ela só existe
+ *     na frente Campanha, e agora a frente é o cartão logo acima dela.
+ *
+ * ***E A VERTENTE SAIU DESTA TELA, que é o custo e é dito em vez de
+ * escondido:*** ela era o único campo daquela seção sem outra casa, e
+ * perguntá-la na seção 1 seria devolver a classificação ao lugar de onde ela
+ * acabou de sair. O que não se perde é a classificação do TRABALHO —
+ * `tasks.vertente_id` existe desde a 0118, e quem a escolhe é o Atendimento na
+ * tela da demanda, que é onde ela decide o board, a Biblioteca e o relatório.
+ *
+ * **AS REFERÊNCIAS VÊM DEPOIS DO BRIEFING** — decisão do usuário:
+ * *"referencias devem vir só depois do briefing"*. Elas eram o terceiro bloco
+ * da seção 1, ao lado do nome e do texto; hoje são a seção 3, depois do
+ * briefing e do roteiro. A ordem é a da leitura de quem pede: primeiro o que
+ * eu quero, depois o que eu mando para explicar.
+ *
+ * **NADA DE CATEGORIA É OBRIGATÓRIO, e isso continua sendo a 0137** — *"o
+ * cliente deve poder especificar o que ele quer sem colocar em alguma
+ * categoria, podendo escrever caso ele queira"*. O tipo não vem
+ * pré-selecionado, clicar no escolhido o desfaz, e um pedido sem tipo nenhum é
+ * um pedido com briefing e mais nada.
  *
  * ***O que isso custa, e é dito em vez de escondido:*** sem um tipo escolhido
  * não há roteiro de briefing, e o argumento da 0068 — *"um campo de texto
- * livre chamado 'descreva o que você precisa' devolve 'uma arte pro insta', e
- * a primeira mensagem da conversa é sempre a mesma pergunta"* — continua
- * verdadeiro. Ele continua valendo para quem escolhe um tipo: as perguntas
- * aparecem no instante da escolha. O que o produto deixou de fazer é COBRAR
- * aquelas respostas de quem não quis classificar nada.
+ * livre chamado 'descreva o que você precisa' devolve 'uma arte pro insta'"* —
+ * continua verdadeiro. Ele continua valendo para quem escolhe um tipo: as
+ * perguntas aparecem no instante da escolha. O que o produto deixou de fazer é
+ * COBRAR aquelas respostas de quem não quis classificar nada.
  *
  * **As perguntas vêm do banco** (`request_types.campos_json`) e não daqui: a
- * gestão edita o roteiro sem deploy, que é a mesma razão pela qual a
- * capacidade da equipe é coluna e não constante.
+ * gestão edita o roteiro sem deploy, que é a mesma razão pela qual a frente
+ * virou coluna daquela tabela em vez de um de-para escrito nesta tela.
  */
 export function FormularioDePedido({
   empresas,
   tipos,
   campanhas,
-  vertentes,
   campanhaInicial,
   aoConcluir,
 }: {
@@ -145,15 +154,6 @@ export function FormularioDePedido({
    * seria latência no meio de um formulário.
    */
   campanhas: CampanhaParaEscolher[];
-  /**
-   * As vertentes das empresas desta pessoa (0124, sobre a 0118).
-   *
-   * Chegam TODAS e a tela filtra pela empresa escolhida, pela razão das
-   * campanhas: uma consulta por troca de empresa seria latência no meio de um
-   * formulário. **E a desativada vem junto** — quem decide o que o seletor
-   * oferece é `vertentesParaEscolher()`, do lado do domínio.
-   */
-  vertentes: Vertente[];
   /** A campanha que já vem escolhida, quando o pedido nasce de dentro de uma. */
   campanhaInicial?: string;
   /**
@@ -170,6 +170,20 @@ export function FormularioDePedido({
   const router = useRouter();
   const [executando, comecar] = useTransition();
 
+  /**
+   * O TIPO CUJA FRENTE É CAMPANHA, e ele é lido duas vezes.
+   *
+   * Quem nasce dentro de uma campanha já tem a resposta dada, e depois da 0148
+   * a frente vem do TIPO: o cartão de campanha é que precisa nascer escolhido,
+   * e não um estado de frente que não existe mais.
+   *
+   * ***E se o catálogo não tiver um tipo de campanha, a campanha simplesmente
+   * não é enviada*** — a tela degrada e nunca recusa: o pedido nasce com o
+   * briefing, e o Atendimento o liga à campanha pela fila, que é o caminho que
+   * `classificarSolicitacao` existe para cobrir.
+   */
+  const tipoDeCampanha = tipos.find((t) => t.frente === "campanha")?.id ?? "";
+
   const [clienteId, setClienteId] = useState(empresas[0]?.id ?? "");
   /**
    * O TIPO NASCE VAZIO, e isso é a 0137.
@@ -180,32 +194,35 @@ export function FormularioDePedido({
    * escolhido**, e que quem queria outra coisa tinha de desfazer uma escolha
    * que não fez. É a regra desta casa pela enésima vez: *a opção pré-marcada é
    * a que ninguém lê*.
-   */
-  const [tipoId, setTipoId] = useState<string>("");
-  const [campanhaId, setCampanhaId] = useState<string>(campanhaInicial ?? "");
-  /**
-   * A FRENTE NASCE VAZIA, e o vazio agora é uma OPÇÃO e não uma lacuna.
-   *
-   * Na 0124 ela nascia assim porque a opção pré-marcada é a que ninguém lê, e
-   * era obrigatória no envio. Depois da 0137 ela continua nascendo vazia pela
-   * mesma razão, e o vazio deixou de ser cobrado.
-   *
-   * **E `null` NÃO é o terceiro cartão**, que foi o que a imagem pegou: com um
-   * estado só, *Não sei dizer* nascia marcado — ou seja, era o padrão, que é
-   * exatamente o que este comentário diz para não fazer. São dois estados
-   * diferentes que viajam como o mesmo nulo: `null` é *não mexi nisso* e
-   * `"nenhuma"` é *não é nem um nem outro*.
    *
    * **Menos quando o pedido nasce DENTRO de uma campanha:** ali a resposta já
-   * está dada, e `client_requests_classificacao` recusaria qualquer outra —
-   * inclusive a ausência, porque o ramo 3 compara com `is distinct from`.
+   * está dada, e `client_requests_classificacao` recusaria qualquer outra
+   * frente — inclusive a ausência, porque o ramo 3 compara com
+   * `is distinct from`.
    */
-  const [frente, setFrente] = useState<EscolhaDeFrente | null>(
-    campanhaInicial ? "campanha" : null,
+  const [tipoId, setTipoId] = useState<string>(
+    campanhaInicial ? tipoDeCampanha : "",
   );
-  const [vertenteId, setVertenteId] = useState<string>("");
+  const [campanhaId, setCampanhaId] = useState<string>(campanhaInicial ?? "");
   const [titulo, setTitulo] = useState("");
-  const [descricao, setDescricao] = useState("");
+  /**
+   * O BRIEFING MORA NUM `ref`, e é a forma dos editores do lado de dentro.
+   *
+   * O `onChange` do TipTap dispara a cada tecla, e pô-lo num `useState`
+   * re-renderizaria o formulário inteiro — com o roteiro, a lista de arquivos
+   * e o editor de composição dentro — a cada letra digitada. Nada na tela
+   * depende do que está escrito, então nada precisa de estado: o briefing é
+   * opcional, como o texto livre que ele substitui.
+   *
+   * **E as DUAS colunas andam juntas**, que é o par de todo editor deste
+   * produto: o `jsonb` que a tela desenha e o texto que a busca lê. Quem
+   * decide se há briefing é o TEXTO — um documento do TipTap sem nada dentro
+   * ainda é um parágrafo vazio.
+   */
+  const briefing = useRef<{ json: JSONContent | null; texto: string }>({
+    json: null,
+    texto: "",
+  });
   const [quando, setQuando] = useState("");
   /**
    * O PERÍODO E OS MATERIAIS DA CAMPANHA (0138).
@@ -216,9 +233,9 @@ export function FormularioDePedido({
    *
    * **Os três só são desenhados na frente Campanha**, e é o ramo 5 de
    * `client_requests_classificacao` que recusa o contrário no banco. Eles
-   * ficam no estado mesmo quando a seção sai da tela — quem marcou Campanha,
-   * preencheu, e voltou para conferir o tipo de trabalho não perde o que
-   * escreveu; quem TROCA de frente é que perde, e aí o `enviar` não os manda.
+   * ficam no estado mesmo quando a seção sai da tela — quem escolheu o tipo de
+   * campanha, preencheu, e trocou de tipo para conferir não perde o que
+   * escreveu; quem TROCA de verdade é que perde, e aí o `enviar` não os manda.
    */
   const [campanhaInicio, setCampanhaInicio] = useState("");
   const [campanhaFim, setCampanhaFim] = useState("");
@@ -236,6 +253,33 @@ export function FormularioDePedido({
    */
   const [tentou, setTentou] = useState(false);
 
+  const tipo = tipos.find((t) => t.id === tipoId) ?? null;
+  const campos = camposDoRoteiro(tipo?.campos_json);
+
+  /**
+   * A FRENTE VEM DO TIPO, e não de um campo (0148).
+   *
+   * Era uma fileira de três cartões — Social, Campanha, "Não sei dizer" —
+   * logo abaixo dos cartões de tipo de trabalho, e as duas respondiam a mesma
+   * pergunta: *que trabalho é este*. Duas perguntas para a mesma resposta é
+   * uma pergunta a mais, e era a de baixo que podia contradizer a de cima —
+   * "Material impresso" marcado como Social.
+   *
+   * **E ela é NULA nos dois tipos sem lado**, que é o que antes era o terceiro
+   * cartão: o enum tem dois valores, e a ausência de um deles é a ausência.
+   */
+  const frente = tipo?.frente ?? null;
+
+  /**
+   * A FRENTE CAMPANHA DESENHA DUAS SEÇÕES A MAIS (0138).
+   *
+   * Uma pergunta só, lida em quatro lugares — as duas seções, o período e a
+   * composição no envio: duas comparações com `"campanha"` seriam duas
+   * verdades sobre quando a tela é a de abrir campanha, e a que divergiria é
+   * a do ENVIO, que não aparece em imagem nenhuma.
+   */
+  const ehCampanha = frente === "campanha";
+
   /**
    * SÓ AS CAMPANHAS DA EMPRESA ESCOLHIDA, e a escolha se desfaz ao trocar.
    *
@@ -250,53 +294,24 @@ export function FormularioDePedido({
     : "";
 
   /**
-   * AS VERTENTES DA EMPRESA ESCOLHIDA, e a escolha se desfaz ao trocar.
+   * A CAMPANHA SÓ EXISTE NA FRENTE CAMPANHA, e trocar de tipo a apaga.
    *
-   * É a mesma mecânica das campanhas, e pela mesma razão do banco: o trigger
-   * da 0124 recusa a vertente de outra conta — "Institucional" existe em duas
-   * empresas com ids diferentes, e guardar a escolha ao trocar de empresa
-   * deixaria o `<Select>` com um valor fora da lista, mostrando o placeholder
-   * e enviando a vertente antiga.
+   * Sem a limpeza, quem escolhe uma campanha e troca para um tipo de outra
+   * frente manda a linha que o trigger recusa — *"Este pedido está numa
+   * campanha, então a frente é Campanha"* —, e a recusa chegaria no clique de
+   * enviar, sobre um campo que a tela já tinha escondido.
    */
-  const vertentesDaEmpresa = vertentesParaEscolher(
-    vertentes.filter((v) => v.client_id === clienteId),
-    vertenteId,
-  );
-  const vertenteEscolhida = vertentesDaEmpresa.some((v) => v.id === vertenteId)
-    ? vertenteId
-    : "";
+  const campanhaValida = ehCampanha ? campanhaEscolhida : "";
 
   /**
-   * A CAMPANHA SÓ EXISTE NA FRENTE CAMPANHA, e trocar de lado a apaga.
+   * O QUE FALTA, e a frente NÃO está nesta lista (0137).
    *
-   * Sem a limpeza, quem escolhe uma campanha e volta para "Social" manda a
-   * linha que o trigger recusa — *"Este pedido está numa campanha, então a
-   * frente é Campanha"* —, e a recusa chegaria no clique de enviar, sobre um
-   * campo que a tela já tinha escondido.
-   */
-  const campanhaValida = frente === "campanha" ? campanhaEscolhida : "";
-
-  /**
-   * A FRENTE CAMPANHA DESENHA DUAS SEÇÕES A MAIS (0138).
-   *
-   * Uma pergunta só, lida em quatro lugares — as duas seções, o período e a
-   * composição no envio: duas comparações com `"campanha"` seriam duas
-   * verdades sobre quando a tela é a de abrir campanha, e a que divergiria é
-   * a do ENVIO, que não aparece em imagem nenhuma.
-   */
-  const ehCampanha = frente === "campanha";
-
-  const tipo = tipos.find((t) => t.id === tipoId) ?? null;
-  const campos = camposDoRoteiro(tipo?.campos_json);
-  /**
-   * O QUE FALTA, e a frente NÃO está mais nesta lista (0137).
-   *
-   * **E o título entrou nela.** Ele era cobrado pelo `disabled` do botão —
+   * **E o título está.** Ele era cobrado pelo `disabled` do botão —
    * `titulo.trim().length < 3` —, e o próprio arquivo escrevia o argumento
-   * contra isso duas telas acima: *um botão desligado não tem como dizer por
-   * que está desligado, e clicar nele é justamente o momento em que a pessoa
-   * pede para saber o que falta*. Hoje o botão fica ligado e a frase nomeia o
-   * que falta, que é a decisão da recusa da 0023.
+   * contra isso: *um botão desligado não tem como dizer por que está
+   * desligado, e clicar nele é justamente o momento em que a pessoa pede para
+   * saber o que falta*. Hoje o botão fica ligado e a frase nomeia o que falta,
+   * que é a decisão da recusa da 0023.
    */
   const faltando = [
     ...(titulo.trim().length < 3 ? ["o nome do pedido"] : []),
@@ -312,26 +327,32 @@ export function FormularioDePedido({
       setTentou(true);
       return;
     }
+    const texto = briefing.current.texto.trim();
     comecar(async () => {
       const r = await chamarEMostrar(() =>
         abrirSolicitacao({
           client_id: clienteId,
           request_type_id: tipoId || null,
           campaign_id: campanhaValida || null,
-          // A FRENTE VIAJA COMO NULO nos DOIS estados sem lado — quem não
-          // mexeu e quem disse "não sei". O enum tem dois valores, e a
-          // terceira opção da tela é a ausência de um deles.
-          frente: frente === "nenhuma" || frente === null ? null : frente,
-          vertente_id: vertenteEscolhida || null,
+          // A FRENTE VIAJA COMO NULO no tipo que não tem lado, e ela não é
+          // mais uma escolha desta tela: ela é o `frente` do tipo escolhido.
+          frente,
+          // A VERTENTE SAIU DA TELA e o campo continua no esquema: quem
+          // classifica o trabalho é o Atendimento, na demanda (0118).
+          vertente_id: null,
           titulo,
-          descricao,
+          // AS DUAS COLUNAS ANDAM JUNTAS, e o TEXTO decide se há briefing: um
+          // documento vazio do TipTap ainda é um parágrafo, e guardá-lo é
+          // guardar o formato do nada.
+          descricao: texto || null,
+          briefing_rico: texto ? briefing.current.json : null,
           respostas,
           data_desejada: quando,
           // OS TRÊS SÓ VIAJAM NA FRENTE CAMPANHA, e a pergunta é a mesma que
-          // desenha as duas seções: quem trocou de frente depois de
-          // preencher não manda ao banco um período que a tela não mostra
-          // mais — o ramo 5 do gatilho recusaria, e a recusa chegaria depois
-          // do clique falando de uma seção que não está à vista.
+          // desenha as duas seções: quem trocou de tipo depois de preencher
+          // não manda ao banco um período que a tela não mostra mais — o ramo
+          // 5 do gatilho recusaria, e a recusa chegaria depois do clique
+          // falando de uma seção que não está à vista.
           campanha_inicio: ehCampanha ? campanhaInicio : null,
           campanha_fim: ehCampanha ? campanhaFim : null,
           composicao: ehCampanha ? composicao : null,
@@ -348,7 +369,7 @@ export function FormularioDePedido({
       // que permite o anexo na abertura, que é o pedido do usuário.
       //
       // **E uma falha de upload NÃO derruba o pedido.** Ele já está no
-      // banco, e o Atendimento já foi avisado: descartar o texto que a
+      // banco, e o Atendimento já foi avisado: descartar o briefing que a
       // pessoa escreveu por causa de um arquivo que não subiu seria trocar
       // uma falha parcial por uma total. O que o aviso faz é NOMEAR o
       // arquivo que ficou de fora, e a tela do pedido — que abre no
@@ -388,9 +409,9 @@ export function FormularioDePedido({
 
           A PRIMEIRA SEÇÃO É SOBRE A COISA, e não sobre a classificação dela.
           Quem abre o portal para pedir uma arte tem a arte na cabeça, não a
-          frente de produção — e o texto livre aqui é o *"podendo escrever
-          caso ele queira"* do pedido: ele é o caminho principal, e sozinho já
-          é um pedido inteiro.
+          frente de produção — e o briefing aqui é o *"podendo escrever caso
+          ele queira"* da 0137: ele é o caminho principal, e sozinho já é um
+          pedido inteiro.
           ================================================================== */}
       <SecaoDoFormulario numero={1} titulo="O que você precisa">
         <div className="space-y-1.5">
@@ -403,39 +424,277 @@ export function FormularioDePedido({
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="pedido-descricao">Conte com as suas palavras</Label>
-          {/* ROWS 5 E NÃO 3, e o rótulo deixou de ser "Mais alguma coisa".
-              Aquele nome fazia dele um campo de sobra — o lugar do detalhe que
-              não caiu em nenhuma pergunta. Com a classificação deixando de ser
-              obrigatória, ele é o campo onde o pedido inteiro pode morar, e o
-              tamanho da caixa é o que diz isso sem uma frase de ajuda. */}
-          <Textarea
-            id="pedido-descricao"
-            rows={5}
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-            placeholder="O que é, para que serve, onde vai ser usado, o que não pode faltar."
-          />
-        </div>
+        {/* O SELETOR DE EMPRESA SÓ APARECE COM MAIS DE UMA. Com uma, ele é um
+            campo com uma opção — a pessoa lê, pensa, e escolhe a única.
+
+            **E ele subiu para a seção 1 com a saída de "Onde isso entra"**:
+            `client_id` é `not null`, e é ele que decide a pasta do anexo e a
+            policy do envio — ele não tinha como sair com a seção. */}
+        {empresas.length > 1 ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="pedido-empresa">Para qual empresa</Label>
+            <Select value={clienteId} onValueChange={setClienteId}>
+              <SelectTrigger
+                aria-label="Empresa"
+                id="pedido-empresa"
+                className="w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {empresas.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.nome_empresa}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
 
         {/* ---------------------------------------------------------------
-            O ANEXO NA ABERTURA — decisão do usuário.
+            O BRIEFING — e o rótulo é a palavra que o usuário pediu.
 
-            **Ele existia só na tela do pedido JÁ CRIADO**, e a linha do pé
-            deste formulário dizia isso em voz alta: "depois de enviar você pode
-            anexar arquivos". Quem abre um pedido está com a referência na mão —
-            o print, a foto do material, a arte do ano passado —, e mandá-la num
-            segundo passo é mandá-la num passo que metade das pessoas não dá.
-
-            **Os arquivos ficam em memória até o envio**, porque o caminho no
-            bucket leva o id do pedido e ele ainda não existe. Por isso esta
-            lista é uma lista de escolhas, e não de anexos: ninguém subiu nada
-            ainda, e a tela não pode afirmar que subiu.
-
-            **E ele mora na seção 1**, junto do texto: a referência é parte do
-            que a pessoa quer, e não um apêndice do fim do formulário.
+            Ele era *"Conte com as suas palavras"* num `<Textarea rows={5}>`.
+            Hoje é **"Briefing"**, no mesmo `EditorRico` que o Atendimento usa
+            nos três briefings do lado de dentro: um segundo editor de
+            briefing no produto seria o que divergiria, e o que divergiria é
+            este — a tela que a equipe nunca abre.
             --------------------------------------------------------------- */}
+        <div className="space-y-1.5">
+          <Label htmlFor="pedido-briefing">Briefing</Label>
+          {/* O `id` fica no invólucro e o `<Label>` aponta para ele: o campo
+              de verdade é o `contenteditable` do TipTap, que não é um
+              elemento de formulário — um `htmlFor` para ele não nomeia nada.
+              Quem nomeia é o `aria-label` que o editor desenha dentro. */}
+          <div id="pedido-briefing">
+            <EditorRico
+              onChange={({ json, texto }) => {
+                briefing.current = { json, texto };
+              }}
+              placeholder="O que é, para que serve, onde vai ser usado, o que não pode faltar. Dá para usar tabela, destaque e caixa."
+            />
+          </div>
+        </div>
+      </SecaoDoFormulario>
+
+      {/* ==================================================================
+          2. QUE TIPO DE TRABALHO É — e ela é OPCIONAL.
+
+          **OS CARTÕES PERDERAM A LINHA DE BAIXO** — decisão do usuário:
+          *"tire o texto abaixo que de que tipo de trabalho é, esses textinhos
+          parecem indiretas não são legais"*. Eram as frases de
+          `request_types.descricao`, da 0068, e uma delas era literalmente
+          isso: *"Não se encaixa nos anteriores — conte o que você precisa"*. A
+          coluna fica gravada, sem leitor, carimbada pela 0137.
+
+          **E NENHUM VEM MARCADO**, que é a outra metade da 0137 — menos
+          quando o pedido nasce dentro de uma campanha, onde a resposta já
+          está dada.
+
+          **E A CAMPANHA VIROU UM TIPO (0148)** — *"quero que mude o que tipo
+          de trabalho é, para permitir campanhas tbm"*. Com ela aqui, a frente
+          deixou de ser uma segunda pergunta: ela vem do tipo escolhido.
+          ================================================================== */}
+      <SecaoDoFormulario numero={2} titulo="Que tipo de trabalho é">
+        {/* `role="radiogroup"` no invólucro porque os cartões são
+            `role="radio"`: um radio sem o grupo por perto é um papel sem pai,
+            e o leitor de tela anuncia "opção 1 de 1" em cada um deles. */}
+        <div
+          role="radiogroup"
+          aria-label="Tipo de pedido"
+          className="grid grid-cols-2 gap-2"
+        >
+          {tipos.map((t) => {
+            const Icone = ICONES[t.icone as keyof typeof ICONES] ?? CircleHelp;
+            const escolhido = t.id === tipoId;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="radio"
+                aria-checked={escolhido}
+                // CLICAR NO CARTÃO ESCOLHIDO O DESFAZ, e é o que faz o tipo
+                // ser de verdade opcional: sem isso, quem clica por engano não
+                // tem como voltar ao estado sem tipo — e volta a ser cobrado
+                // pelas perguntas de um trabalho que não é o dele.
+                onClick={() => {
+                  const proximo = escolhido ? "" : t.id;
+                  setTipoId(proximo);
+                  // SAIR DA FRENTE CAMPANHA APAGA A CAMPANHA, senão o envio
+                  // carregaria uma campanha num pedido que diz outra coisa —
+                  // a contradição que o ramo 3 do gatilho recusa, e que
+                  // alcança também a frente em branco.
+                  const frenteNova =
+                    tipos.find((x) => x.id === proximo)?.frente ?? null;
+                  if (frenteNova !== "campanha") setCampanhaId("");
+                }}
+                className={
+                  escolhido
+                    ? "border-accent-strong bg-accent rounded-lg border p-3 text-left"
+                    : "hover:bg-accent rounded-lg border p-3 text-left transition-colors"
+                }
+              >
+                <Icone aria-hidden className="text-accent-strong mb-1 size-5" />
+                <p className="text-sm font-medium">{t.nome}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ----------------------------------------------------------------
+            A CAMPANHA SÓ EXISTE NA FRENTE CAMPANHA (0124): nos outros tipos
+            não há campanha para escolher, e o trigger recusa a linha que tem
+            as duas coisas.
+
+            **E ELA DESCEU PARA CÁ COM A SAÍDA DE "Onde isso entra"**: a
+            frente é o cartão logo acima, então a campanha ficou encostada na
+            resposta que a faz existir.
+
+            **E O CAMPO SÓ EXISTE QUANDO HÁ CAMPANHA ABERTA.** Um seletor com a
+            única opção "Nenhuma" é um campo que a pessoa lê, pensa e deixa como
+            está. Quando o tipo é Campanha e a conta não tem nenhuma aberta, o
+            que aparece é a FRASE abaixo — o pedido chega antes de a campanha
+            existir, que é o caso comum de quem pede uma ação nova.
+            ---------------------------------------------------------------- */}
+        {ehCampanha && daEmpresa.length === 0 ? (
+          <p className="text-text-muted text-sm">
+            Esta empresa não tem campanha aberta no momento — a gente organiza
+            isso por aqui depois de ler o seu pedido.
+          </p>
+        ) : null}
+
+        {ehCampanha && daEmpresa.length > 0 ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="pedido-campanha">De que campanha é</Label>
+            <Select
+              value={campanhaEscolhida || "nenhuma"}
+              onValueChange={(v) => setCampanhaId(v === "nenhuma" ? "" : v)}
+            >
+              <SelectTrigger
+                aria-label="Campanha"
+                id="pedido-campanha"
+                className="w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {/* O VALOR VAZIO NÃO É ACEITO PELO `<Select>` do shadcn — ele
+                    trata `""` como "sem valor" e volta ao placeholder. Então o
+                    "nenhuma" é uma opção de verdade, traduzida para nulo no
+                    envio: é o que permite DESFAZER a escolha, que um placeholder
+                    não permite. */}
+                <SelectItem value="nenhuma">
+                  Nenhuma, é uma campanha nova
+                </SelectItem>
+                {daEmpresa.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
+        {/* ----------------------------------------------------------------
+            O ROTEIRO DE BRIEFING (0068), e o título dele mudou.
+
+            Ele era *"Para a gente não precisar perguntar depois"* — decisão do
+            usuário: *"Mude a frase"*. Aquele título explicava por que a
+            AGÊNCIA queria as respostas, o que é problema da agência, e lido do
+            lado de fora soava como cobrança. O que ficou no lugar diz o que a
+            seção é, e nada mais.
+
+            **E ele só existe com um tipo escolhido CUJO roteiro tem campo**,
+            que é o que torna seguro esvaziar o roteiro de um tipo pela tela da
+            gestão: o tipo continua existindo, e a seção simplesmente não
+            nasce.
+            ---------------------------------------------------------------- */}
+        {campos.length > 0 ? (
+          <section className="bg-card space-y-4 rounded-lg border p-4">
+            <h3 className="text-sm font-semibold">Sobre este material</h3>
+
+            {campos.map((c) => {
+              const id = `roteiro-${c.chave}`;
+              const valor = respostas[c.chave] ?? "";
+
+              return (
+                <div key={c.chave} className="space-y-1.5">
+                  <Label htmlFor={id}>
+                    {c.rotulo}
+                    {c.obrigatorio ? " *" : ""}
+                  </Label>
+
+                  {c.tipo === "escolha" && c.opcoes?.length ? (
+                    <Select
+                      value={valor}
+                      onValueChange={(v) => responder(c.chave, v)}
+                    >
+                      <SelectTrigger
+                        aria-label={c.rotulo}
+                        id={id}
+                        className="w-full"
+                      >
+                        <SelectValue placeholder="Escolha" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {c.opcoes.map((o) => (
+                          <SelectItem key={o} value={o}>
+                            {o}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : c.tipo === "texto_longo" ? (
+                    <Textarea
+                      id={id}
+                      rows={3}
+                      value={valor}
+                      onChange={(e) => responder(c.chave, e.target.value)}
+                    />
+                  ) : (
+                    <Input
+                      id={id}
+                      type={c.tipo === "data" ? "date" : "text"}
+                      value={valor}
+                      onChange={(e) => responder(c.chave, e.target.value)}
+                    />
+                  )}
+
+                  {/* A AJUDA DE CADA CAMPO FICA, e a diferença com as frases
+                      que saíram é o que ela faz: "Folder A5, banner de 2x1,
+                      cartão de visita…" é um EXEMPLO do que cabe no campo, e
+                      sem ele a pessoa não sabe em que forma responder. O que
+                      saiu descrevia a categoria, que o nome do cartão já diz. */}
+                  {c.ajuda ? (
+                    <p className="text-muted-foreground text-xs">{c.ajuda}</p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </section>
+        ) : null}
+      </SecaoDoFormulario>
+
+      {/* ==================================================================
+          3. REFERÊNCIAS — decisão do usuário: *"referencias devem vir só
+          depois do briefing"*.
+
+          **ELAS ERAM O TERCEIRO BLOCO DA SEÇÃO 1**, ao lado do nome e do
+          texto, com o argumento escrito de que *"a referência é parte do que a
+          pessoa quer, e não um apêndice do fim do formulário"*. Aquilo
+          continua certo sobre o fim do formulário e errado sobre a ordem: o
+          que se manda para EXPLICAR vem depois do que se escreveu — e com o
+          briefing virando um editor de verdade, o bloco de arquivos ficava
+          entre a caixa de texto e o resto, partindo a seção em duas.
+
+          **Os arquivos ficam em memória até o envio**, porque o caminho no
+          bucket leva o id do pedido e ele ainda não existe. Por isso esta
+          lista é uma lista de escolhas, e não de anexos: ninguém subiu nada
+          ainda, e a tela não pode afirmar que subiu.
+          ================================================================== */}
+      <SecaoDoFormulario numero={3} titulo="Referências">
         <div className="space-y-2">
           <Label htmlFor="pedido-arquivos">Imagens e arquivos</Label>
 
@@ -521,337 +780,6 @@ export function FormularioDePedido({
       </SecaoDoFormulario>
 
       {/* ==================================================================
-          2. QUE TIPO DE TRABALHO É — e ela é OPCIONAL.
-
-          **OS CARTÕES PERDERAM A LINHA DE BAIXO** — decisão do usuário:
-          *"tire o texto abaixo que de que tipo de trabalho é, esses textinhos
-          parecem indiretas não são legais"*. Eram as quatro frases de
-          `request_types.descricao`, da 0068, e a quarta era literalmente isso:
-          *"Não se encaixa nos anteriores — conte o que você precisa"*. A
-          coluna fica gravada, sem leitor, carimbada pela 0137.
-
-          **E NENHUM VEM MARCADO**, que é a outra metade da 0137: o tipo
-          decide quais perguntas aparecem, e um tipo pré-marcado fazia o
-          formulário cobrar as respostas de um trabalho que ninguém escolheu.
-          ================================================================== */}
-      <SecaoDoFormulario numero={2} titulo="Que tipo de trabalho é">
-        {/* `role="radiogroup"` no invólucro porque os cartões são
-            `role="radio"`: um radio sem o grupo por perto é um papel sem pai,
-            e o leitor de tela anuncia "opção 1 de 1" em cada um deles. */}
-        <div
-          role="radiogroup"
-          aria-label="Tipo de pedido"
-          className="grid grid-cols-2 gap-2"
-        >
-          {tipos.map((t) => {
-            const Icone = ICONES[t.icone as keyof typeof ICONES] ?? CircleHelp;
-            const escolhido = t.id === tipoId;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                role="radio"
-                aria-checked={escolhido}
-                // CLICAR NO CARTÃO ESCOLHIDO O DESFAZ, e é o que faz o tipo
-                // ser de verdade opcional: sem isso, quem clica por engano não
-                // tem como voltar ao estado sem tipo — e volta a ser cobrado
-                // pelas perguntas de um trabalho que não é o dele.
-                onClick={() => setTipoId(escolhido ? "" : t.id)}
-                className={
-                  escolhido
-                    ? "border-accent-strong bg-accent rounded-lg border p-3 text-left"
-                    : "hover:bg-accent rounded-lg border p-3 text-left transition-colors"
-                }
-              >
-                <Icone aria-hidden className="text-accent-strong mb-1 size-5" />
-                <p className="text-sm font-medium">{t.nome}</p>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ----------------------------------------------------------------
-            O ROTEIRO DE BRIEFING (0068), e o título dele mudou.
-
-            Ele era *"Para a gente não precisar perguntar depois"* — decisão do
-            usuário: *"Mude a frase"*. Aquele título explicava por que a
-            AGÊNCIA queria as respostas, o que é problema da agência, e lido do
-            lado de fora soava como cobrança. O que ficou no lugar diz o que a
-            seção é, e nada mais.
-
-            **E ele só existe com um tipo escolhido**, o que depois da 0137 é
-            uma escolha e não o padrão.
-            ---------------------------------------------------------------- */}
-        {campos.length > 0 ? (
-          <section className="bg-card space-y-4 rounded-lg border p-4">
-            <h3 className="text-sm font-semibold">Sobre este material</h3>
-
-            {campos.map((c) => {
-              const id = `roteiro-${c.chave}`;
-              const valor = respostas[c.chave] ?? "";
-
-              return (
-                <div key={c.chave} className="space-y-1.5">
-                  <Label htmlFor={id}>
-                    {c.rotulo}
-                    {c.obrigatorio ? " *" : ""}
-                  </Label>
-
-                  {c.tipo === "escolha" && c.opcoes?.length ? (
-                    <Select
-                      value={valor}
-                      onValueChange={(v) => responder(c.chave, v)}
-                    >
-                      <SelectTrigger
-                        aria-label={c.rotulo}
-                        id={id}
-                        className="w-full"
-                      >
-                        <SelectValue placeholder="Escolha" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {c.opcoes.map((o) => (
-                          <SelectItem key={o} value={o}>
-                            {o}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : c.tipo === "texto_longo" ? (
-                    <Textarea
-                      id={id}
-                      rows={3}
-                      value={valor}
-                      onChange={(e) => responder(c.chave, e.target.value)}
-                    />
-                  ) : (
-                    <Input
-                      id={id}
-                      type={c.tipo === "data" ? "date" : "text"}
-                      value={valor}
-                      onChange={(e) => responder(c.chave, e.target.value)}
-                    />
-                  )}
-
-                  {/* A AJUDA DE CADA CAMPO FICA, e a diferença com as frases
-                      que saíram é o que ela faz: "Folder A5, banner de 2x1,
-                      cartão de visita…" é um EXEMPLO do que cabe no campo, e
-                      sem ele a pessoa não sabe em que forma responder. O que
-                      saiu descrevia a categoria, que o nome do cartão já diz. */}
-                  {c.ajuda ? (
-                    <p className="text-muted-foreground text-xs">{c.ajuda}</p>
-                  ) : null}
-                </div>
-              );
-            })}
-          </section>
-        ) : null}
-      </SecaoDoFormulario>
-
-      {/* ==================================================================
-          3. ONDE ISSO ENTRA — a classificação, agora toda opcional.
-          ================================================================== */}
-      <SecaoDoFormulario numero={3} titulo="Onde isso entra">
-        {/* O SELETOR DE EMPRESA SÓ APARECE COM MAIS DE UMA. Com uma, ele é um
-            campo com uma opção — a pessoa lê, pensa, e escolhe a única. */}
-        {empresas.length > 1 ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="pedido-empresa">Para qual empresa</Label>
-            <Select value={clienteId} onValueChange={setClienteId}>
-              <SelectTrigger
-                aria-label="Empresa"
-                id="pedido-empresa"
-                className="w-full"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {empresas.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.nome_empresa}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
-
-        {/* ----------------------------------------------------------------
-            A VERTENTE VEM DEPOIS DA EMPRESA, e é a ordem da decisão: de qual
-            conta, e de qual parte dela. Acima da empresa ela perguntaria sobre
-            uma conta que ainda não foi escolhida — a mesma ordem do seletor da
-            tela de task (0118).
-
-            **E O CAMPO SÓ EXISTE QUANDO A CONTA TEM VERTENTE**, que é a
-            maioria ao contrário: quase nenhuma tem. Um seletor
-            permanentemente vazio pede uma escolha que não existe.
-            ---------------------------------------------------------------- */}
-        {vertentesDaEmpresa.length > 0 ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="pedido-vertente">De que parte da sua conta é</Label>
-            <Select
-              value={vertenteEscolhida || "nenhuma"}
-              onValueChange={(v) => setVertenteId(v === "nenhuma" ? "" : v)}
-            >
-              <SelectTrigger
-                aria-label="Vertente"
-                id="pedido-vertente"
-                className="w-full"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {/* "SEM VERTENTE" FICA COMO OPÇÃO, e não é indecisão: a reunião
-                    mensal e o material institucional não pertencem a nenhuma
-                    frente, e obrigar a escolha faria a pessoa marcar a primeira
-                    da lista — que é pior que não classificar, porque o relatório
-                    passaria a contá-la onde ela não está. É a decisão da 0118,
-                    palavra por palavra. */}
-                <SelectItem value="nenhuma">Não é de nenhuma em especial</SelectItem>
-                {vertentesDaEmpresa.map((v) => (
-                  <SelectItem key={v.id} value={v.id}>
-                    {v.nome}
-                    {v.ativa ? "" : " (desativada)"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
-
-        {/* ----------------------------------------------------------------
-            A CLASSIFICAÇÃO — e ela deixou de ser obrigatória (0137).
-
-            **SÃO TRÊS CARTÕES E DOIS VALORES DE ENUM.** O terceiro,
-            `OPCAO_SEM_FRENTE`, viaja como nulo: um valor "nenhuma" no enum
-            poria no relatório da agência uma terceira categoria onde o que
-            existe é a ausência de categoria.
-
-            **E ELE É UM CARTÃO E NÃO UM CAMPO QUE SE PULA**, que é a decisão
-            de *"Não é de nenhuma em especial"* no seletor de vertente: um
-            formulário em que a classificação simplesmente não é cobrada deixa
-            quem abre sem saber se esqueceu alguma coisa.
-
-            **E SÃO CARTÕES e não um `<Select>`**, pela razão do seletor de
-            redes do social: a frase que explica cada lado é o que faz a
-            escolha não ser palpite, e num `<Select>` ela ficaria escondida
-            atrás de um clique — justamente o clique da decisão. Eles empilham
-            em vez de ficar lado a lado: no painel de 540px, três colunas
-            dariam 150px para um ícone, um título e uma frase.
-            ---------------------------------------------------------------- */}
-        <fieldset className="space-y-2">
-          <legend className="mb-2 text-sm font-medium">É para o quê</legend>
-          <div
-            role="radiogroup"
-            aria-label="Social, Campanha, ou nenhum dos dois"
-            className="grid gap-2"
-          >
-            {OPCOES_DE_FRENTE.map((f) => {
-              // O ÍCONE DO TERCEIRO É UM CÍRCULO TRACEJADO, e não o
-              // `CircleHelp` do tipo "Outro": o mesmo desenho para duas coisas
-              // diferentes no mesmo formulário é o que faz alguém ler um pelo
-              // outro. Tracejado é a forma de "ainda não definido".
-              const Icone =
-                f === "social"
-                  ? Share2
-                  : f === "campanha"
-                    ? Megaphone
-                    : CircleDashed;
-              const rotulo =
-                f === "nenhuma" ? OPCAO_SEM_FRENTE.rotulo : ROTULOS_DE_FRENTE[f];
-              const explicacao =
-                f === "nenhuma"
-                  ? OPCAO_SEM_FRENTE.explicacao
-                  : EXPLICACAO_DA_FRENTE[f];
-              const escolhido = f === frente;
-              return (
-                <button
-                  key={f}
-                  type="button"
-                  role="radio"
-                  aria-checked={escolhido}
-                  onClick={() => {
-                    setFrente(f);
-                    // SAIR DE CAMPANHA APAGA A CAMPANHA, senão o envio
-                    // carregaria uma campanha num pedido que diz outra coisa —
-                    // a contradição que o ramo 3 do gatilho recusa, e que
-                    // depois da 0137 alcança também a frente em branco.
-                    if (f !== "campanha") setCampanhaId("");
-                  }}
-                  className={
-                    escolhido
-                      ? "border-accent-strong bg-accent flex items-start gap-3 rounded-lg border p-3 text-left"
-                      : "hover:bg-accent flex items-start gap-3 rounded-lg border p-3 text-left transition-colors"
-                  }
-                >
-                  <Icone
-                    aria-hidden
-                    className="text-accent-strong mt-0.5 size-5 shrink-0"
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium">{rotulo}</span>
-                    <span className="text-muted-foreground block text-xs">
-                      {explicacao}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-
-        {/* ----------------------------------------------------------------
-            A CAMPANHA SÓ EXISTE NA FRENTE CAMPANHA (0124): na frente Social
-            não há campanha para escolher, e o trigger recusa a linha que tem
-            as duas coisas.
-
-            **E O CAMPO SÓ EXISTE QUANDO HÁ CAMPANHA ABERTA.** Um seletor com a
-            única opção "Nenhuma" é um campo que a pessoa lê, pensa e deixa como
-            está — a mesma razão pela qual o seletor de empresa só aparece com
-            mais de uma. Quando a frente é Campanha e a conta não tem nenhuma
-            aberta, o que aparece é a FRASE abaixo — o pedido chega antes de a
-            campanha existir, que é o caso comum de quem pede uma ação nova.
-            ---------------------------------------------------------------- */}
-        {frente === "campanha" && daEmpresa.length === 0 ? (
-          <p className="text-text-muted text-sm">
-            Esta empresa não tem campanha aberta no momento — a gente organiza
-            isso por aqui depois de ler o seu pedido.
-          </p>
-        ) : null}
-
-        {frente === "campanha" && daEmpresa.length > 0 ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="pedido-campanha">De que campanha é</Label>
-            <Select
-              value={campanhaEscolhida || "nenhuma"}
-              onValueChange={(v) => setCampanhaId(v === "nenhuma" ? "" : v)}
-            >
-              <SelectTrigger
-                aria-label="Campanha"
-                id="pedido-campanha"
-                className="w-full"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {/* O VALOR VAZIO NÃO É ACEITO PELO `<Select>` do shadcn — ele
-                    trata `""` como "sem valor" e volta ao placeholder. Então o
-                    "nenhuma" é uma opção de verdade, traduzida para nulo no
-                    envio: é o que permite DESFAZER a escolha, que um placeholder
-                    não permite. */}
-                <SelectItem value="nenhuma">Nenhuma, é um pedido solto</SelectItem>
-                {daEmpresa.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
-      </SecaoDoFormulario>
-
-      {/* ==================================================================
           4. PARA QUANDO — e a frase embaixo FICA.
 
           Ela não é do grupo que saiu: *"É a data que ajudaria você — não é o
@@ -859,11 +787,6 @@ export function FormularioDePedido({
           impede um mal-entendido caro. Um campo de data sem essa linha é lido
           como prazo acordado, e quem digita precisa saber disso ANTES de
           digitar — não no dia em que a peça não chegar.
-
-          **E ela é uma SEÇÃO e não o último campo da terceira**, porque a
-          pergunta é outra: as três de cima são sobre o trabalho, esta é sobre
-          o calendário. Numerada, ela ganha o peso do campo do formulário que
-          mais se interpreta errado.
           ================================================================== */}
       <SecaoDoFormulario numero={4} titulo="Para quando">
         {/* NA CAMPANHA A PERGUNTA É O PERÍODO, e não uma data (0138).
@@ -933,10 +856,10 @@ export function FormularioDePedido({
           5. QUANTOS MATERIAIS DE CADA TIPO — só na frente Campanha (0138).
 
           **A SEÇÃO APARECE NO FIM e não no meio**, porque ela é a única que
-          nasce e some: pondo-a antes de "Para quando", marcar Campanha
-          renumeraria a seção que a pessoa acabou de ler. E ela é a mais
-          detalhada das cinco, que é onde ela pertence numa lista que vai do
-          que a pessoa quer até como isso se divide.
+          nasce e some: pondo-a antes de "Para quando", escolher o tipo
+          Campanha renumeraria a seção que a pessoa acabou de ler. E ela é a
+          mais detalhada das cinco, que é onde ela pertence numa lista que vai
+          do que a pessoa quer até como isso se divide.
 
           **É O MESMO `EditorDaComposicao` DA ABERTURA DE CAMPANHA**, e o que
           não vem com ele é o rodapé: lá a lista MONTA A ÁRVORE, e a árvore é

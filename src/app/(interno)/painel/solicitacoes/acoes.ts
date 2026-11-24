@@ -18,6 +18,7 @@ import {
   FRENTES_DA_SOLICITACAO,
   ROTULOS_DE_FRENTE,
   briefingDoPedido,
+  briefingRicoDoPedido,
   camposDoRoteiro,
 } from "@/lib/dominio/solicitacoes";
 import type { SolicitacaoFrente } from "@/lib/supabase/database.types";
@@ -322,10 +323,26 @@ export async function converterEmDemanda(
       return falha("Este pedido já virou uma demanda.");
     }
 
-    const briefing = briefingDoPedido(
-      { ...pedido, empresa: empresa?.nome_empresa ?? null },
-      camposDoRoteiro(tipo?.campos_json),
-    );
+    // AS DUAS METADES DO BRIEFING, e a rica era a que faltava.
+    //
+    // **Isto era um defeito, e ele foi medido:** até a 0148 a conversão
+    // gravava `briefing_texto` e nunca `briefing_rico` — e o detalhe da
+    // demanda SÓ desenha a coluna rica, então a demanda convertida abria com
+    // o editor vazio para quem edita e "Sem briefing." para quem não edita.
+    // Nenhuma demanda do banco veio de um pedido, então ele nunca mordeu uma
+    // demanda de verdade; o que o tornou visível foi o briefing do cliente
+    // passar a ser rico, porque aí o que se perderia é o que ele escreveu.
+    //
+    // As duas saem da MESMA sequência de partes (`lib/dominio/solicitacoes`),
+    // e é isso que impede o texto e o documento de discordarem da ordem das
+    // frases em volta do briefing.
+    const paraOBriefing = {
+      ...pedido,
+      empresa: empresa?.nome_empresa ?? null,
+    };
+    const campos = camposDoRoteiro(tipo?.campos_json);
+    const briefing = briefingDoPedido(paraOBriefing, campos);
+    const briefingRico = briefingRicoDoPedido(paraOBriefing, campos);
 
     const { data: task, error } = await supabase
       .from("tasks")
@@ -333,6 +350,11 @@ export async function converterEmDemanda(
         titulo: pedido.titulo,
         client_id: pedido.client_id,
         briefing_texto: briefing,
+        // NULO QUANDO O PEDIDO NÃO TEM DOCUMENTO RICO, e é o que mantém o
+        // pedido anterior à 0148 funcionando como antes: a tela cai na frase
+        // "Sem briefing." em vez de abrir um documento que só tem as frases
+        // da conversão dentro — ele afirmaria um briefing que não existe.
+        briefing_rico: briefingRico,
         // A PASTA PADRÃO DA CONTA PREENCHE (0064), e a publicação cobra os
         // três mínimos. Sem ela o rascunho nasce sem pasta, que é estado
         // legítimo — `tasks_publicar_exige_minimo` é quem recusa publicar

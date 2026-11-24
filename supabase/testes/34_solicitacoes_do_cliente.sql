@@ -433,10 +433,23 @@ on conflict (id) do nothing;
 select teste.conferir_como('O cliente nao ve o tipo desligado', :JOANA,
   $$select count(*)::text from public.request_types where ativo = false$$, '0');
 
-select teste.conferir_como('A equipe ve o tipo desligado', :BRUNO,
-  $$select count(*)::text from public.request_types where ativo = false$$, '1');
+-- SAO DOIS FORA DO AR DEPOIS DA 0148, e o segundo e o "Video": aquela
+-- migration o desligou pelo item 13 do usuario (*"videos tbm sao pecas para
+-- rede"*), e video passou a ser pedido pela pergunta `formato` de "Peca para
+-- redes". O cenario conta os dois e o seguinte NOMEIA o Video -- a contagem
+-- sozinha passaria no dia em que alguem desligasse outro tipo e o Video
+-- voltasse ao ar.
+select teste.conferir_como('A equipe ve os tipos desligados', :BRUNO,
+  $$select count(*)::text from public.request_types where ativo = false$$, '2');
 
-select teste.conferir_como('Os quatro tipos iniciais nasceram com a migration', :JOANA,
+select teste.conferir_como('O video saiu do ar (0148)', :BRUNO,
+  $$select ativo::text from public.request_types where nome = 'Vídeo'$$, 'false');
+
+-- CONTINUAM QUATRO, e o numero e o mesmo pelo motivo trocado: a 0148 desligou
+-- o "Video" e criou o "Campanha" no mesmo arquivo. Um cenario que so contasse
+-- passaria com os dois lados errados, entao os dois estao nomeados logo acima
+-- e logo abaixo.
+select teste.conferir_como('Quatro tipos ativos para o cliente escolher', :JOANA,
   $$select count(*)::text from public.request_types where ativo$$, '4');
 
 -- QUEM EDITA O ROTEIRO E A GESTAO, e nao `is_atendimento()` como quem abre o
@@ -975,3 +988,137 @@ select teste.conferir('E ele fica sem vertente, nao apagado',
   (select coalesce(vertente_id::text, 'sem vertente')
      from public.client_requests
     where id = 'dddddddd-0000-0000-0000-00000000c003'), 'sem vertente');
+
+
+-- ===========================================================================
+-- O BRIEFING RICO DO PEDIDO, E A FRENTE QUE O TIPO CARREGA (migration 0148)
+--
+-- Cinco decisoes do usuario na mesma mensagem, e as que chegam ao banco sao
+-- duas colunas:
+--
+--   11. "quero que quando o cliente pede algo, no portal do cliente, ele tenha
+--       espaco para escrever o briefing igual o atendimento da agencia"
+--   12. "pode tirar o onde isso entra. quero que mude o que tipo de trabalho e,
+--       para permitir campanhas tbm"
+--   13. "videos tbm sao pecas para rede"
+--
+-- O resto e tela: a ordem das secoes, o editor, o rotulo. O que esta secao
+-- mede e o que a tela NAO tem como garantir.
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- 1. A FRENTE E DO TIPO
+--
+-- E a metade do item 12 que precisa de banco: com a frente na linha do TIPO,
+-- a tela pergunta uma vez e a frente vem junto -- e ela e COLUNA e nao um
+-- `case` no cliente porque `request_types` e um catalogo que a gestao edita na
+-- tela, sem deploy (a decisao da 0087 com o papel do elo de social).
+--
+-- Os quatro nomes estao escritos um por um de proposito: uma contagem passaria
+-- com as frentes trocadas entre eles.
+-- ---------------------------------------------------------------------------
+select teste.conferir('"Peça para redes" implica social',
+  (select frente::text from public.request_types where nome = 'Peça para redes'),
+  'social');
+
+select teste.conferir('"Campanha" implica campanha',
+  (select frente::text from public.request_types where nome = 'Campanha'),
+  'campanha');
+
+-- E NULO E RESPOSTA, nao lacuna: "Material impresso" e "Outro" nao sao social
+-- nem campanha, e sao eles o cartao "Nao sei dizer" que a 0137 oferecia. O
+-- pedido nasce sem frente, cai no chip "Sem classificacao" da fila, e
+-- `classificarSolicitacao` (0124) existe desde entao para resolve-lo.
+select teste.conferir('"Material impresso" nao implica frente nenhuma',
+  (select coalesce(frente::text, 'sem frente') from public.request_types
+    where nome = 'Material impresso'),
+  'sem frente');
+
+select teste.conferir('Nem "Outro"',
+  (select coalesce(frente::text, 'sem frente') from public.request_types
+    where nome = 'Outro'),
+  'sem frente');
+
+-- ---------------------------------------------------------------------------
+-- 2. DESLIGAR O VIDEO NAO ESCONDE PEDIDO DE NINGUEM
+--
+-- O PASSO 5 da 0148 e um `update ativo = false`, e a razao de ele poder ser
+-- isso e uma medicao: ZERO pedidos apontavam para o "Video". O cenario guarda
+-- a OUTRA metade -- `request_types_select` e `is_staff() or ativo`, entao um
+-- pedido que citasse um tipo fora do ar continuaria legivel para a equipe no
+-- detalhe de quem o abriu. Sem esta linha, alguem "arrumaria" o desligamento
+-- com um `delete` e levaria o tipo de pedidos antigos junto.
+-- ---------------------------------------------------------------------------
+insert into public.client_requests
+  (id, client_id, criado_por, titulo, request_type_id, frente)
+values ('dddddddd-0000-0000-0000-000001480001', :VERDE, :JOANA,
+        'Pedido que cita um tipo fora do ar',
+        'ffffffff-0000-0000-0000-000000000001', 'social')
+on conflict (id) do nothing;
+
+select teste.conferir_como('A equipe le o pedido que cita o tipo desligado', :CARLA,
+  $$select count(*)::text from public.client_requests
+     where id = 'dddddddd-0000-0000-0000-000001480001'$$, '1');
+
+-- ---------------------------------------------------------------------------
+-- 3. O BRIEFING RICO E O CLIENTE QUEM ESCREVE
+--
+-- A coluna nasce no PASSO 1 e e a metade RICA do par: `descricao` guarda o
+-- texto, que e o que a busca le e o que viaja para o briefing da demanda na
+-- conversao. **As duas andam juntas, e quem decide se ha briefing e o TEXTO**
+-- -- um documento do TipTap sem nada dentro ainda e um paragrafo vazio.
+--
+-- QUEM GARANTE O PAR E A ACTION e nao o banco, e isso e dito em vez de
+-- escondido: nao ha `check` ligando as duas. O que o banco garante, e o que
+-- este cenario mede, e que a coluna e da PROPRIA conta -- `client_requests`
+-- tem a policy de insert por `my_client_ids()` desde a 0068, e sem este
+-- cenario a coluna nova entraria sem ninguem perguntar por onde ela e escrita.
+-- ---------------------------------------------------------------------------
+select teste.cenario('Joana escreve o briefing rico no pedido dela', :JOANA,
+  format($fmt$
+    insert into public.client_requests
+      (id, client_id, criado_por, titulo, descricao, briefing_rico, frente)
+    values ('dddddddd-0000-0000-0000-000001480002', %L, %L,
+            'Banner com briefing rico', 'Fundo claro, logo no canto.',
+            '{"type":"doc","content":[{"type":"paragraph","content":[
+               {"type":"text","text":"Fundo claro, logo no canto."}]}]}'::jsonb,
+            'social')
+  $fmt$, :VERDE, :JOANA), 'ok');
+
+select teste.conferir('E o documento ficou gravado',
+  (select briefing_rico->>'type' from public.client_requests
+    where id = 'dddddddd-0000-0000-0000-000001480002'),
+  'doc');
+
+select teste.conferir_como('Otto nao le o briefing da Mundo Verde', :OTTO,
+  $$select count(*)::text from public.client_requests
+     where id = 'dddddddd-0000-0000-0000-000001480002'$$, '0');
+
+-- ---------------------------------------------------------------------------
+-- 4. O ROTEIRO PERDEU A PERGUNTA QUE O BRIEFING JA FAZ
+--
+-- Tres dos quatro roteiros da 0068 tinham um `texto_longo` OBRIGATORIO que era
+-- o briefing com outro nome. Com um briefing rico acima deles, a tela pedia a
+-- mesma coisa duas vezes e cobrava as duas -- e ZERO e o resultado certo do
+-- PASSO 6: a unica caixa de texto que o formulario embarca passou a ser o
+-- briefing, que e o item 15.
+--
+-- O `texto_longo` CONTINUA SUPORTADO no tipo, e o cenario de baixo e o que
+-- separa "a tela nao desenha mais" de "o banco deixou de aceitar".
+-- ---------------------------------------------------------------------------
+select teste.conferir('Nenhum roteiro pede mais uma caixa de texto',
+  (select count(*)::text from public.request_types
+    where campos_json @> '[{"tipo":"texto_longo"}]'::jsonb), '0');
+
+select teste.cenario('Mas o tipo ainda aceita um `texto_longo`', :DIEGO,
+  $$update public.request_types
+       set campos_json = '[{"chave":"x","rotulo":"X","tipo":"texto_longo"}]'::jsonb
+     where id = 'ffffffff-0000-0000-0000-000000000001'$$, 'ok');
+
+-- E O VIDEO PASSOU A SER PEDIDO PELO `formato` DE "Peca para redes", que e o
+-- item 13 inteiro: o tipo saiu do ar e a pergunta que ja estava ali ganhou a
+-- opcao. E a ULTIMA coisa que a 0148 faz, e e dela que o marcador do
+-- `onde-esta-o-banco.sql` fala.
+select teste.conferir('O formato de "Peça para redes" oferece vídeo',
+  (select (campos_json @> '[{"chave":"formato","opcoes":["Reels ou vídeo"]}]'::jsonb)::text
+     from public.request_types where nome = 'Peça para redes'), 'true');

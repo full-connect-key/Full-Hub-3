@@ -11,7 +11,6 @@ import {
   meusPedidos,
   tiposDePedido,
 } from "@/lib/dados/solicitacoes";
-import { vertentesDasContas } from "@/lib/dados/vertentes";
 import { ehFaseDoPedido, type FaseDoPedido } from "@/lib/dominio/solicitacoes";
 
 import { ListaDePedidos } from "./lista";
@@ -51,21 +50,15 @@ async function Conteudo({ fase }: { fase: FaseDoPedido | null }) {
   // que o `with check` da policy recusa no clique de enviar.
   const podeAbrir = empresas.filter((_, i) => aceitam[i]);
 
-  /**
-   * AS VERTENTES DAS CONTAS QUE ACEITAM PEDIDO (0124).
-   *
-   * **Ela vem depois do `Promise.all` e não dentro dele**, porque depende de
-   * `podeAbrir` — e buscar as vertentes de uma conta cujo pedido pelo Portal
-   * está desligado seria uma ida ao banco por uma lista que nenhum campo
-   * desenha.
-   *
-   * **E o que atravessa a fronteira é um ARRAY e não o `Map`.** As vertentes
-   * carregam `client_id`, então a tela filtra pela empresa escolhida — é a
-   * mesma forma das campanhas, e uma consulta por troca de empresa seria
-   * latência no meio de um formulário.
-   */
-  const porConta = await vertentesDasContas(podeAbrir.map((e) => e.id));
-  const vertentes = [...porConta.values()].flat();
+  // AS VERTENTES SAÍRAM DAQUI (0148), e com elas uma ida ao banco por visita.
+  //
+  // Elas eram buscadas por `vertentesDasContas()` e desciam ao formulário, que
+  // perguntava *"de que parte da sua conta é"*. Com a saída de "Onde isso
+  // entra" — decisão do usuário — a pergunta não tem mais onde morar nesta
+  // tela, e quem classifica o trabalho por vertente é o Atendimento na
+  // demanda (`tasks.vertente_id`, 0118), que é onde ela decide o board, a
+  // Biblioteca e o relatório. A função continua tendo leitores: a tela da
+  // task, a abertura de campanha e a leitura das demandas.
 
   return (
     <>
@@ -86,7 +79,6 @@ async function Conteudo({ fase }: { fase: FaseDoPedido | null }) {
           empresas={podeAbrir}
           tipos={tipos.filter((t) => t.ativo)}
           campanhas={campanhas}
-          vertentes={vertentes}
           base="/portal"
         />
       ) : null}

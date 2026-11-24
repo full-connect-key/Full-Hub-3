@@ -18,6 +18,7 @@ import {
 import { escreverNaSolicitacao } from "@/app/(cliente)/portal/_actions/solicitacoes";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PageHeader } from "@/components/shared/page-header";
+import { BriefingDoPedido } from "@/components/shared/briefing-do-pedido";
 import { CampanhaDoPedido } from "@/components/shared/campanha-do-pedido";
 import { SeloDaSolicitacao } from "@/components/shared/selo-da-solicitacao";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -233,12 +234,19 @@ export function DetalheDoPedido({
         composicao={pedido.composicao}
       />
 
+      {/* O BRIEFING DO CLIENTE, com a tabela e o grifo que ele escreveu
+          (0148). Era um `<p>` com `whitespace-pre-wrap`, e com o editor rico
+          do outro lado isso mostraria o texto sem nada do que ele formatou —
+          que é o que o pedido do usuário acrescentou. O componente é o mesmo
+          do detalhe do portal, e ele é quem escolhe entre o documento e o
+          texto do pedido anterior à migration. */}
       {pedido.descricao ? (
         <section className="space-y-1.5">
-          <h2 className="text-sm font-semibold">O que ele escreveu</h2>
-          <p className="text-text-secondary text-sm whitespace-pre-wrap">
-            {pedido.descricao}
-          </p>
+          <h2 className="text-sm font-semibold">O briefing que ele escreveu</h2>
+          <BriefingDoPedido
+            texto={pedido.descricao}
+            rico={pedido.briefing_rico}
+          />
         </section>
       ) : null}
 

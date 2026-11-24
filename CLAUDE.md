@@ -12393,6 +12393,138 @@ ambiente. A 0138 está escrita, com a linha do `onde-esta-o-banco.sql` apontando
 para o CORPO do gatilho (`no_corpo`, `old.request_id is null`), que é a última
 coisa que o arquivo cria e a única que uma colagem parcial não produz.
 
+#### O BRIEFING DO CLIENTE É RICO, E A FRENTE SAI DO TIPO (0148)
+
+Cinco decisões do usuário na mesma mensagem, e elas são uma tela só — a
+abertura de pedido no portal: *"quero que quando o cliente pede algo, no portal
+do cliente, ele tenha espaço para escrever o briefing igual o atendimento da
+agência. com tabelas, grifando. e no lugar de conte com suas palavras, esteja
+escrito briefing msm"* (item 11); *"pode tirar o onde isso entra. quero que
+mude o que tipo de trabalho é, para permitir campanhas tbm"* (12); *"videos tbm
+são peças para rede"* (13); *"referencias devem vir só depois do briefing"*
+(14); e *"toda caixa de texto deve ser igual o do briefing interno da
+agencia"* (15).
+
+**QUASE TUDO JÁ EXISTIA, e ir medir antes de escrever é o que fez o banco ser
+duas colunas** — a lição da 0060, da 0127 e da 0128:
+
+| o que ele pede | onde já estava |
+| --- | --- |
+| editor com tabela e grifo | `EditorRico`, desde o Sprint 3 |
+| o par jsonb + texto | a forma de `tasks.briefing_rico` |
+| o roteiro de briefing | `request_types.campos_json` (0068) |
+| **o briefing RICO do pedido** | **não existia** |
+| **a frente que o tipo implica** | **não existia** |
+
+##### `descricao` FICA, e ela é a metade de TEXTO do par
+
+A tentação é renomear, e aí a coluna deixa de dizer o que ela é. Renomear
+coluna em uso é migration arriscada sem nada em troca — a decisão de `prazo` e
+de `dias_uteis` —, e esta tem QUATRO leitores: o `select` da lista, o detalhe
+dos dois lados e `briefingDoPedido()`.
+
+Então o par é o de sempre, o mesmo de `tasks.briefing_rico`/`briefing_texto` e
+de `subtasks.descricao_rica`/`descricao_texto`: o jsonb é o que o editor
+desenha, `descricao` é o que a busca lê e o que viaja para o briefing da
+demanda. **As duas andam juntas, e o texto vazio vira NULO** — um documento do
+TipTap sem nada dentro ainda é um parágrafo vazio, e **quem decide se há
+briefing é o TEXTO**. `BriefingDoPedido` devolve `null` quando o texto está
+vazio, então um documento sem texto não desenha nada.
+
+**ELE É UM COMPONENTE PORQUE SÃO DUAS TELAS QUE CONCORDAM** — o detalhe do
+pedido do lado da agência e o do lado do cliente —, que é o critério do
+`SeletorDeVisao` e a razão de `CampanhaDoPedido` ao lado: as duas dizem a mesma
+coisa sobre a mesma linha, e **a cópia que divergiria é a do PORTAL**, que a
+equipe nunca abre. **São dois ramos e o segundo não é legado:** `briefing_rico`
+nasceu na 0148, então todo pedido anterior a ela tem só o texto, e desenhá-lo
+com `whitespace-pre-wrap` é o que mantém de pé a quebra de linha de quem
+escreveu antes.
+
+##### A FRENTE PASSOU A SER DO TIPO, e isso é o item 12 inteiro
+
+*"Mude o que tipo de trabalho é, para permitir campanhas"* tem duas leituras, e
+a segunda metade da frase — *"pode tirar o onde isso entra"* — decide qual: os
+TRÊS cartões de frente da 0137 e o seletor de campanha saem da tela, e o TIPO
+passa a dizer a frente. `request_types.frente` é coluna, e não um de-para
+escrito na tela, porque o catálogo é **conteúdo da agência e não schema**
+(0137): com o mapa no código, acrescentar um tipo exigiria deploy.
+
+**E ela é NULA em dois dos quatro**, que é o cartão *"Não sei dizer"* da 0137
+em outra forma: "Material impresso" e "Outro" não são nem social nem campanha,
+e inventar uma frente para eles seria somar no relatório o palpite em vez da
+resposta. O que a 0137 decidiu continua inteiro — a frente é opcional, e o chip
+âmbar da fila cobra quem ficou sem.
+
+##### O roteiro perde a pergunta que o briefing já faz
+
+Três dos quatro roteiros da 0068 têm um `texto_longo` **obrigatório** que é o
+briefing com outro nome — *"O que esta peça precisa dizer"*, *"O que o vídeo
+precisa dizer"*, *"O que você precisa"*. Com um briefing rico acima deles, a
+tela pede a mesma coisa duas vezes e cobra as duas.
+
+**O `texto_longo` CONTINUA SUPORTADO no tipo**, e desenha um `<textarea>`; o
+que sai é o conteúdo de três linhas de seed. O limite fica escrito: a resposta
+de um roteiro é lida de volta como UMA linha `rótulo: valor` no briefing da
+demanda, e `respostas` é um mapa de strings — enriquecer uma resposta de
+roteiro é alargar aquela coluna, e isso é decisão própria.
+
+***E a resposta que fica órfã aparece com a chave crua e um aviso***, que é a
+decisão da 0068: *"esconder a linha faria sumir uma informação que o cliente
+escreveu"*. **Medido contra o Postgres de produção: UM pedido** ficou assim —
+"Post Natal", com a chave `mensagem`. O exemplo do protótipo guarda um igual,
+porque é o estado que a 0148 cria e que nenhuma imagem mostrava.
+
+##### O VÍDEO É UMA PEÇA PARA REDE, e isso é um cartão a menos
+
+"Vídeo" era o terceiro dos quatro tipos. Ele sai do ar por `ativo = false` —
+**desativar e nunca apagar**, que é a regra da etiqueta do Acervo
+(`skills.ativa`) e a do fluxo de social: o pedido antigo que aponta para ele
+conserva o tipo, e `request_types_select` é `is_staff() or ativo`, então ele
+deixa de ser oferecido ao cliente e continua legível no detalhe de quem o
+abriu. **Medido: ZERO pedidos apontam para ele.**
+
+E onde o vídeo passa a ser pedido é a pergunta `formato` de "Peça para redes",
+que já estava ali: ela ganha a opção e a ajuda que dizem isso. A `descricao` do
+tipo ficou sem leitor na 0137, então ela não é o lugar.
+
+##### As referências descem, e a caixa de texto é uma só
+
+*"Referências devem vir só depois do briefing"* é a ordem da leitura de quem
+abre o pedido — o que se quer, e então o que ajuda a entender o que se quer.
+
+**E não há mais nenhuma outra caixa de texto no formulário** (item 15): o
+`texto_longo` do roteiro saiu, e a única que embarca é o `EditorRico`. O rótulo
+é **"Briefing"**, que é a palavra que ele pediu — *"no lugar de conte com suas
+palavras, esteja escrito briefing msm"*.
+
+##### Na tela: o valor mora num `ref`, e o `onChange` não re-renderiza
+
+É a forma do briefing da demanda e dos editores do lado de dentro: o `onChange`
+do TipTap dispara a cada tecla, e pô-lo no `useState` re-renderizaria o
+formulário inteiro — com as seções, os cartões de tipo e a composição dentro —
+a cada letra. O booleano que diz "há briefing" vira UMA vez, na primeira tecla.
+
+***E o REALCE é atributo de `textStyle`, nunca uma marca própria — o que só a
+imagem pegou.*** `BackgroundColor` mora dentro de `@tiptap/extension-text-style`
+e acrescenta o atributo àquela marca, como `Color` faz com a cor; o exemplo do
+protótipo escrevia `{ type: "backgroundColor" }`, e **um documento inválido não
+estoura no TipTap: ele cai para um parágrafo vazio**. A tela saía com o título
+"O briefing que ele escreveu" e nada embaixo — e nenhuma das dez verificações
+alcança isso, porque um jsonb é um jsonb para o `tsc` e para o `check:tipos`.
+
+***E o `check:cores` pegou os meus próprios comentários pela nona vez:*** a
+explicação de por que o editor é o mesmo dos dois lados citava "etapa" e
+"demanda" dentro de `src/app/(cliente)/`, e a varredura **não tira comentário**
+ali. *A explicação não pode carregar o que ela proíbe.*
+
+***E o marcador do `onde-esta-o-banco.sql` são DUAS linhas***, que é a régua da
+0138: a do PASSO 1 (a coluna do briefing rico, de que nenhum outro passo
+depende) e a do PASSO 6.5, que é a última coisa que o arquivo faz — os cinco
+`update` do roteiro são independentes entre si, então **o bloco do vídeo foi
+movido para o fim de propósito**, para a colagem que morre no meio responder
+FALTA em vez de `ok`. O tipo de marcador é novo (`roteiro`), porque a 0148 não
+cria objeto nenhum nesses passos: ela edita `campos_json`.
+
 ### Portal do Cliente
 
 A gestão abre `/portal/{slug}` e vê a tela que aquele cliente vê. **Não é login
@@ -20507,6 +20639,10 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| O briefing do cliente | **O pedido do portal passou a ter o MESMO editor de briefing do lado de dentro** (migration 0148), e com ele quatro decisões vizinhas — *"com tabelas, grifando"*, *"pode tirar o onde isso entra"*, *"videos tbm são peças para rede"*, *"referencias devem vir só depois do briefing"*. **Quase tudo já existia:** o `EditorRico` desde o Sprint 3, o par jsonb + texto desde `tasks.briefing_rico`, o roteiro desde a 0068 — o banco são DUAS colunas, `client_requests.briefing_rico` e `request_types.frente`. **`descricao` FICA e é a metade de texto do par**, porque renomear coluna com quatro leitores é migration arriscada sem nada em troca, e **quem decide se há briefing é o TEXTO**: um doc do TipTap vazio ainda é um parágrafo. **A FRENTE PASSOU A SER DO TIPO**, e isso é o item 12 inteiro — os três cartões de frente da 0137 saem da tela, o tipo diz a frente, e ela é NULA em dois dos quatro, que é o *"Não sei dizer"* daquele sprint em outra forma. É COLUNA e não um de-para na tela porque o catálogo é **conteúdo da agência e não schema** (0137): com o mapa no código, acrescentar um tipo exigiria deploy. **O roteiro perde a pergunta que o briefing já faz** — três dos quatro tinham um `texto_longo` obrigatório que é o briefing com outro nome —, e ***a resposta que fica órfã aparece com a chave crua e um aviso***, que é a decisão da 0068: **medido contra produção, UM pedido** ficou assim. **E o VÍDEO sai por `ativo = false`** — desativar e nunca apagar, a regra da etiqueta do Acervo —, com **ZERO pedidos apontando para ele**, medido; onde ele passa a ser pedido é a pergunta `formato` de "Peça para redes", que já estava lá. ***E o REALCE é atributo de `textStyle` e nunca uma marca própria, o que só a imagem pegou:*** o exemplo escrevia `{ type: "backgroundColor" }`, e **um documento inválido não estoura no TipTap — ele cai para um parágrafo vazio**, então a tela saía com o título do briefing e nada embaixo; nenhuma das dez verificações alcança isso, porque um jsonb é um jsonb para o `tsc`. ***E o `check:cores` pegou os meus próprios comentários pela nona vez.*** **2498 cenários, três mutações medidas** (2 / 3 / 2), e o marcador do `onde-esta-o-banco.sql` são DUAS linhas, com o bloco do vídeo **movido para o fim do arquivo de propósito** — a régua da 0138: passo de que nenhum outro depende precisa da linha dele. |
+| A tabela ajustável | **A tabela do briefing deixou de ser só 3×3** — decisão do usuário: *"no texto do briefing ele permite apenas tabelas 3x3, pode mudar isso? quero que seja ajustavel"*. **Isto desfaz uma decisão minha, e fica registrado como reversão:** estava escrito aqui que *"o tamanho inicial não é um seletor de dimensão, e a ausência é decisão — as linhas se acrescentam dentro com o Tab"*. **O argumento errava sobre a DESCOBERTA e não sobre o caso comum:** os comandos que fazem a tabela crescer só existem DENTRO dela, num menu que precisa do cursor numa célula, e quem leu *"Inserir tabela 3×3"* concluiu, com razão, que o produto só faz 3×3 — **um caminho que existe e não se anuncia é indistinguível de um caminho que não existe**, que é a terceira vez que este arquivo paga essa frase. **É `Popover` e não `MenuDaBarra`, por mecânica e não por desenho:** um campo de texto dentro de um `DropdownMenu` do Radix **não recebe o que se digita** — o menu captura a tecla para a busca por letra dele. **São DOIS CAMPOS e não uma grade de passar o mouse:** a grade é o que o Word faz e tem um teto que o campo não tem, e ela é um `role="grid"` com navegação por seta escrita à mão onde dois campos são teclado nativo. **O valor mora no rascunho como TEXTO**, pela razão da quantidade de peças do workflow: um `<input type="number"` controlado por número não deixa o campo ficar vazio enquanto a pessoa apaga. **E o botão CONTA** — *"Inserir tabela 4 × 6"* —, inerte fora da faixa **com a razão escrita**, nunca clampando em silêncio: *aceitar e fazer outra coisa* é o que a 0025 diz ser pior que recusar com explicação. ***E a frase do pé só existe FORA da tabela***, o que a imagem mostrou: dentro dela os cinco comandos estão logo abaixo, e dizer que o menu *ganha* o que ele já tem é a tela descrevendo o que está a dois centímetros. ***E o axe pegou o popover sem nome*** (`aria-dialog-name`) — **e o do PRAZO da Gestão de Tasks não carregava `aria-label` nenhum**, achado que nunca tinha aparecido porque tela nenhuma do protótipo o abria: saiu no mesmo commit. |
+| A pauta desde sempre | **A pauta da equipe passou a dizer que é inteira, e ganhou busca por título** (migration 0147) — decisão do usuário em duas frases: *"preciso que a pauta que apareça seja toda a pauta da pessoa, desde sempre. e poder pesquisar por titulo, para achar a task caso não lembre quem fez"*. **A PRIMEIRA METADE JÁ ERA VERDADE, e o que faltava era a tela DIZER:** `carregar()` não tem janela de data nem filtro de status, e o que a fazia parecer semanal é a VIZINHANÇA — ela mora embaixo de uma grade da semana corrente. A linha no cabeçalho é a entrega dessa metade, e ela é uma frase e não SQL. **A BUSCA É DA EQUIPE INTEIRA, e a frase dele é que decide isso:** *"caso não lembre quem fez"* — uma busca que exige escolher o nome primeiro não responde nada a quem não sabe o nome. **E ela NÃO é `security definer`**, que é a linha que mais importa: `subtasks_select` é `is_staff()` desde a 0007 e `profiles_select` passou a ser `is_staff() and role <> 'cliente'` na 0132, então a RLS **já permite** e uma função comum deixa a policy valer dentro dela — é a forma de `busca_global()`. **Medido com mutação: virando `definer`, a CLIENTE acha quatro linhas da pauta da agência.** **Então por que uma função de banco, se a RLS já permite?** Por uma coisa só: `sem_acento()` é `immutable` e não pode ficar do lado esquerdo de um filtro do PostgREST — buscar "midia" tem de achar "mídia". **A comparação é `strpos` e não `like`** (com `like '%termo%'` quem busca "100%" busca qualquer coisa), e ela devolve ONDE casou, que é a ordenação. **UMA LINHA POR (ETAPA, PESSOA), e quem agrupa é a TELA** — um `jsonb` de pessoas no `returns table` é um molde que **`check:tipos` não confere**. **E `total` conta ETAPAS e não linhas, contado ANTES do corte**, que também é por etapa: cortando LINHAS, a última sairia com uma das duas pessoas dela. **A agrupadora fica fora** por `subtask_eh_agrupadora()`, e o rascunho pela consulta e não pela RLS — o par escrito desde a 0028. **O campo só vai para a URL no Enter**, que é a decisão da busca da auditoria, e o piso é de duas letras: **medido, com piso de uma a busca por "v" devolve dez linhas**. **Treze cenários novos, todos por `conferir_como`**, porque a função é `invoker` e medir como dono do banco não mediria nada. |
+| O day off desde a entrada | **Seis pedidos numa mensagem, e o maior deles reverte a 0074** (migrations 0145 e 0146). *"No day off tá escrito sobre ciclo, pode tirar isso?"* e *"a pessoa pode tirar os 15 dias a partir do momento que ela entra na agência"* **são a mesma entrega**: o estado que mais falava de ciclo na tela era o PRIMEIRO CICLO, e com os 15 valendo desde a entrada ele deixa de existir. **O `+ 1` que o próprio arquivo recomendava está errado**, e isso é o achado: estava escrito que *"para inverter era o `+ 1` de `ciclos_de_descanso()`"*, e **deixou de ser verdade na própria 0074** — com ele de volta, quem entrou há três meses ganha um `inicio_do_ciclo` no FUTURO e **o day off que ela já tirou para de contar**: saldo 15 com cinco comprometidos, plausível e errado. **Medido como gente de verdade contra produção:** as cinco pessoas com menos de um ano foram de **0 para 15 dias**, quem já tinha ciclo fechado não mudou, e em transação revertida alguém com 19 dias de casa **conseguiu pedir 10**. **A 0146 é a 0076 pela segunda vez:** a recorrência recusava salvar por causa da pasta de entrega, e **desde a 0113 aquele campo não existe naquela tela** — *uma recusa que a pessoa não tem como cumprir sem sair da tela é um portão fechado*. A arqueologia é o que fez a migration ser pequena: `tasks_exige_pasta_de_entrega` **não cobra mais no insert** desde a 0028, então a única exigência viva era a de publicar. A saída é um GUC de escopo local, ligado na linha anterior ao `insert` e desligado na seguinte, e **só o ramo da PASTA o lê**. **E a função foi remendada a partir do CATÁLOGO e nunca do arquivo** — o corpo deployado tem a 0123 dentro e CRLF —, **contando as três citações e estourando com a dica** em vez de recriar a função idêntica em silêncio. **E a bateria ficou vermelha nas duas**, que é a lição que sobra: os arquivos 05 e 18 afirmavam as regras que as duas migrations existem para desfazer, e **com `publicar-hostinger` tendo `needs: verificar` o site parou de receber qualquer coisa**. Catorze cenários virados do avesso, **2473 passando**, medidos com cinco mutações (6 / 3 / 7 / 9 / 2) — e ***dois cenários caíram em cascata***: um que passa a passar move o chão dos que vêm depois dele, e isso não aparece no diff. **Com elas vieram o aviso de FERIADO no campo de data** (a ponte construída e nunca atravessada pela vigésima terceira vez: `holidays` existe desde a 0011 e a tela que data o trabalho não perguntava) e a **célula da grade da equipe abrindo QUAL task** — a quarta `<span>` morto do produto, com `projetando: false` para o painel concordar com o número ao lado. |
 | A pauta é de todos | **Toda a equipe passou a ver e a mexer na pauta de todos, e quem mexe ASSUME** (migration 0144). Duas decisões do usuário na mesma mensagem — item 22: *"todos os colaboradores devem poder visualizar as pautas de todos"*; item 23: *"ao realizar uma alteração em uma pauta que não é sua, a responsabilidade dela passa a ser de quem alterou"*. **AS DUAS SÃO A MESMA MUDANÇA:** abrir a pauta sem o item 23 daria a toda a equipe o poder de mexer na etapa de qualquer pessoa **em silêncio**, e a tela de quem a faz mudaria sem nada dizendo quem mudou — o item 23 é o preço do item 22, e ele foi pedido junto. **O ITEM 22 JÁ ERA DO BANCO**, e ir medir é o que separou o SQL da tela: `subtasks_select` é `is_staff()` desde a 0007, `profiles_select` passou a ser `is_staff() and role <> 'cliente'` na 0132, e `minhasTasks(userId, …)` é parametrizada por pessoa desde o Sprint 4 — a leitura nunca precisou de consulta nova, precisou de uma tela que a pedisse. O único SQL dele é o `revoke` de `carga_da_equipe()`, que é **inconsistência e não furo** (ela não é `security definer`), e a distinção é medida: a proteção dela era inteira a RLS de duas tabelas, e a 0132 acabara de alargar uma. **E ela é a DÉCIMA NONA PONTE** — existe desde a 0055, a Linha do Tempo era o único leitor, e este arquivo escreveu a instrução de onde ela voltaria: *"devolver a visão é devolver uma função em `lib/dados/`, que o git guarda"*. **O ITEM 23 É UM GATILHO COM CINCO GUARDAS**, e não uma action, pela razão da 0045: a etapa é escrita pelo modal, pela linha, pelo board, pelo arrasto e por um PATCH — o cliente que aprova uma peça não assume nada, a rotina sem sessão não apaga o dono, gestão e Atendimento alteram **sem** assumir (o pedido em quantas palavras), a pauta própria não vira evento, e a fase do mês de social não troca de dono. **A GUARDA 4 PERGUNTA À TABELA DA 0114 E NUNCA À COLUNA**, que é o cenário que separa o certo do plausível: lendo só `responsavel_id`, a SEGUNDA pessoa da etapa seria **promovida a primeira** ao mexer na própria etapa. **E O VÍNCULO DA 0114 NÃO ACOMPANHA SOZINHO, o que a bateria mostrou:** `subtasks_vincula_o_responsavel` é `after update **of** responsavel_id`, e o `of` olha a lista de colunas do COMANDO — não o que um gatilho BEFORE fez com elas; num `update ... set prazo = ...` a etapa ficaria sendo do Bruno pela coluna e da Marina pela tabela, e `fazASubtarefa()` diria que as duas a fazem. **MEDIDO COM NOVE MUTAÇÕES sobre 2467 cenários** (12 / 20 / 3 / 2 / 2 / 2 / 1 / 1 / 1 / 0), e **a medição é a parte que mais ensinou**: a primeira rodada deu QUATRO zeros e **dois eram falsos** — o laço lia `FALHOU | N` e caía em zero quando não achava a linha, que é também o que acontece quando a bateria ABORTA; os dois "zeros" eram 12 e 1. **E uma terceira mutação não mutava nada:** renomear um gatilho não o desliga. **O zero da GUARDA 5 era um CENÁRIO QUE FALTAVA**, e foi esta medição que o encontrou: a recusa do PASSO 5 pergunta `new.responsavel_id is distinct from old`, e os dois gatilhos são `before update` — o Postgres os roda em ordem **alfabética**, então ela olha ANTES de o takeover trocar a coluna. Quer dizer que a GUARDA 5 é a **única** coisa entre um `update` de prazo e a fase do mês trocando de dono em silêncio; o arquivo 49 ganhou a fase de social e ela passou a valer 2. **O zero da GUARDA 2 é honesto e foi medido em TRÊS pontos:** tirando só ela, a GUARDA 1 pega; tirando só a 1, ela pega; **tirando as duas, a bateria ABORTA** — a montagem escreve em `subtasks` como dono da tabela e a etapa perde o dono. Na tela é **uma seção e não uma quarta visão** (`?aba=equipe`), porque o seletor de visão troca o DESENHO do mesmo conteúdo e a barra navega entre ASSUNTOS; a grade da semana vem primeiro e a pauta depois, com **a mesma escala de carga** dos outros quatro leitores dela. **A pessoa escolhida se resolve pela lista da grade e nunca direto do `?pessoa=`** — é de lá que sai o nome, e é ela que valida o uuid. |
 | A caixa branca sobre o cinza | **A terceira passada da mesma regra, e a que fecha a família: o CONTÊINER.** Decisão do usuário, em duas frases: *"verifique toda a plataforma, para rodar a regra de cinza não fica sobre cinza"* e *"se tem caixa, ela deve ser branca"*. As duas anteriores fecharam o BOTÃO e o CAMPO, que são controles; o que sobrava é o que carrega conteúdo — e o defeito ali é uma **AUSÊNCIA**, não uma classe errada: um contêiner com `rounded-*` e `border` e **nenhum `bg-`** mostra a PÁGINA por dentro, e a página é cinza. **O produto já tinha encontrado essa classe de bug QUATRO vezes à mão** — os três contêineres de Minhas Tasks, a `DataTable` de seis telas, o board da Gestão de Tasks e o editor de briefing —, e estava escrito aqui, em voz alta, que *"`check:cores` não pega isso: a ausência de uma classe não é cor literal nem classe inexistente"*. **Medido:** 88 contêineres com borda e raio sem chão, dos quais **50 foram pintados** (12 controles escritos à mão que o `variant="outline"` não alcança, e 38 caixas de conteúdo — as listas `divide-y`, as caixas de `p-3`/`p-4`, o contêiner de tabela das Métricas, o seletor de visão do portal, que era a quarta cópia à mão do `SeletorDeVisao`). **QUATRO FICARAM DE PROPÓSITO, e é a distinção que esta passada precisou medir antes de pintar:** elas estão DENTRO de um cartão, onde o chão já é branco — pintar seria cartão dentro de cartão, que é a decisão escrita do `EmptyState` dentro de "Meu dia", onde a moldura SAI por ser esse caso. **E as de dentro de GAVETA e DIÁLOGO foram pintadas**, porque `DialogContent` é `bg-background`, ou seja a página cinza — é a mesma assimetria que o sprint do botão escreveu quando decidiu que *o diálogo fica cinza por argumento e não por cautela*: é o chão cinza dele que faz o branco de dentro se ler. **A TRAVA NOVA É DE FAMÍLIA**, como a dos chips: o `check:cores` varre toda `className` com `rounded-{lg,xl,2xl,3xl,md,card}` mais `border` e **falha quando não há um `bg-` de REPOUSO** — `hover:bg-muted` sozinho passaria numa caixa que só tem cor sob o ponteiro, que é o defeito. São **235 caixas conferidas**. **DUAS COISAS FICAM FORA POR CONSTRUÇÃO, e não por isenção de arquivo:** `border-dashed`, porque a moldura pontilhada do `EmptyState` existe justamente para dizer que há uma região ali e pintá-la apagaria a distinção entre *não há nada* e *há isto*; e **`border-current`**, que toma a borda da cor de TEXTO da superfície — é o botão fantasma na faixa âmbar, onde um `bg-card` partiria a faixa, e sobre a página cinza ele daria uma borda escura, ou seja o defeito não o alcança. **As NOVE isenções de arquivo carregam o motivo ao lado**, que é a decisão do `-- SEM LINHA:` do `onde-esta-o-banco.sql` e das `ISENTAS` do `check:acoes`: seis são moldura de IMAGEM — a imagem É o chão, e um branco por baixo dela não aparece em pixel nenhum — e três são as caixas dentro de cartão. ***O que esta passada não alcança, e é dito em vez de escondido:*** a regra olha a `className` de uma linha, então um contêiner cujas classes venham de uma variável ou de um `cn()` partido em várias linhas não é conferido; e ela não sabe dizer se a caixa está dentro de um cartão — quem decide isso continua sendo quem escreve, e a isenção é declarada à mão. |
 | O campo branco sobre o cinza | **`Input`, `Textarea` e `SelectTrigger` deixaram de ser `bg-transparent`** — relato do usuário, com imagem da tela de Solicitações: *"aqui ainda está cinza sobre cinza"*. **ELE APONTOU PARA A DECISÃO QUE O SPRINT ANTERIOR DEIXOU ABERTA, com o número já medido:** aquele fechou o BOTÃO e escreveu, em voz alta, que os três primitivos continuavam transparentes porque *"dar chão branco a todo campo muda a aparência de cada formulário, e a queixa era sobre botão"*. A queixa seguinte foi sobre campo. **O chão é `bg-card` e a borda continua `--input`**, que já estava medida nas duas superfícies em que o controle aparece: **3,43:1 sobre a página e 3,98:1 sobre o cartão**. **E o diálogo continua cinza, por argumento e não por cautela** — com as duas superfícies brancas o campo voltaria a ser a cor do chão, que é a mesma queixa pelo outro lado; o que carrega a distinção ali é a borda. **`file:bg-transparent` FICA**, e é a razão de o `naoTem` da varredura ser a frase inteira (`border bg-transparent px-3`) e não o nome da classe: o botão interno do seletor de arquivo é legitimamente transparente, e um `naoTem` curto acusaria o conserto. **E O MESMO RELATO PEGOU DEZOITO CHIPS**, que é a metade que a imagem mostrava e o pedido não nomeava: `rounded-full border` sem `bg-` nenhum, em dez arquivos — o chip de STATUS das Solicitações (o da imagem), os de rede, de aprovador, de seção da Biblioteca, de filtro do portal, do Cronograma, das campanhas, do Calendário Full, do formulário de evento, da recorrência e do feed de Recomendações. **A TRAVA NOVA É DE FAMÍLIA E NÃO POR ARQUIVO:** o `check:cores` ganhou uma seção que varre `rounded-full border ` em `src/` e **falha quando a linha não tem um `bg-` sem prefixo de estado** — `hover:`/`data-[]:` não contam, porque ali a cor é um instante e não o chão. São 20 chips conferidos, com **uma exceção declarada**: o trilho do Switch, cujo chão é `data-[state=…]:bg-…` por definição. **E `cn` é o que faz isso ser seguro** — clsx mais tailwind-merge, então o `border-accent-strong bg-accent` do ramo ativo continua ganhando do `border-input bg-card` da base. |

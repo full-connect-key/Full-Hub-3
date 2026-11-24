@@ -1159,6 +1159,13 @@ const TELAS = [
   // bloco sabe faltar; esta prova que ele aparece -- e e a razao do evento de
   // cada par da legenda do calendario.
   { nome: "91c-solicitacao-campanha", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000002", largura: 1500, altura: 1700, role: "colaborador" },
+  // O BRIEFING RICO, do lado de quem o LE (0148, item 11: "igual o atendimento
+  // da agencia"). O pedido `…0005` e o unico do exemplo com documento do TipTap
+  // gravado -- negrito, um realce nomeado e uma tabela de tres linhas --, e os
+  // outros cinco ficam em texto puro de proposito: com os seis ricos a imagem
+  // provaria que o componente desenha, e nao que ele ESCOLHE entre os dois
+  // ramos. O lado do cliente sai na `94b`, que abre o mesmo pedido.
+  { nome: "91d-solicitacao-briefing-rico", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000005", largura: 1500, altura: 1500, role: "colaborador" },
   { nome: "92-portal-pedidos", rota: "/portal/solicitacoes", largura: 1400, altura: 900, role: "cliente" },
   // A ABA FILTRADA, e nao so a de "Todos": a imagem de "Todos" mostra a faixa
   // de abas e nao prova que alguma delas RECORTA. Esta sai em "Em ajustes",
@@ -1221,7 +1228,11 @@ const TELAS = [
   { nome: "93b-portal-pedido-novo-375", rota: "/portal/solicitacoes?novo=1", largura: 375, altura: 2400, role: "cliente" },
   // O PAINEL ABERTO JA DENTRO DE UMA CAMPANHA (0112). Ele e o unico lugar em
   // que o campo "De que campanha e" aparece PREENCHIDO -- em `?novo=1` solto
-  // ele nasce em "Nenhuma", e a imagem provaria so que o seletor existe.
+  // nem o campo existe: depois da 0148 ele mora DENTRO da secao do tipo e so e
+  // desenhado quando o tipo escolhido implica a frente campanha, e `?campanha=`
+  // e o que faz o cartao "Campanha" nascer escolhido. De quebra ela e a unica
+  // imagem do formulario com as secoes 4 e 5 na forma de campanha -- o periodo
+  // em vez da data unica.
   { nome: "93c-portal-pedido-na-campanha", rota: "/portal/solicitacoes?novo=1&campanha=camp-wave", largura: 1400, altura: 1900, role: "cliente" },
   // O ROTEIRO DE BRIEFING, que depois da 0137 so existe com um tipo ESCOLHIDO.
   // Ele vinha pre-selecionado ate aqui, entao a `93` acima o mostrava de graca;
@@ -1229,6 +1240,13 @@ const TELAS = [
   // perguntas -- e sem esta tela a secao "Sobre este material", que e o que a
   // 0068 construiu, nao sairia em imagem nenhuma. O clique e o que prova as
   // duas metades: que ele nao esta la por padrao, e que ele aparece.
+  //
+  // E DEPOIS DA 0148 ELE PROVA UMA TERCEIRA: o roteiro de "Peca para redes"
+  // ficou com DUAS perguntas factuais -- a rede e o formato --, porque o
+  // `texto_longo` que ele pedia era o briefing com outro nome e saiu no PASSO
+  // 6. A imagem e o que separa "a tela nao desenha mais" de "o banco deixou de
+  // aceitar", que a bateria mede do outro lado. E a opcao "Reels ou video" do
+  // formato e o item 13 em imagem.
   { nome: "93d-portal-pedido-com-roteiro", rota: "/portal/solicitacoes?novo=1", largura: 1400, altura: 2100, role: "cliente", clicar: '[role="radio"]:has-text("Peça para redes")' },
   // O PERIODO E OS MATERIAIS, no portal (0138). As duas secoes so existem na
   // frente Campanha, e `?campanha=` e o que faz a frente nascer escolhida --
