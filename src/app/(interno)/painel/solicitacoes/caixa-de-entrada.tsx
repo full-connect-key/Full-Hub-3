@@ -4,16 +4,16 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Inbox, MessageSquare, Paperclip } from "lucide-react";
+import { Inbox } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/empty-state";
-import { SeloDaSolicitacao } from "@/components/shared/selo-da-solicitacao";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { QuadroDePedidos } from "@/components/shared/quadro-de-pedidos";
 import {
+  COLUNAS_DA_FILA_DE_PEDIDOS,
   DIAS_ATE_DESTACAR,
-  ROTULOS_PARA_A_EQUIPE,
-  STATUS_DA_SOLICITACAO,
+  TETO_DA_COLUNA_ENCERRADA,
   diasEsperando,
+  ehAberta,
   estaEsquecida,
   rotuloDaFrente,
 } from "@/lib/dominio/solicitacoes";
@@ -31,98 +31,171 @@ import { cn } from "@/lib/utils";
 const TODOS = "__todos__";
 
 /**
- * A fila do Atendimento.
+ * O card de um pedido na fila do Atendimento.
  *
  * ---------------------------------------------------------------------------
- * **DO MAIS ANTIGO PARA O MAIS NOVO**, ao contrário de toda outra listagem do
- * produto. A pergunta desta tela não é "o que chegou?", é "quem está esperando
- * há mais tempo?" — e uma fila em que o pedido de ontem aparece acima do de
- * semana passada é a fila em que o de semana passada nunca é atendido. Quem
- * ordena é a consulta; aqui só se desenha.
- * ---------------------------------------------------------------------------
+ * **O QUE ELE RESPONDE É "de quem é isto e há quanto tempo espera"**, que é a
+ * pergunta desta tela — a do cliente, no quadro dele, é outra, e por isso os
+ * dois cards são dois (a casca é que é compartilhada).
  *
- * **O destaque é a IDADE e não o status**, e por isso ele é uma borda e não
- * um selo a mais: o selo já diz em que pé está. O que a borda diz é outra
- * coisa — que este aqui está esperando demais.
+ * **O AVATAR DE QUEM ESCREVEU SAIU, e é dito em vez de escondido.** A coluna
+ * tem cerca de 200px, e o rosto disputava a linha do rodapé com a frente e com
+ * a idade — que é o que decide a ordem de quem atende. A identidade que importa
+ * aqui é a EMPRESA, e ela está na segunda linha; quem escreveu continua no
+ * detalhe, que é onde o pedido se lê inteiro antes de ser decidido. É a conta
+ * do avatar na célula do calendário, que tem ~90px e cede o círculo ao título.
  *
- * `--warning` e nunca `--danger`: um pedido de três dias não é um erro, é uma
- * cobrança. Vermelho numa fila que se abre todo dia treina o hábito de ignorar
- * vermelho — a mesma razão do alerta de 7 dias do portal.
- */
-/**
- * Uma fileira de filtro, com o rótulo do que ela recorta.
- *
- * ---------------------------------------------------------------------------
- * **SÃO DUAS FILEIRAS E NÃO UMA, e cada uma leva o nome da dimensão.**
- *
- * Status e frente são perguntas diferentes, e numa fileira só os dez chips se
- * leem como dez chips soltos — é a faixa de catorze pílulas do portal, que
- * esta casa já desfez uma vez. O rótulo em caixa alta é o que separa as duas
- * sem um segundo contêiner, que daria dois `gap` diferentes entre os chips.
- *
- * E ela é um componente porque são DUAS: a segunda cópia do mesmo chip seria a
- * que divergisse no dia em que alguém mexesse numa.
+ * **A IDADE SÓ APARECE NA COLUNA ABERTA; na encerrada aparece a DATA.** "há 40
+ * dias" num card da coluna "Concluído" lê como quarenta dias de espera, e o
+ * pedido foi atendido — a idade é a informação da fila, e na coluna de quem já
+ * foi atendido o que resta é quando ele chegou.
  * ---------------------------------------------------------------------------
  */
-function FileiraDeFiltro({
-  rotulo,
-  opcoes,
-  ativo,
-  aoEscolher,
-  children,
+function CardDoPedido({
+  pedido,
+  hojeISO,
 }: {
-  rotulo: string;
-  opcoes: { valor: string; rotulo: string }[];
-  ativo: string | null;
-  aoEscolher: (valor: string | null) => void;
-  children?: React.ReactNode;
+  pedido: PedidoNaLista;
+  hojeISO: string;
 }) {
+  const p = pedido;
+  const dias = diasEsperando(p.created_at, hojeISO);
+  const esquecido = estaEsquecida(p, hojeISO);
+  const aberto = ehAberta(p.status);
+
+  // OS CONTADORES ENTRAM NA LINHA DE METADADOS, e não como ícones no rodapé:
+  // ali eles disputariam com a frente e com a idade numa coluna de 200px, e o
+  // que eles dizem — que há conversa e anexo — cabe em palavras. É a forma que
+  // a lista do cliente já usava.
+  const extras = [
+    p.tipo,
+    p.quantosAnexos > 0
+      ? `${p.quantosAnexos} anexo${p.quantosAnexos > 1 ? "s" : ""}`
+      : null,
+    p.quantasMensagens > 0
+      ? `${p.quantasMensagens} mensage${p.quantasMensagens > 1 ? "ns" : "m"}`
+      : null,
+  ].filter(Boolean);
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-text-muted w-full text-[11px] font-medium tracking-wide uppercase sm:w-auto">
-        {rotulo}
-      </span>
-      <button
-        type="button"
-        onClick={() => aoEscolher(null)}
-        aria-pressed={!ativo}
-        className={cn(
-          "rounded-full border border-input bg-card px-3 py-1 text-sm transition-colors",
-          !ativo ? "border-accent-strong bg-accent" : "hover:bg-accent",
-        )}
-      >
-        Todos
-      </button>
-      {opcoes.map((o) => (
-        <button
-          key={o.valor}
-          type="button"
-          onClick={() => aoEscolher(o.valor)}
-          aria-pressed={ativo === o.valor}
+    <Link
+      href={`/painel/solicitacoes/${p.id}`}
+      className={cn(
+        "bg-card rounded-card shadow-cartao hover:border-accent-strong block min-w-0 border p-3 transition-colors",
+        /* O DESTAQUE É A IDADE E NÃO O STATUS, e por isso ele é uma borda e um
+           chão e não um selo a mais: o selo seria a terceira coisa dizendo em
+           que pé está, e a coluna já diz.
+
+           **E O CHÃO É O PAR NOMEADO CHEIO, nunca `bg-warning-soft/40`:**
+           opacidade sobre um fundo qualquer dá uma cor que ninguém mediu, e no
+           tema escuro dá outra. `--warning` e nunca `--danger` — um pedido de
+           três dias é uma cobrança, não um erro. */
+        esquecido && "border-warning border-s-2 bg-warning-soft",
+      )}
+    >
+      {/* DUAS LINHAS DE TÍTULO E NÃO UMA TRUNCADA: numa coluna estreita o
+          título é a única coisa que identifica o pedido, e "Arte para a semana
+          do…" cortado no meio não identifica nenhum. É o piso de 14rem do nome
+          na tabela da Gestão de Tasks, aplicado onde não há largura para dar. */}
+      <p className="line-clamp-2 text-sm font-semibold">{p.titulo}</p>
+
+      <p className="text-text-secondary mt-1 truncate text-xs">
+        {p.empresa ?? "—"}
+        {/* A VERTENTE ENCOSTA NA EMPRESA, e não numa linha nova: ela É parte da
+            conta — "Mundo Verde · Lojas Próprias" se lê como um endereço. */}
+        {p.vertente ? ` · ${p.vertente}` : ""}
+      </p>
+
+      {extras.length > 0 ? (
+        <p className="text-text-muted truncate text-xs">
+          {extras.join(" · ")}
+        </p>
+      ) : null}
+
+      {/* A DEMANDA EM LINHA PRÓPRIA, porque ela é o que o pedido VIROU: na
+          linha dos metadados ela se leria como mais um atributo dele. Ela só
+          existe nas duas colunas da direita, então não gasta altura nas três
+          primeiras. */}
+      {p.demanda ? (
+        <p className="text-text-muted mt-1 truncate text-xs">
+          Demanda: {p.demanda.titulo}
+        </p>
+      ) : null}
+
+      <div className="mt-2.5 flex items-center justify-between gap-2">
+        {/* ----------------------------------------------------------------
+            A FRENTE APARECE EM TODO CARD, e não só quando falta.
+
+            A regra da matriz do Day Off — pinta-se a exceção — vale para
+            ESTADO, e a frente não é estado: é a informação de quem produz, e
+            com o recorte por status virando coluna ela passou a ser a única
+            dimensão escrita no card. **O par é NEUTRO nas duas e `--warning`
+            na ausência:** aí sim é exceção, e é a única das três que pede uma
+            ação — classificar.
+            ---------------------------------------------------------------- */}
+        <span
           className={cn(
-            "rounded-full border border-input bg-card px-3 py-1 text-sm transition-colors",
-            ativo === o.valor
-              ? "border-accent-strong bg-accent"
-              : "hover:bg-accent",
+            "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
+            p.frente
+              ? "bg-neutral-soft text-neutral"
+              : "bg-warning-soft text-warning",
           )}
         >
-          {o.rotulo}
-        </button>
-      ))}
-      {children}
-    </div>
+          {rotuloDaFrente(p.frente)}
+        </span>
+
+        <span
+          className={cn(
+            "shrink-0 text-xs tabular-nums",
+            esquecido ? "text-warning font-medium" : "text-text-muted",
+          )}
+          title={format(parseISO(p.created_at), "dd/MM/yyyy 'às' HH:mm", {
+            locale: ptBR,
+          })}
+        >
+          {aberto
+            ? dias === 0
+              ? "hoje"
+              : dias === 1
+                ? "ontem"
+                : `há ${dias} dias`
+            : format(parseISO(p.created_at), "dd/MM/yy", { locale: ptBR })}
+        </span>
+      </div>
+    </Link>
   );
 }
 
+/**
+ * A fila do Atendimento, em QUADRO.
+ *
+ * ---------------------------------------------------------------------------
+ * Decisão do usuário: *"mude as solicitações, para uma visualização kan ban"*
+ * e *"faça uma proposta melhor de visualização das solicitações"*.
+ *
+ * **ERA UMA LISTA CORRIDA COM UMA FILEIRA DE CHIPS POR CIMA**, e o problema
+ * não era a lista: era que o estado de cada pedido — a única coisa que decide
+ * o que fazer com ele — se lia num selo no fim da linha, e para ver "o que
+ * está parado comigo" era preciso escolher um chip e perder os outros quatro
+ * de vista. No quadro os cinco estados estão na tela ao mesmo tempo, com a
+ * contagem de cada um, e o chip de status deixou de existir porque a coluna é
+ * ele.
+ *
+ * **A ORDEM DENTRO DA COLUNA ABERTA CONTINUA SENDO DO MAIS ANTIGO PARA O MAIS
+ * NOVO**, que é a decisão desta tela desde a 0068: a pergunta não é "o que
+ * chegou?", é "quem está esperando há mais tempo?" — e uma fila em que o
+ * pedido de ontem aparece acima do de semana passada é a fila em que o de
+ * semana passada nunca é atendido. Quem ordena é a consulta; a coluna
+ * `encerrada` inverte, porque ali a pergunta é o que foi fechado por último.
+ * ---------------------------------------------------------------------------
+ */
 export function CaixaDeEntrada({
   pedidos,
   hojeISO,
-  statusAtivo,
   clienteAtivo,
 }: {
   pedidos: PedidoNaLista[];
   hojeISO: string;
-  statusAtivo: string | null;
   clienteAtivo: string | null;
 }) {
   const router = useRouter();
@@ -130,14 +203,14 @@ export function CaixaDeEntrada({
   const parametros = useSearchParams();
 
   /**
-   * OS DOIS RECORTES MORAM NA URL, como todo filtro de listagem do produto, e
-   * eles NÃO se apagam um ao outro: "os pedidos de campanha que estão novos" é
-   * um link, e é a pergunta que a fila responde na segunda-feira.
+   * O RECORTE QUE SOBROU MORA NA URL, como todo filtro de listagem do produto:
+   * "o quadro da Mundo Verde" é um link, e é a pergunta que a fila responde na
+   * segunda-feira.
    */
-  function filtrar(chave: "status" | "cliente", valor: string | null) {
+  function filtrar(valor: string | null) {
     const proximos = new URLSearchParams(parametros.toString());
-    if (valor) proximos.set(chave, valor);
-    else proximos.delete(chave);
+    if (valor) proximos.set("cliente", valor);
+    else proximos.delete("cliente");
     const consulta = proximos.toString();
     router.replace(consulta ? `${pathname}?${consulta}` : pathname, {
       scroll: false,
@@ -145,13 +218,11 @@ export function CaixaDeEntrada({
   }
 
   /**
-   * O RECORTE ACONTECE AQUI, e é o que mantém as duas listas honestas.
+   * AS OPÇÕES SAEM DA FILA INTEIRA, nunca do que sobrou do recorte.
    *
-   * `caixaDeEntrada()` desce a fila inteira (0134), então as opções de cada
-   * dimensão saem do TODO e não do que sobrou da outra: escolher um status não
-   * encolhe a lista de clientes, e escolher um cliente não some com nenhum
-   * status. É a decisão das abas de Pedidos do portal e a dos contadores de
-   * Minhas Tasks, pela terceira vez.
+   * `caixaDeEntrada()` desce a fila toda (0134), então uma conta continua na
+   * lista de clientes qualquer que seja a coluna em que os pedidos dela caem.
+   * É a decisão dos contadores de Minhas Tasks pela enésima vez.
    */
   const clientes = [
     ...new Map(
@@ -161,64 +232,24 @@ export function CaixaDeEntrada({
     ),
   ].sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
 
-  const visiveis = pedidos.filter(
-    (p) =>
-      (!statusAtivo || p.status === statusAtivo) &&
-      (!clienteAtivo || p.client_id === clienteAtivo),
-  );
-
-  // O CONTADOR CONTA A FILA INTEIRA, nunca o recorte: ele cobra quantos
-  // esperam alguém, e um número que encolhe porque o Atendimento escolheu um
-  // cliente cobraria menos do que existe. É o selo da aba das Notas Fiscais.
-  const esperando = pedidos.filter(
-    (p) => p.status === "nova" || p.status === "em_analise",
-  ).length;
+  const visiveis = clienteAtivo
+    ? pedidos.filter((p) => p.client_id === clienteAtivo)
+    : pedidos;
 
   return (
     <div className="space-y-4">
-      <FileiraDeFiltro
-        rotulo="Status"
-        ativo={statusAtivo}
-        aoEscolher={(v) => filtrar("status", v)}
-        opcoes={STATUS_DA_SOLICITACAO.map((s) => ({
-          valor: s,
-          rotulo: ROTULOS_PARA_A_EQUIPE[s],
-        }))}
-      >
-        {/* O CONTADOR CONTA SÓ O QUE ESPERA ALGUÉM, e nunca o total: um pedido
-            já em produção não pede decisão nenhuma, e somá-lo faria o número
-            cobrar uma ação que metade da fila não pede. */}
-        {esperando > 0 ? (
-          <span className="text-muted-foreground ms-auto text-sm">
-            {esperando} esperando você
-          </span>
-        ) : null}
-      </FileiraDeFiltro>
-
       {/* ------------------------------------------------------------------
-          O RECORTE POR CLIENTE, no lugar do recorte por frente.
-
-          Decisão do usuário: *"troque situação por status e frente por cliente
-          para a filtragem"*. A pergunta que a fila responde na segunda-feira é
-          de quem é o pedido, e a frente continua escrita em TODA LINHA — o que
-          ela deixou de ser é uma dimensão de recorte.
+          O RECORTE POR CLIENTE, e ele é o único que sobrou.
 
           **É SELETOR E NÃO FILEIRA DE CHIPS, e a diferença é quantos são.** O
-          status tem cinco valores e não cresce; o cliente cresce com a
-          carteira, e vinte e oito chips são a faixa de catorze pílulas que o
-          portal já desfez uma vez. É a decisão da Biblioteca, palavra por
-          palavra: a frente em chips e o mês em seletor.
+          cliente cresce com a carteira, e vinte e oito chips são a faixa de
+          catorze pílulas que o portal já desfez uma vez — é a decisão da
+          Biblioteca: a frente em chips e o que cresce em seletor.
 
           **E ELE LISTA SÓ QUEM TEM PEDIDO NA FILA**, nunca a carteira inteira:
-          uma conta sem pedido nenhum é uma opção que, escolhida, esvazia a
-          tela — e um controle que só sabe esvaziar é o interruptor da 0088.
-
-          ***O que se perde, e é dito em vez de escondido:*** o balde "Sem
-          classificação" era a única forma de ACHAR o pedido anterior à 0124.
-          Ele continua visível — a frente é desenhada em toda linha, em âmbar
-          quando falta —, mas deixou de ser filtrável. Hoje não há nenhum no
-          banco; no dia em que a lista crescer, uma terceira dimensão é
-          decisão própria.
+          uma conta sem pedido nenhum é uma opção que, escolhida, esvazia as
+          cinco colunas — e um controle que só sabe esvaziar é o interruptor da
+          0088.
           ------------------------------------------------------------------ */}
       {clientes.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
@@ -227,7 +258,7 @@ export function CaixaDeEntrada({
           </span>
           <Select
             value={clienteAtivo ?? TODOS}
-            onValueChange={(v) => filtrar("cliente", v === TODOS ? null : v)}
+            onValueChange={(v) => filtrar(v === TODOS ? null : v)}
           >
             <SelectTrigger className="w-56" aria-label="Filtrar por cliente">
               <SelectValue />
@@ -248,153 +279,37 @@ export function CaixaDeEntrada({
         /* DUAS FRASES E NÃO UMA: a fila sem pedido nenhum e o recorte sem
            resultado são fatos diferentes, e a primeira dita sobre um filtro
            escolhido faria o Atendimento concluir que nenhum cliente pediu
-           nada. É a decisão das quatro colunas em branco da fila de notas. */
+           nada. É a decisão das colunas em branco da fila de notas.
+
+           **E O QUADRO NÃO É DESENHADO NO VAZIO**, ao contrário do que ele faz
+           com uma coluna sozinha: cinco colunas tracejadas dizendo "nada" cada
+           uma são cinco vezes a mesma frase onde uma basta. */
         <EmptyState
           icon={Inbox}
           title={
-            statusAtivo || clienteAtivo
-              ? "Nenhum pedido neste recorte"
-              : "Nenhum pedido aqui"
+            clienteAtivo ? "Nenhum pedido desta conta" : "Nenhum pedido aqui"
           }
           description={
-            statusAtivo || clienteAtivo
-              ? "Nenhum pedido se encaixa nos filtros escolhidos acima — tire um deles para ver a fila inteira."
-              : "Quando um cliente abrir um pedido pelo Portal dele, ele aparece nesta fila — do que espera há mais tempo para o mais recente."
+            clienteAtivo
+              ? "Esta conta não tem pedido nenhum na fila — escolha “Todos os clientes” para ver o quadro inteiro."
+              : "Quando um cliente abrir um pedido pelo Portal dele, ele aparece na primeira coluna — e as colunas seguintes são o caminho dele até a entrega."
           }
         />
       ) : (
-        <div className="bg-card divide-y rounded-lg border">
-          {visiveis.map((p) => {
-            const dias = diasEsperando(p.created_at, hojeISO);
-            const esquecido = estaEsquecida(p, hojeISO);
-
-            return (
-              <Link
-                key={p.id}
-                href={`/painel/solicitacoes/${p.id}`}
-                className={cn(
-                  "hover:bg-accent flex flex-wrap items-center gap-3 p-3 transition-colors",
-                  esquecido && "border-warning border-s-2 bg-warning-soft/40",
-                )}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{p.titulo}</p>
-                  <p className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-1 text-xs">
-                    <span className="truncate">{p.empresa ?? "—"}</span>
-                    {/* A VERTENTE ENCOSTA NA EMPRESA, e não numa linha nova:
-                        ela É parte da conta — "Mundo Verde · Lojas Próprias"
-                        se lê como um endereço, e separá-las faria a linha de
-                        cima dizer uma empresa que a de baixo qualifica. */}
-                    {p.vertente ? (
-                      <>
-                        <span aria-hidden>·</span>
-                        <span className="truncate">{p.vertente}</span>
-                      </>
-                    ) : null}
-                    {p.tipo ? (
-                      <>
-                        <span aria-hidden>·</span>
-                        <span className="truncate">{p.tipo}</span>
-                      </>
-                    ) : null}
-                    {p.demanda ? (
-                      <>
-                        <span aria-hidden>·</span>
-                        <span className="truncate">
-                          Demanda: {p.demanda.titulo}
-                        </span>
-                      </>
-                    ) : null}
-                  </p>
-                </div>
-
-                {p.quantosAnexos > 0 ? (
-                  <span
-                    className="text-muted-foreground inline-flex items-center gap-1 text-xs"
-                    title={`${p.quantosAnexos} arquivo(s)`}
-                  >
-                    <Paperclip aria-hidden className="size-3.5" />
-                    {p.quantosAnexos}
-                  </span>
-                ) : null}
-
-                {p.quantasMensagens > 0 ? (
-                  <span
-                    className="text-muted-foreground inline-flex items-center gap-1 text-xs"
-                    title={`${p.quantasMensagens} mensagem(ns)`}
-                  >
-                    <MessageSquare aria-hidden className="size-3.5" />
-                    {p.quantasMensagens}
-                  </span>
-                ) : null}
-
-                {p.autor ? (
-                  <UserAvatar
-                    name={p.autor.nome}
-                    src={p.autor.avatar_url}
-                    size="sm"
-                  />
-                ) : null}
-
-                {/* A IDADE POR EXTENSO, e não só a data: "há 4 dias" é o que
-                    decide a ordem de quem atende; "23/09" pede a conta de
-                    cabeça. A data exata fica no `title`. */}
-                <span
-                  className={cn(
-                    "text-xs tabular-nums",
-                    esquecido
-                      ? "text-warning font-medium"
-                      : "text-muted-foreground",
-                  )}
-                  title={format(
-                    parseISO(p.created_at),
-                    "dd/MM/yyyy 'às' HH:mm",
-                    { locale: ptBR },
-                  )}
-                >
-                  {dias === 0
-                    ? "hoje"
-                    : dias === 1
-                      ? "ontem"
-                      : `há ${dias} dias`}
-                </span>
-
-                {/* ------------------------------------------------------
-                    A FRENTE APARECE EM TODA LINHA, e não só quando falta.
-
-                    A regra da matriz do Day Off — pinta-se a exceção — vale
-                    para ESTADO, e a frente não é estado: é a informação de
-                    quem produz, e é o recorte da fileira acima. Um filtro
-                    "Campanha" cujo resultado não diz em nenhuma linha que
-                    aquele pedido É de campanha é um recorte que a pessoa não
-                    tem como conferir, que é a lição do filtro de formato da
-                    Biblioteca.
-
-                    **O par é NEUTRO nas duas, e `--warning` na ausência:**
-                    aí sim é exceção, e é a única das três que pede uma ação —
-                    classificar. Par nomeado sempre, nunca opacidade.
-                    ------------------------------------------------------ */}
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
-                    p.frente
-                      ? "bg-neutral-soft text-neutral"
-                      : "bg-warning-soft text-warning",
-                  )}
-                >
-                  {rotuloDaFrente(p.frente)}
-                </span>
-
-                <SeloDaSolicitacao status={p.status} lado="equipe" />
-              </Link>
-            );
-          })}
-        </div>
+        <QuadroDePedidos
+          colunas={COLUNAS_DA_FILA_DE_PEDIDOS}
+          itens={visiveis}
+          colunaDe={(p) => p.status}
+          idDe={(p) => p.id}
+          teto={TETO_DA_COLUNA_ENCERRADA}
+          card={(p) => <CardDoPedido pedido={p} hojeISO={hojeISO} />}
+        />
       )}
 
-      <p className="text-muted-foreground text-xs">
+      <p className="text-text-muted text-xs">
         Um pedido em aberto há {DIAS_ATE_DESTACAR} dias ou mais aparece em
-        destaque.
+        destaque. Quem move um pedido de coluna é o botão do detalhe dele — e as
+        duas últimas colunas são escritas pela demanda que ele virou.
       </p>
     </div>
   );

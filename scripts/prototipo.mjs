@@ -1126,31 +1126,40 @@ const TELAS = [
   // abriu -- nao se conferem uma pela outra, e o formulario com o roteiro de
   // briefing e a unica tela do produto em que o cliente ESCREVE.
   // ---------------------------------------------------------------------
+  // ------------------------------------------------------------------------
+  // A FILA E UM QUADRO, e a `90` fotografa as CINCO colunas de uma vez: os
+  // seis pedidos do exemplo caem um em cada aberta, dois em "Concluido" e um
+  // em "Recusado", entao a mesma imagem prova a contagem de cada cabecalho, a
+  // coluna encerrada com dois cards e o destaque em ambar de quem espera ha
+  // mais de dois dias -- o `nova` de 5 dias e o `em_analise` de 2.
+  //
+  // E A `90d` SAIU COM A FILEIRA DE CHIPS. Ela abria `?status=concluida`, e o
+  // parametro deixou de recortar: a coluna e o status. Uma tela apontando para
+  // um recorte que nao existe sai igual a `90` com o nome de uma coisa que a
+  // tela nao faz -- e deixa-la seria a isenção que deixou de ser verdade, que
+  // a propria varredura reprova.
+  // ------------------------------------------------------------------------
   { nome: "90-solicitacoes-fila", rota: "/painel/solicitacoes", largura: 1500, altura: 1000, role: "colaborador" },
+  // 375px: as cinco colunas empilham em duas, e e aqui que o `min-w-0` de cada
+  // celula da grade decide se o titulo de duas linhas corta ou estoura a
+  // pagina para os lados -- isso nenhum build pega.
   { nome: "90b-solicitacoes-fila-375", rota: "/painel/solicitacoes", largura: 375, altura: 1200, role: "colaborador" },
   // ------------------------------------------------------------------------
-  // A CLASSIFICACAO DO PEDIDO (0124), e as tres telas provam coisas
+  // A CLASSIFICACAO DO PEDIDO (0124), em duas telas que provam coisas
   // diferentes:
   //
   //  * `90c` e o FILTRO funcionando -- o stub aplica o recorte, senao a
-  //    imagem sairia com o chip escolhido e a fila inteira embaixo,
+  //    imagem sairia com a conta escolhida e a fila inteira embaixo,
   //    afirmando que o seletor nao faz nada (a licao do stub do filtro de
   //    vertente do board);
-  //  * `90d` e o balde do NAO CLASSIFICADO, que e onde mora o pedido
-  //    anterior a regra -- sem ela a pilula em ambar nao sai em imagem
-  //    nenhuma;
-  //  * `91b` e a SAIDA que ele tem: o bloco de classificar, que so existe
-  //    quando falta.
+  //  * `91b` e a SAIDA de quem nao classificou: o bloco de classificar, que
+  //    so existe quando falta.
   // ------------------------------------------------------------------------
-  // O recorte por CLIENTE: a Optica Visao tem UM dos seis pedidos da fila, e os
-  // chips de status continuam contando o mes inteiro -- com uma conta que
-  // tivesse todos, a imagem nao separaria "o filtro recorta" de "o filtro nao
-  // faz nada".
+  // O recorte por CLIENTE: a Optica Visao tem UM dos seis pedidos da fila, e o
+  // seletor continua oferecendo as duas contas -- a regra de que as opcoes de
+  // um filtro saem da lista inteira. De quebra a imagem prova as quatro
+  // colunas VAZIAS, cada uma com a frase dela.
   { nome: "90c-solicitacoes-por-cliente", rota: "/painel/solicitacoes?cliente=b0000000-0000-0000-0000-000000000002", largura: 1500, altura: 900, role: "colaborador" },
-  // E o recorte por STATUS, que e a outra fileira: com ele escolhido, o seletor
-  // de cliente continua oferecendo as duas contas da fila -- a regra de que as
-  // opcoes de um filtro saem da lista inteira.
-  { nome: "90d-solicitacoes-por-status", rota: "/painel/solicitacoes?status=concluida", largura: 1500, altura: 800, role: "colaborador" },
   { nome: "91-solicitacao-detalhe", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000001", largura: 1500, altura: 1500, role: "colaborador" },
   { nome: "91b-solicitacao-classificar", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000004", largura: 1500, altura: 1300, role: "colaborador" },
   // O PEDIDO DE CAMPANHA, com o periodo e a lista de materiais que o cliente
@@ -1166,13 +1175,19 @@ const TELAS = [
   // provaria que o componente desenha, e nao que ele ESCOLHE entre os dois
   // ramos. O lado do cliente sai na `94b`, que abre o mesmo pedido.
   { nome: "91d-solicitacao-briefing-rico", rota: "/painel/solicitacoes/e0000000-0000-0000-0000-000000000005", largura: 1500, altura: 1500, role: "colaborador" },
+  // O QUADRO DO CLIENTE, e os seis pedidos do exemplo caem nas cinco fases de
+  // um jeito que prova as tres coisas de uma vez: "Em ajustes" tem a peca cuja
+  // DEMANDA voltou (`demandaEmAjustes`, a unica fase que nao sai do enum do
+  // pedido), "Em producao" fica VAZIA com a frase dela, e "Recusado" aparece
+  // porque existe um -- numa conta sem nenhum a coluna nao e desenhada.
+  //
+  // E A `92b` SAIU COM AS ABAS: ela abria `?fase=ajustes` para provar que uma
+  // aba RECORTA, e com o quadro a coluna e a fase -- a tela sairia igual a
+  // esta, com o nome de um recorte que nao existe mais.
   { nome: "92-portal-pedidos", rota: "/portal/solicitacoes", largura: 1400, altura: 900, role: "cliente" },
-  // A ABA FILTRADA, e nao so a de "Todos": a imagem de "Todos" mostra a faixa
-  // de abas e nao prova que alguma delas RECORTA. Esta sai em "Em ajustes",
-  // que e a fase derivada da demanda -- a unica que nao sai do enum do pedido.
-  { nome: "92b-portal-pedidos-ajustes", rota: "/portal/solicitacoes?fase=ajustes", largura: 1400, altura: 900, role: "cliente" },
-  // E 375px, porque a faixa de abas e o lugar onde o `min-w-max` na tag errada
-  // empurra a pagina inteira para os lados -- e isso nenhum build pega.
+  // E 375px: as cinco colunas empilham, e e aqui que se ve se o card de duas
+  // linhas de titulo corta dentro da coluna em vez de empurrar a pagina para
+  // os lados -- isso nenhum build pega.
   { nome: "92c-portal-pedidos-375", rota: "/portal/solicitacoes", largura: 375, altura: 1100, role: "cliente" },
 
   // ---------------------------------------------------------------------

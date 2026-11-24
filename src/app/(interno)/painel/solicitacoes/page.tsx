@@ -7,21 +7,12 @@ import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { caixaDeEntrada } from "@/lib/dados/solicitacoes";
-import {
-  ehStatusDeSolicitacao,
-} from "@/lib/dominio/solicitacoes";
 
 import { CaixaDeEntrada } from "./caixa-de-entrada";
 
 export const metadata: Metadata = { title: "Solicitações" };
 
-async function Conteudo({
-  status,
-  cliente,
-}: {
-  status: string | undefined;
-  cliente: string | undefined;
-}) {
+async function Conteudo({ cliente }: { cliente: string | undefined }) {
   // A FILA DESCE INTEIRA e quem recorta é a tela (0134): as opções de cada
   // dimensão saem do TODO, e não do que sobrou da outra.
   const pedidos = await caixaDeEntrada();
@@ -35,7 +26,6 @@ async function Conteudo({
     <CaixaDeEntrada
       pedidos={pedidos}
       hojeISO={hojeISO}
-      statusAtivo={ehStatusDeSolicitacao(status) ? status : null}
       clienteAtivo={cliente ?? null}
     />
   );
@@ -48,8 +38,10 @@ export default async function Pagina({
   if (!(await souDoAtendimento())) forbidden();
 
   const parametros = await searchParams;
-  const status =
-    typeof parametros.status === "string" ? parametros.status : undefined;
+  // O `?status=` SAIU COM A FILEIRA DE CHIPS: a coluna do quadro é o status, e
+  // um recorte por status num quadro que mostra os cinco é esconder quatro
+  // para olhar um que estava à vista. Um endereço antigo com ele abre o quadro
+  // inteiro, que é o que um link salvo tem de fazer — abrir, e não quebrar.
   const cliente =
     typeof parametros.cliente === "string" ? parametros.cliente : undefined;
 
@@ -58,7 +50,7 @@ export default async function Pagina({
       <PageHeader title="Solicitações" />
 
       <Suspense fallback={<LoadingSkeleton variant="table" rows={6} />}>
-        <Conteudo status={status} cliente={cliente} />
+        <Conteudo cliente={cliente} />
       </Suspense>
     </div>
   );

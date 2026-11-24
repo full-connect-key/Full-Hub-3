@@ -11405,7 +11405,7 @@ cliente que o pedido dele está "novo" e dizer à agência que está "enviado".
 `SeloDaSolicitacao` recebe de que lado está sendo desenhado, e é o que permite
 um componente para as duas telas.
 
-#### As abas do Portal são FASES, e não o enum
+#### As colunas do Portal são FASES, e não o enum
 
 Decisão do usuário: *"na aba de pedidos, eles sejam separados em abas, Em
 análise, Em produção, Em ajustes, Entregue"*.
@@ -11443,28 +11443,20 @@ furo, é o que faz a derivação valer onde ela importa: uma demanda vai para
 exige que a peça tenha saído. Fora disso o pedido fica em "Em produção", que é
 a verdade do que ele sabe.
 
-**"Recusado" é uma QUINTA aba, e só aparece quando existe pedido nela.** Ele
+**"Recusado" é uma QUINTA, e só aparece quando existe pedido nela.** Ele
 nomeou quatro, e `recusada` não cabe em nenhuma: em "Entregue" afirmaria que
-foi entregue, e fora das abas o pedido sumiria da tela de quem o abriu — junto
+foi entregue, e fora do quadro o pedido sumiria da tela de quem o abriu — junto
 com o motivo, que é a única coisa que explica o que aconteceu.
 
-**"Todos" é a primeira, e é o padrão.** Abrindo em "Em análise", uma conta
-cujos três pedidos estão em produção cairia numa tela vazia tendo três pedidos.
+**A frase da linha passa por `explicacaoDoPedido()`**, e é ela que a fase
+derivada paga: `EXPLICACAO_PARA_O_CLIENTE` é por STATUS, e o status de um
+pedido em ajuste continua sendo `em_andamento` — sem a fase, "já está sendo
+feito" apareceria debaixo da coluna "Em ajustes".
 
-**A contagem sai da mesma lista que desenha as linhas**, e por isso o recorte
-acontece na tela e não na consulta: com o `select` já filtrado, o número das
-outras abas não existiria. É o contador de Minhas Tasks pela terceira vez.
-
-**O selo some dentro da aba e volta em "Todos"** — a decisão da Lista de Minhas
-Tasks: o cabeçalho já o disse. Aqui ela vale duas vezes, porque na aba "Em
-análise" o selo de um pedido `nova` diz "Enviado", e duas palavras diferentes
-para a mesma linha a um centímetro de distância é a tela se desmentindo. **E a
-frase da linha passa por `explicacaoDoPedido()`**, senão "Já está sendo feito"
-apareceria debaixo da aba "Em ajustes": `EXPLICACAO_PARA_O_CLIENTE` é por
-STATUS, e o status de um pedido em ajuste continua sendo `em_andamento`.
-
-**A aba mora na URL**, como todo filtro de listagem, e valor torto cai em
-"Todos".
+***E AS ABAS SAÍRAM, mas a divisão que elas criaram é a que ficou:*** as cinco
+fases são as cinco colunas do quadro, e o que mudou é que elas passaram a estar
+na tela ao mesmo tempo. O que está escrito acima continua valendo palavra por
+palavra — o que saiu está logo abaixo.
 
 #### O roteiro de briefing
 
@@ -11501,6 +11493,130 @@ separação de "o Atendimento abre o mês, a gestão distribui a corrente" (0046
 catálogo vazio no primeiro dia faz o módulo estrear sem funcionar — o cliente
 abre "Novo pedido", encontra um seletor sem opção e conclui que a área não está
 pronta.
+
+#### OS PEDIDOS SE LEEM EM QUADRO, e a coluna É o recorte
+
+Três decisões do usuário, na mesma lista: *"mude as solicitações, para uma
+visualização kan ban"*, *"faça uma proposta melhor de visualização das
+solicitações"* e *"e o cliente deve visualizar as solicitações dele, como
+kanban tbm"*. As duas telas do módulo — a caixa de entrada do Atendimento e a
+lista do portal — passaram a ser um quadro de cinco colunas.
+
+**ERAM UMA FILEIRA DE CHIPS E UMA FILEIRA DE ABAS, e as duas cobravam um clique
+por resposta.** Do lado de cá eram cinco chips de status com a contagem dentro,
+e escolher um escondia os outros quatro; do lado de lá eram cinco abas por
+fase, com o mesmo preço. Para saber se alguma coisa tinha voltado para ajuste
+era preciso escolher o recorte e perder de vista o resto — e o resto é
+exatamente o que a pergunta "como está a fila?" quer saber. **Com as colunas,
+os cinco estados e a contagem de cada um estão na tela ao mesmo tempo.**
+
+**E COM ELAS SAÍRAM `?status=` E `?fase=`**, que é a consequência e não um
+efeito colateral: **a coluna É o recorte**, e um parâmetro que esconde quatro
+colunas para olhar uma que estava à vista é o interruptor de luz da 0105 em
+outra forma. Um endereço antigo com qualquer um dos dois abre o quadro inteiro
+— que é o que um link salvo tem de fazer: **abrir, e não quebrar**.
+
+##### O QUADRO NÃO ARRASTA, e a razão é do BANCO
+
+É a decisão da fila de notas fiscais (0065) palavra por palavra, e aqui ela é
+ainda mais apertada: das transições possíveis entre as cinco colunas, **uma
+só** é uma troca de status pura — `nova → em_analise`, que é alguém dizendo
+"estou olhando". As outras não cabem no gesto:
+
+| A coluna | Quem a escreve |
+| --- | --- |
+| "Virou demanda" | `tasks_espelha_no_pedido`, quando a demanda é PUBLICADA (0068) |
+| "Concluído" | o mesmo gatilho, quando ela vai a `entregue` |
+| "Recusado" | a action, e o `check` do banco **exige o motivo** |
+
+Arrastar para "Concluído" prometeria uma conclusão que o espelho desfaz na
+escrita seguinte; arrastar para "Recusado" seria uma recusa sem motivo, que o
+banco nega. **Um alvo de solta que recusa quase tudo é um gesto que não faz
+nada** — e quem move um pedido de coluna continua sendo o botão do detalhe
+dele, que é onde o motivo se escreve e onde a demanda se abre.
+
+##### A CASCA É COMPARTILHADA E O CARD NÃO É
+
+`components/shared/quadro-de-pedidos.tsx`, e é a decisão do detalhe do material
+no Portal: **o que se compartilha é a casca, nunca a leitura**. As duas telas
+desenham colunas iguais — mesmo cabeçalho, mesma contagem, mesmo vazio, mesma
+grade — e cards diferentes, porque elas respondem a perguntas diferentes: o da
+agência diz **de quem** é o pedido e **há quanto tempo** ele espera; o do
+cliente diz **o que** ele pediu e **para quando**. Uma casca escrita duas vezes
+divergiria no PORTAL, que é a tela que a equipe nunca abre.
+
+**O CARD DO CLIENTE PERDEU O SELO DE STATUS, e a coluna é que o diz** — é a
+decisão do selo dentro do grupo na Lista de Minhas Tasks e a do card do board,
+que não repete o cabeçalho da coluna. **A frase FICA**, porque ela é o que o
+selo não dizia: "Em análise" não responde se falta alguma coisa dele.
+
+**E A LINHA DE METADADOS É UMA, separada por ponto**, nos dois: numa coluna
+estreita não há largura para as quatro colunas da tabela que saiu, e o que elas
+diziam — tipo, campanha, anexos, conversa — cabe numa frase.
+
+##### A COLUNA ENCERRADA TEM TETO, E ELE DIZ QUANTOS FICARAM FORA
+
+"Concluído" e "Recusado" só crescem: numa conta de dois anos elas seriam duas
+colunas de cem cards ao lado de três com dois cada, e a altura da página
+passaria a ser a do histórico. Elas desenham **os oito mais novos**
+(`TETO_DA_COLUNA_ENCERRADA`) e escrevem *"e mais N pedidos antes"* — que é a
+regra do Resumo da Agência: **cortar calado faz a pessoa concluir que aquilo é
+tudo**. E a CONTAGEM do cabeçalho é da coluna inteira, nunca do que o teto
+deixou desenhado: ela é o número que a pessoa reconcilia com a lista, e cortá-la
+junto esconderia o corte.
+
+**A linha do corte não é um link**, porque não há para onde levar: a lista
+inteira de uma coluna encerrada é o histórico, e ele se lê na conversa de cada
+pedido.
+
+##### AS CINCO A PARTIR DE `xl`, E ISSO FOI MEDIDO NA IMAGEM
+
+A primeira versão abria as cinco em `2xl` (1536px) e, numa janela de **1500**,
+elas quebravam em DUAS FILEIRAS — com "Concluído" embaixo de "Novo" e a coluna
+vazia sozinha à direita, que é a leitura "o pedido anda da esquerda para a
+direita" partida ao meio. **O breakpoint do Tailwind é por largura de JANELA e
+o quadro vive dentro do conteúdo:** no painel a barra lateral e o respiro comem
+uns 400px antes dele.
+
+Em `xl` (1280) o conteúdo do painel dá cinco colunas de uns **160px** — a
+largura do board de etapas de Minhas Tasks, onde a conta está escrita — e no
+portal, que não tem barra lateral, de uns 230px. Abaixo disso são três e depois
+duas, porque **uma segunda fileira não esconde coisa nenhuma**: o que não se faz
+é esconder uma coluna atrás de uma barra de rolagem horizontal. É a decisão do
+board de etapas, com uma coluna a menos.
+
+**`min-w-0` em cada coluna é o que faz isso valer**, pela enésima vez: sem ele
+o item de grade se recusa a ficar menor que o conteúdo e um título comprido
+empurra a coluna, desalinhando as outras quatro.
+
+##### E UMA CHECAGEM NO CARREGAMENTO DO MÓDULO GUARDA AS DUAS LISTAS
+
+`COLUNAS_DA_FILA_DE_PEDIDOS` e `COLUNAS_DO_QUADRO_DO_CLIENTE` estouram no
+carregamento se algum valor de `solicitacao_status` ou de `FASES_DO_PEDIDO`
+ficar fora de toda coluna. Sem elas, um valor novo no enum **sumiria do quadro
+sem erro e sem aviso** — o pedido existiria no banco e não apareceria em coluna
+nenhuma. É a checagem do seletor de status e a `FALTA_NA_FILA` das notas
+fiscais, nas duas pontas do mesmo módulo.
+
+**E os dois guardas de tipo saíram com os dois recortes** (`ehFaseDoPedido`,
+`ehStatusDeSolicitacao`): eles existiam para ler `?fase=` e `?status=` da URL, e
+uma função de guarda sem chamador é o que alguém reaproveita três sprints depois
+achando que o parâmetro ainda filtra alguma coisa — a 0023.
+
+**A ORDEM DENTRO DA COLUNA É A DA CONSULTA, e ela é oposta nos dois lados:** a
+fila do Atendimento vem do mais antigo para o mais novo, porque a pergunta dela
+é *quem está esperando há mais tempo*; a do cliente vem do mais novo, porque a
+dele é *o que eu mandei*. A coluna encerrada é a exceção, e por isso ela
+inverte: ali o teto corta o fim, e o fim precisa ser o mais antigo.
+
+***E DUAS TELAS SAÍRAM DO PROTÓTIPO***, pela regra da isenção que deixou de ser
+verdade: `90d-solicitacoes-por-status` abria `?status=concluida` e
+`92b-portal-pedidos-ajustes` abria `?fase=ajustes` — as duas fotografavam um
+recorte que não existe mais. **Nada se perde:** os seis pedidos do exemplo caem
+nas cinco colunas de um jeito que prova tudo de uma vez na `90` e na `92` —
+"Em ajustes" com a peça cuja DEMANDA voltou (a fase derivada), "Em produção"
+VAZIA com a frase dela, "Recusado" presente porque existe um, e os dois pedidos
+em aberto há mais de dois dias em destaque.
 
 #### A fila, a conversa e os anexos
 

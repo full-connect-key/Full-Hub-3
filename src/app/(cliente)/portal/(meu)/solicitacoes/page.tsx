@@ -11,8 +11,6 @@ import {
   meusPedidos,
   tiposDePedido,
 } from "@/lib/dados/solicitacoes";
-import { ehFaseDoPedido, type FaseDoPedido } from "@/lib/dominio/solicitacoes";
-
 import { ListaDePedidos } from "./lista";
 import { PainelDeNovaSolicitacao } from "./painel-de-nova-solicitacao";
 
@@ -26,7 +24,7 @@ export const metadata: Metadata = { title: "Solicitações" };
  * divergir, e o lado que esquecesse seria o que mostra o pedido de um cliente
  * para outro.
  */
-async function Conteudo({ fase }: { fase: FaseDoPedido | null }) {
+async function Conteudo() {
   const [pedidos, empresas, tipos, campanhas] = await Promise.all([
     meusPedidos(),
     obterMinhasEmpresas(),
@@ -66,7 +64,6 @@ async function Conteudo({ fase }: { fase: FaseDoPedido | null }) {
         pedidos={pedidos}
         base="/portal"
         podeAbrir={podeAbrir.length > 0}
-        fase={fase}
       />
 
       {/* O PAINEL É MONTADO SEMPRE E SÓ ABRE COM `?novo=1`. Montá-lo no clique
@@ -90,24 +87,23 @@ export default async function Pagina({
   searchParams,
 }: PageProps<"/portal/solicitacoes">) {
   await exigirCliente();
-  const parametros = await searchParams;
-
-  // A ABA MORA NA URL, como todo filtro de listagem: "olha os que estão em
-  // ajustes" precisa ser um link. Valor torto cai no padrão — "Todos" —, que é
-  // a convenção de `ehVisao()` e de `lerMes()`.
-  const pedida =
-    typeof parametros.fase === "string" ? parametros.fase : undefined;
-  const fase = ehFaseDoPedido(pedida) ? pedida : null;
+  // `searchParams` continua sendo aguardado porque o painel de nova
+  // solicitação lê `?novo=1` de dentro dele, no cliente — o que esta função
+  // deixou de ler é o `?fase=`.
+  await searchParams;
 
   return (
     <div className="space-y-6">
       <PageHeader title="Solicitações" />
 
-      <Suspense
-        key={fase ?? "todos"}
-        fallback={<LoadingSkeleton variant="table" rows={4} />}
-      >
-        <Conteudo fase={fase} />
+      {/* O `?fase=` SAIU COM AS ABAS: a coluna do quadro é a fase, e um
+          recorte por fase num quadro que mostra as cinco é esconder quatro
+          para olhar uma que estava à vista. Um endereço antigo com ele abre o
+          quadro inteiro, que é o que um link salvo tem de fazer — abrir, e não
+          quebrar. E com ele saiu a `key` do Suspense, que existia para
+          remontar a lista a cada troca de aba. */}
+      <Suspense fallback={<LoadingSkeleton variant="table" rows={4} />}>
+        <Conteudo />
       </Suspense>
     </div>
   );

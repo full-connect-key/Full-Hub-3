@@ -290,14 +290,12 @@ export const ROTULOS_DE_FASE: Record<FaseDoPedido, string> = {
   recusado: "Recusado",
 };
 
-export function ehFaseDoPedido(
-  valor: string | undefined,
-): valor is FaseDoPedido {
-  return (
-    Boolean(valor) &&
-    (FASES_DO_PEDIDO as readonly string[]).includes(valor as string)
-  );
-}
+// `ehFaseDoPedido()` E `ehStatusDeSolicitacao()` SAÍRAM COM OS DOIS RECORTES,
+// e é a 0023: as duas existiam para ler `?fase=` e `?status=` da URL, e com o
+// quadro a coluna é o recorte — uma função de guarda sem chamador é o que
+// alguém reaproveita três sprints depois achando que o parâmetro ainda filtra
+// alguma coisa. `FASES_DO_PEDIDO` e `ROTULOS_DE_FASE` ficam, porque é delas
+// que as colunas do quadro do cliente saem.
 
 /**
  * Em que fase este pedido está, na leitura do cliente.
@@ -335,20 +333,172 @@ export function explicacaoDoPedido(
   return EXPLICACAO_PARA_O_CLIENTE[status];
 }
 
+// ---------------------------------------------------------------------------
+// O QUADRO: as colunas dos dois lados
+//
+// Decisão do usuário, em três pedidos da mesma mensagem: *"mude as
+// solicitações, para uma visualização kan ban"*, *"faça uma proposta melhor de
+// visualização das solicitações"* e *"e o cliente deve visualizar as
+// solicitações dele, como kanban"*.
+//
+// **A COLUNA É O RECORTE, então os dois recortes de status saíram.** A fileira
+// de chips do Atendimento e as abas por fase do cliente respondiam a mesma
+// pergunta que a coluna responde agora — *em que pé está cada pedido* —, e
+// mantê-las daria ao mesmo fato dois controles na mesma tela: escolher "Novo"
+// num quadro que já tem a coluna "Novo" é esconder as outras quatro para
+// olhar uma que estava à vista. O que fica de recorte é o CLIENTE, do lado da
+// agência, que é outra dimensão.
+//
+// **E O QUADRO NÃO ARRASTA, pela razão escrita na fila de notas fiscais:** das
+// transições possíveis entre as colunas, o banco recusa quase todas. Só
+// `nova → em_analise` é uma troca pura de status; `em_andamento` e `concluida`
+// são escritos pelo gatilho `tasks_espelha_no_pedido` quando a demanda é
+// publicada e entregue, e `recusada` exige o motivo, que o check
+// `client_requests_recusa_com_motivo` cobra no banco e que um gesto de seis
+// pixels não tem como carregar. Um alvo de solta que recusa quase tudo é um
+// gesto que não faz nada. A coluna é leitura, o botão é a ação — e ele mora no
+// detalhe, que é onde o pedido se lê inteiro antes de ser decidido.
+//
+// **A CONTAGEM DE CADA COLUNA SAI DA LISTA INTEIRA DAQUELA COLUNA**, mesmo
+// quando o teto corta o que é desenhado: é a regra do Resumo da Agência —
+// *cortar calado faz a pessoa concluir que aquilo é tudo*.
+// ---------------------------------------------------------------------------
+
+/**
+ * Quantos cards uma coluna encerrada desenha.
+ *
+ * **SÓ AS ENCERRADAS TÊM TETO, e a razão é que só elas crescem para sempre.**
+ * "Novo" e "Em análise" encolhem conforme alguém atende; "Concluído" e
+ * "Recusado" só aumentam, e numa conta de dois anos a coluna viraria a tela.
+ * As abertas não têm teto de propósito: um pedido que o teto escondesse seria
+ * justamente o que ninguém atendeu.
+ */
+export const TETO_DA_COLUNA_ENCERRADA = 8;
+
+/**
+ * Uma coluna do quadro.
+ *
+ * `encerrada` diz as duas consequências de a coluna só crescer, que são a
+ * mesma decisão: ela desenha no máximo `TETO_DA_COLUNA_ENCERRADA` cards, e os
+ * MAIS NOVOS primeiro — nas abertas a pergunta é quem espera há mais tempo, e
+ * nas encerradas é o que foi fechado recentemente, que é também o que o teto
+ * precisa deixar no topo.
+ */
+export type ColunaDoQuadro = {
+  chave: string;
+  titulo: string;
+  vazio: string;
+  encerrada?: true;
+};
+
+/**
+ * As colunas da fila do Atendimento: os cinco status.
+ *
+ * **O TÍTULO SAI DE `ROTULOS_PARA_A_EQUIPE` e não é reescrito aqui.** Duas
+ * palavras para o mesmo status seriam duas verdades, e a que divergiria é esta
+ * — ninguém relê um cabeçalho de coluna ao trocar o rótulo de um selo.
+ */
+export const COLUNAS_DA_FILA_DE_PEDIDOS: ColunaDoQuadro[] = [
+  {
+    chave: "nova",
+    titulo: ROTULOS_PARA_A_EQUIPE.nova,
+    vazio: "Nada novo esperando.",
+  },
+  {
+    chave: "em_analise",
+    titulo: ROTULOS_PARA_A_EQUIPE.em_analise,
+    vazio: "Nenhum pedido sendo olhado agora.",
+  },
+  {
+    chave: "em_andamento",
+    titulo: ROTULOS_PARA_A_EQUIPE.em_andamento,
+    vazio: "Nenhum pedido virou demanda.",
+  },
+  {
+    chave: "concluida",
+    titulo: ROTULOS_PARA_A_EQUIPE.concluida,
+    vazio: "Nada concluído por aqui.",
+    encerrada: true,
+  },
+  {
+    chave: "recusada",
+    titulo: ROTULOS_PARA_A_EQUIPE.recusada,
+    vazio: "Nenhum pedido recusado.",
+    encerrada: true,
+  },
+];
+
+/**
+ * As colunas do quadro do cliente: as cinco fases.
+ *
+ * **"Recusado" continua sendo a quinta e continua só aparecendo quando existe
+ * algum** — a regra que as abas já seguiam, e pela mesma razão: uma coluna
+ * permanentemente vazia chamada "Recusado" é um lembrete diário de um problema
+ * que não existe. Quem filtra é a tela.
+ */
+export const COLUNAS_DO_QUADRO_DO_CLIENTE: ColunaDoQuadro[] = [
+  {
+    chave: "analise",
+    titulo: ROTULOS_DE_FASE.analise,
+    vazio: "Nenhum pedido esperando a gente olhar.",
+  },
+  {
+    chave: "producao",
+    titulo: ROTULOS_DE_FASE.producao,
+    vazio: "Nada em produção neste momento.",
+  },
+  {
+    chave: "ajustes",
+    titulo: ROTULOS_DE_FASE.ajustes,
+    vazio: "Nenhum pedido voltou para ajuste. É a resposta boa.",
+  },
+  {
+    chave: "entregue",
+    titulo: ROTULOS_DE_FASE.entregue,
+    vazio: "Nada concluído ainda.",
+    encerrada: true,
+  },
+  {
+    chave: "recusado",
+    titulo: ROTULOS_DE_FASE.recusado,
+    vazio: "Nenhum pedido recusado.",
+    encerrada: true,
+  },
+];
+
+/**
+ * Duas checagens no carregamento do módulo: todo status e toda fase caem em
+ * exatamente uma coluna.
+ *
+ * Sem elas, um valor novo em `solicitacao_status` sumiria do quadro sem erro e
+ * sem aviso — o pedido existiria no banco, não apareceria em coluna nenhuma, e
+ * só quem fosse procurar por ele descobriria. É a mesma checagem de
+ * `COLUNAS_DA_FILA` nas notas fiscais, de `seletor-de-status.tsx` e de
+ * `STATUS_EM_ORDEM`.
+ */
+const STATUS_FORA_DO_QUADRO = STATUS_DA_SOLICITACAO.filter(
+  (s) => !COLUNAS_DA_FILA_DE_PEDIDOS.some((c) => c.chave === s),
+);
+if (STATUS_FORA_DO_QUADRO.length > 0) {
+  throw new Error(
+    `Status de solicitação fora de toda coluna da fila: ${STATUS_FORA_DO_QUADRO.join(", ")}`,
+  );
+}
+
+const FASE_FORA_DO_QUADRO = FASES_DO_PEDIDO.filter(
+  (f) => !COLUNAS_DO_QUADRO_DO_CLIENTE.some((c) => c.chave === f),
+);
+if (FASE_FORA_DO_QUADRO.length > 0) {
+  throw new Error(
+    `Fase de pedido fora de toda coluna do quadro: ${FASE_FORA_DO_QUADRO.join(", ")}`,
+  );
+}
+
 /** Os que ainda pedem alguma coisa de alguém. */
 export const EM_ABERTO: SolicitacaoStatus[] = ["nova", "em_analise"];
 
 export function ehAberta(status: SolicitacaoStatus): boolean {
   return EM_ABERTO.includes(status);
-}
-
-export function ehStatusDeSolicitacao(
-  valor: string | undefined,
-): valor is SolicitacaoStatus {
-  return (
-    Boolean(valor) &&
-    (STATUS_DA_SOLICITACAO as string[]).includes(valor as string)
-  );
 }
 
 /**
