@@ -66,21 +66,51 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
   ];
 
   /**
-   * O QUE OS CLIENTES PEDIRAM (0124), e o exemplo prova TRÊS coisas.
+   * O QUE OS CLIENTES PEDIRAM (0124), e o exemplo prova SEIS coisas.
    *
-   *  * as duas frentes com números DIFERENTES, senão a linha de contagem não
-   *    provaria que ela separa;
-   *  * um pedido SEM CLASSIFICAÇÃO, que é o anterior à regra — sem ele a
-   *    terceira contagem e a pílula em âmbar não saem em imagem nenhuma;
+   *  * tipos com números DIFERENTES, senão a linha de contagem não provaria
+   *    que ela separa;
+   *  * um tipo cuja FRENTE é nula ("Material impresso"), que é o caso que
+   *    abriu este pedido — na versão anterior ele caía em "sem classificação"
+   *    estando inteiramente classificado;
+   *  * um pedido com a FRENTE e sem tipo, que é o anterior à 0124 ou o
+   *    classificado à mão pelo Atendimento: é a única linha em que o rótulo
+   *    da frente ainda aparece;
+   *  * um pedido SEM NENHUM DOS DOIS — sem ele a linha "Sem classificação" e
+   *    a pílula em âmbar não saem em imagem nenhuma, e ela é a última da
+   *    lista de contagem por decisão;
+   *  * os TRÊS desfechos, porque "esperando" é o que NÃO desenha pílula: com
+   *    todos em aberto a imagem provaria que a marca sabe faltar e não que
+   *    ela aparece;
    *  * um pedido COM vertente e um SEM, porque a segunda metade da linha de
    *    contexto desaparece quando não há.
    */
   const pedidos = [
-    { id: "p1", titulo: "Arte para o Dia das Mães", cliente: "Mundo Verde", vertente: "Lojas Próprias", frente: "campanha" as const, link: "/painel/solicitacoes/p1" },
-    { id: "p2", titulo: "Stories da promoção da semana", cliente: "Mundo Verde", vertente: "E-commerce", frente: "social" as const, link: "/painel/solicitacoes/p2" },
-    { id: "p3", titulo: "Lâmina A5 para a feira", cliente: "Óptica Visão", vertente: null, frente: "campanha" as const, link: "/painel/solicitacoes/p3" },
-    { id: "p4", titulo: "Reimprimir os cartões antigos", cliente: "Óptica Visão", vertente: null, frente: null, link: "/painel/solicitacoes/p4" },
+    { id: "p1", titulo: "Arte para o Dia das Mães", cliente: "Mundo Verde", vertente: "Lojas Próprias", classificacao: { rotulo: "Campanha", classificado: true }, desfecho: "virou_demanda" as const, link: "/painel/solicitacoes/p1" },
+    { id: "p2", titulo: "Stories da promoção da semana", cliente: "Mundo Verde", vertente: "E-commerce", classificacao: { rotulo: "Peça para redes", classificado: true }, desfecho: "esperando" as const, link: "/painel/solicitacoes/p2" },
+    { id: "p3", titulo: "Vídeo de 30s para o YouTube", cliente: "Mundo Verde", vertente: "E-commerce", classificacao: { rotulo: "Peça para redes", classificado: true }, desfecho: "esperando" as const, link: "/painel/solicitacoes/p3" },
+    { id: "p4", titulo: "Lâmina A5 para a feira", cliente: "Óptica Visão", vertente: null, classificacao: { rotulo: "Material impresso", classificado: true }, desfecho: "esperando" as const, link: "/painel/solicitacoes/p4" },
+    { id: "p5", titulo: "Post Natal", cliente: "Óptica Visão", vertente: null, classificacao: { rotulo: "Social", classificado: true }, desfecho: "virou_demanda" as const, link: "/painel/solicitacoes/p5" },
+    { id: "p6", titulo: "Reimprimir os cartões antigos", cliente: "Óptica Visão", vertente: null, classificacao: { rotulo: "Sem classificação", classificado: false }, desfecho: "recusado" as const, link: "/painel/solicitacoes/p6" },
   ];
+
+  const porClassificacao = (() => {
+    const contagem = new Map<string, { quantos: number; classificado: boolean }>();
+    for (const p of pedidos) {
+      const antes = contagem.get(p.classificacao.rotulo);
+      contagem.set(p.classificacao.rotulo, {
+        quantos: (antes?.quantos ?? 0) + 1,
+        classificado: p.classificacao.classificado,
+      });
+    }
+    return [...contagem.entries()]
+      .map(([rotulo, c]) => ({ rotulo, ...c }))
+      .sort((a, b) => {
+        if (a.classificado !== b.classificado) return a.classificado ? -1 : 1;
+        if (b.quantos !== a.quantos) return b.quantos - a.quantos;
+        return a.rotulo.localeCompare(b.rotulo, "pt-BR");
+      });
+  })();
 
   return {
     de,
@@ -125,9 +155,12 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
     // lado a lado -- foi o que revelou que a consulta real contava
     // agrupadora e `producao_do_periodo` nao.
     pedidos: {
-      social: pedidos.filter((p) => p.frente === "social").length,
-      campanha: pedidos.filter((p) => p.frente === "campanha").length,
-      semClassificacao: pedidos.filter((p) => p.frente === null).length,
+      desfecho: {
+        esperando: pedidos.filter((p) => p.desfecho === "esperando").length,
+        viraramDemanda: pedidos.filter((p) => p.desfecho === "virou_demanda").length,
+        recusados: pedidos.filter((p) => p.desfecho === "recusado").length,
+      },
+      porClassificacao,
       lista: pedidos,
       sobraram: 0,
     },

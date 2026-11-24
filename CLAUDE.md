@@ -12068,6 +12068,111 @@ encolher.** O contexto truncar é o certo, porque ele é secundário. *Foi a
 imagem de 375px que mostrou, e nenhuma verificação pegaria: largura de texto
 não é tipo, não é cor e não é árvore de acessibilidade.*
 
+##### E ELE AGRUPAVA PELA DIMENSÃO GROSSA, chamando o certo de lacuna
+
+Decisão do usuário: *"atualmente as solicitações estão sendo classificadas só
+como social ou campanha, faltam coisas para poder entrar no relatório"*.
+
+**O PEDIDO JÁ CARREGA OITO DIMENSÕES DE CLASSIFICAÇÃO E O BLOCO LIA UMA**, e
+ir medir antes de escrever é o que fez esta entrega não ter migration — a
+lição da 0060, da 0127 e da 0128 pela enésima vez:
+
+| a dimensão | onde ela mora | o bloco lia? |
+| --- | --- | --- |
+| a conta | `client_id`, `not null` desde a 0068 | na linha |
+| a **frente** | `frente` (0124) | **era a única agrupada** |
+| o **tipo de trabalho** | `request_type_id` (0068) | **não** |
+| a vertente | `vertente_id` (0124) | na linha |
+| a campanha | `campaign_id` (0112) | não |
+| o período e a lista de materiais | 0138 | não |
+| as respostas do roteiro | `respostas` jsonb (0068) | não |
+| o **desfecho** | `status` | **não** |
+
+**A FRENTE É LEGITIMAMENTE NULA EM DOIS DOS QUATRO TIPOS ATIVOS, e é isso que
+tornava o relatório falso.** A 0148 escreve a razão em quantas palavras —
+*"ela é NULA em dois dos quatro… inventar uma frente para eles seria somar no
+relatório o palpite em vez da resposta"*: "Material impresso" e "Outro" não
+são social nem campanha. Agrupando por ela, um pedido **inteiramente
+classificado** caía num balde escrito **"sem classificação"**. O bloco
+confundia *este tipo não tem frente* com *ninguém classificou*, e dizia a
+segunda — que é a queixa dele, palavra por palavra.
+
+**ENTÃO O AGRUPAMENTO PASSOU A SER O TIPO, que é a dimensão FINA**, e a frente
+fica como o que ela é desde a 0148: função do tipo. Desenhar as duas seria a
+mesma coisa dita em duas resoluções a dois centímetros de distância. A frente
+sozinha só informa onde não há tipo — o pedido anterior à 0124, ou o
+classificado à mão pelo Atendimento por `classificarSolicitacao` —, e é
+exatamente aí que `classificacaoDoPedido()` cai nela.
+
+**ELA É UMA FUNÇÃO E NÃO UM `??` NA TELA**, pela razão de sempre: a contagem
+de cima e a pílula de cada linha respondem *de que é este pedido*, e duas
+respostas divergiriam — o que divergiria é a da contagem, que é o número que a
+lista embaixo existe para conferir.
+
+###### O DESFECHO É A SEGUNDA PERGUNTA, e era ela que faltava
+
+As três contagens que estavam ali eram as três FRENTES — ou seja, a mesma
+dimensão repartida, não uma segunda pergunta. **Um bloco que conta quantos
+pedidos CHEGARAM e nunca diz quantos viraram trabalho é uma caixa de entrada
+com outro nome**, e a caixa de entrada é a tela ao lado.
+
+**SÃO TRÊS BALDES E NÃO OS CINCO DO ENUM.** `nova` e `em_analise` diferem só
+por uma informação da AGÊNCIA — se alguém já abriu a fila —, que é o mesmo
+argumento da primeira fase do lado do cliente; e `em_andamento` e `concluida`
+porque o que foi ENTREGUE já está contado no primeiro bloco da mesma página:
+aqui a pergunta é se o pedido virou trabalho, não se o trabalho acabou.
+
+**E É UM `Record` TOTAL SOBRE O ENUM, nunca uma cadeia de `if` com um `else`
+no fim** — a decisão de `DESFECHO_DA_RODADA` (0127): com um `return` final,
+um valor novo de `solicitacao_status` contaria calado como "esperando"; com o
+`Record`, o compilador cobra.
+
+***E A PRIMEIRA VERSÃO TINHA UMA CHECAGEM QUE NÃO TINHA COMO DISPARAR:*** eu
+escrevi um bloco de carregamento de módulo que procurava o status cujo
+desfecho não estivesse na tupla — e a função tinha o `return` final, então
+aquilo era impossível de acontecer. **Um teste que não separa a resposta certa
+da errada é um teste que afirma sem provar**, e ele saiu antes do commit.
+
+###### O DESFECHO SÓ É PINTADO QUANDO NÃO É "esperando"
+
+Pinta-se a exceção, que é a decisão da matriz do Day Off: a linha sem marca é
+um pedido em aberto, que é o estado da maioria do que chegou na semana — uma
+pílula "Esperando" em quase toda linha seria a mesma palavra oito vezes. **E
+"Sem classificação" É uma linha da lista de contagem**, sempre a última: os
+outros baldes são tipos de trabalho e competem entre si pelo tamanho, e aquele
+não é um balde de trabalho, é uma **lacuna** — no meio da frase ela se leria
+como mais uma categoria.
+
+***O que NÃO entrou, e é dito em vez de escondido:*** **o tempo de resposta**.
+`client_requests_carimba_decisao` (0068) carimba `decidida_em` em `recusada` e
+`concluida`, e **não existe instante da TRIAGEM** — nem de o pedido virar
+demanda. Medir "quanto a agência levou para olhar" exigiria uma coluna
+`triada_em`, e ela é outra pergunta: esta entrega é sobre classificação. **E
+`respostas` continua sem agrupar**: a chave mora em `request_types.campos_json`,
+que é conteúdo editável da agência, e nada confere chave de jsonb —
+`check:tipos` liga coluna e parâmetro e não chega lá; a 0068 já escreve que a
+resposta órfã aparece com a chave crua.
+
+**E A CONCORDÂNCIA É ESCRITA À MÃO, o que só a imagem pegou:** a primeira
+versão saiu *"1 recusados"* na semana em que houve um — é a classe do
+*"Carrossei 1"* que `SINGULAR_DO_TIPO` (0122) existe para evitar, agora na
+linha que a agência lê toda segunda. "esperando" é invariável e fica de fora
+da conta.
+
+**E AS DUAS PÍLULAS QUEBRAM JUNTAS, o que também foi a imagem de 375px:**
+soltas no `flex-wrap`, uma cabia na linha do contexto e a outra descia sozinha
+para debaixo do título — as duas marcas do mesmo pedido em dois lugares
+diferentes da mesma linha. Num invólucro, ou ficam as duas ao lado do título,
+ou descem as duas.
+
+***E o exemplo do protótipo passou de quatro pedidos para seis***, pela lição
+da duplicata do Cronograma: ele precisava de um tipo de frente NULA — que é o
+caso que abriu o pedido e que a versão anterior pintava de âmbar —, de um
+pedido com frente e **sem** tipo (a única linha em que o rótulo da frente
+ainda aparece), de um sem nenhum dos dois, e dos **três** desfechos, porque
+"esperando" é o que NÃO desenha pílula: com todos em aberto a imagem provaria
+que a marca sabe faltar e não que ela aparece.
+
 ##### Na fila, o recorte é a SEGUNDA fileira, e a frente aparece em toda linha
 
 **SÃO DUAS FILEIRAS E NÃO UMA, e cada uma leva o nome da dimensão.** Status e

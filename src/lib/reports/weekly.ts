@@ -5,7 +5,12 @@ import { cache } from "react";
 import { ouFalha } from "@/lib/dados/consulta";
 import { segundaDaSemana, somarDias } from "@/lib/dominio/datas";
 import { producaoDoPeriodo, type Producao } from "@/lib/dados/metricas";
-import type { SolicitacaoFrente } from "@/lib/supabase/database.types";
+import {
+  classificacaoDoPedido,
+  desfechoDoPedido,
+  type ClassificacaoDoPedido,
+  type DesfechoDoPedido,
+} from "@/lib/dominio/solicitacoes";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -83,7 +88,26 @@ export type PedidoDoResumo = {
   cliente: string | null;
   /** O nome da vertente, quando o pedido tem uma. */
   vertente: string | null;
-  frente: SolicitacaoFrente | null;
+  /**
+   * A classificação mais FINA que o pedido tem — o nome do tipo de trabalho,
+   * a frente quando não há tipo, ou "Sem classificação".
+   *
+   * **A `frente` crua SAIU deste tipo**, e é a 0023: desde a 0148 ela é uma
+   * função de `request_types.frente`, então a linha que desenhasse as duas
+   * diria a mesma coisa em duas resoluções — e um campo que nenhuma tela lê é
+   * o que alguém reaproveita três sprints depois achando que ele decide algo.
+   */
+  classificacao: ClassificacaoDoPedido;
+  /**
+   * O que aconteceu com ele, medido AGORA.
+   *
+   * **Ele só é desenhado quando não é `esperando`**, e a assimetria é a regra
+   * da matriz do Day Off: numa semana de chegadas quase toda linha está
+   * esperando, e a mesma palavra em oito de oito linhas é a largura do título
+   * gasta para dizer o que não distingue nada. Pinta-se a exceção — e as
+   * linhas sem marca são justamente as que a contagem chama de esperando.
+   */
+  desfecho: DesfechoDoPedido;
   link: string;
 };
 
@@ -116,24 +140,47 @@ export type ResumoDaAgencia = {
    * ---------------------------------------------------------------------------
    */
   pedidos: {
-    /** A contagem por frente, do período inteiro e não da lista cortada. */
-    social: number;
-    campanha: number;
     /**
-     * Os pedidos sem frente.
+     * O DESFECHO de agora dos pedidos que chegaram no período.
      *
-     * **Eram os anteriores à 0124**, e desde a 0137 eles são também os que
-     * nasceram assim: a exigência da abertura saiu por decisão do usuário —
-     * *"não precisa ser social ou campanha necessariamente"* —, e o nulo
-     * passou a ser um estado que a tela do portal oferece. Quem classifica, aí,
-     * é o Atendimento, pela ação que a 0124 criou para o pedido antigo.
+     * **É AQUI QUE O BLOCO DEIXA DE SER UMA CAIXA DE ENTRADA.** Ele contava
+     * chegadas por frente e nunca olhava `status`: dizia *"12 pedidos nesta
+     * semana"* e parava — e a pergunta da segunda-feira sobre a fila é se ela
+     * andou, que é `aceitamos / recusamos / ainda parado`.
      *
-     * **Ele aparece com zero?** Não — a tela o esconde, e a razão mudou de
-     * lado: ela era *"num banco classificado ele é zero para sempre"*, e hoje
-     * é o contrário — ele quase sempre tem alguém, e esconder serve para a
-     * semana em que não tiver.
+     * **O retrato é de AGORA e não do fim da semana**, que é a decisão escrita
+     * de "O que ficou para trás": o pedido que chegou na sexta e não foi
+     * triado está esperando hoje, e a frase da tela diz isso.
      */
-    semClassificacao: number;
+    desfecho: { esperando: number; viraramDemanda: number; recusados: number };
+    /**
+     * A contagem pela classificação mais FINA de cada pedido — o tipo de
+     * trabalho quando há um, a frente quando não, e "Sem classificação" por
+     * último.
+     *
+     * ------------------------------------------------------------------------
+     * **ISTO SUBSTITUI `social` / `campanha` / `semClassificacao`**, e a
+     * remoção é a 0023: a frente é a dimensão COARSE e, desde a 0148, uma
+     * função de `request_types.frente` — três números que a contagem por tipo
+     * já contém. Deixá-los ao lado seria dar duas respostas para a mesma
+     * pergunta em duas resoluções, e a que ninguém relê é a de cima.
+     *
+     * **E É ELA QUE CONSERTA O "sem classificação" QUE MENTIA**: dos quatro
+     * tipos ativos, DOIS têm `frente` nula por desenho (0148), então um
+     * "Material impresso" classificado de ponta a ponta caía naquele balde.
+     * Agora ele conta como o que é, e o balde guarda só o pedido sem tipo E
+     * sem frente — o anterior à 0124 e o que ninguém classificou.
+     *
+     * **A ORDEM É POR CONTAGEM, e "Sem classificação" vai para o fim** mesmo
+     * quando é o maior: um relatório agrupa para mostrar qual balde é o maior,
+     * e aquele não é um balde de trabalho, é uma lacuna.
+     * ------------------------------------------------------------------------
+     */
+    porClassificacao: {
+      rotulo: string;
+      quantos: number;
+      classificado: boolean;
+    }[];
     lista: PedidoDoResumo[];
     sobraram: number;
   };
@@ -244,7 +291,13 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
     // ---------------------------------------------------------------------
     supabase
       .from("client_requests")
-      .select("id, titulo, client_id, vertente_id, frente, created_at")
+      // O TIPO E O STATUS ENTRAM NO `select`, e são as duas colunas que o
+      // bloco não lia: o tipo é a classificação fina (de que a frente é
+      // função desde a 0148) e o status é o DESFECHO. As duas já estavam na
+      // linha — o que faltava era pedi-las.
+      .select(
+        "id, titulo, client_id, vertente_id, frente, request_type_id, status, created_at",
+      )
       .gte("created_at", de)
       .lt("created_at", somarDias(ate, 1))
       .order("created_at", { ascending: false })
@@ -252,17 +305,24 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
   ]);
 
   const todasAsEtapas = [...concluidas, ...vencidas, ...proximas];
-  const [demandas, pessoas, agrupadoras, contas, vertentesDosPedidos] =
-    await Promise.all([
-      demandasPublicadas(todasAsEtapas.map((l) => l.task_id)),
-      nomesDePessoas([
-        ...todasAsEtapas.map((l) => l.responsavel_id),
-        ...presenca.map((l) => l.user_id),
-      ]),
-      quemTemFilha(todasAsEtapas.map((l) => l.id)),
-      nomesDeConta(pedidos.map((p) => p.client_id)),
-      nomesDeVertente(pedidos.map((p) => p.vertente_id)),
-    ]);
+  const [
+    demandas,
+    pessoas,
+    agrupadoras,
+    contas,
+    vertentesDosPedidos,
+    tiposDosPedidos,
+  ] = await Promise.all([
+    demandasPublicadas(todasAsEtapas.map((l) => l.task_id)),
+    nomesDePessoas([
+      ...todasAsEtapas.map((l) => l.responsavel_id),
+      ...presenca.map((l) => l.user_id),
+    ]),
+    quemTemFilha(todasAsEtapas.map((l) => l.id)),
+    nomesDeConta(pedidos.map((p) => p.client_id)),
+    nomesDeVertente(pedidos.map((p) => p.vertente_id)),
+    nomesDeTipo(pedidos.map((p) => p.request_type_id)),
+  ]);
 
   // RASCUNHO FICA DE FORA, e o filtro é a AUSÊNCIA da demanda no mapa: quem
   // não está publicado não entra em `demandasPublicadas`, e a etapa dele some
@@ -316,11 +376,49 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
   // AS CONTAGENS SAEM DA LISTA INTEIRA, e nunca das oito linhas desenhadas:
   // é o contador das abas de Pedidos pela quinta vez — o recorte acontece na
   // tela, e o número vem do período todo.
-  const porFrente = {
-    social: pedidos.filter((p) => p.frente === "social").length,
-    campanha: pedidos.filter((p) => p.frente === "campanha").length,
-    semClassificacao: pedidos.filter((p) => p.frente === null).length,
+  //
+  // E A CLASSIFICAÇÃO DE CADA LINHA SAI DE UM LUGAR SÓ,
+  // `classificacaoDoPedido()`: ela é o tipo quando há tipo, a frente quando
+  // não há, e "Sem classificação" quando não há nenhum dos dois. Duas
+  // respostas para *de que é este pedido* divergiriam, e o que divergiria é
+  // a da contagem — o número que a lista embaixo existe para conferir.
+  const classificados = pedidos.map((p) => ({
+    ...p,
+    classificacao: classificacaoDoPedido(
+      p.request_type_id ? (tiposDosPedidos.get(p.request_type_id) ?? null) : null,
+      p.frente,
+    ),
+    desfecho: desfechoDoPedido(p.status),
+  }));
+
+  const desfecho = {
+    esperando: classificados.filter((p) => p.desfecho === "esperando").length,
+    viraramDemanda: classificados.filter((p) => p.desfecho === "virou_demanda")
+      .length,
+    recusados: classificados.filter((p) => p.desfecho === "recusado").length,
   };
+
+  // A ORDEM É POR CONTAGEM, E "Sem classificação" É SEMPRE A ÚLTIMA.
+  //
+  // Os outros baldes são tipos de trabalho e competem entre si pelo tamanho;
+  // aquele não é um balde de trabalho, é uma LACUNA — e uma lacuna no meio da
+  // frase se lê como mais uma categoria. No fim, ela se lê como o que é: o
+  // resto que ninguém classificou.
+  const contagem = new Map<string, { quantos: number; classificado: boolean }>();
+  for (const p of classificados) {
+    const antes = contagem.get(p.classificacao.rotulo);
+    contagem.set(p.classificacao.rotulo, {
+      quantos: (antes?.quantos ?? 0) + 1,
+      classificado: p.classificacao.classificado,
+    });
+  }
+  const porClassificacao = [...contagem.entries()]
+    .map(([rotulo, c]) => ({ rotulo, ...c }))
+    .sort((a, b) => {
+      if (a.classificado !== b.classificado) return a.classificado ? -1 : 1;
+      if (b.quantos !== a.quantos) return b.quantos - a.quantos;
+      return a.rotulo.localeCompare(b.rotulo, "pt-BR");
+    });
 
   return {
     de,
@@ -336,15 +434,17 @@ export async function resumoDaAgencia(semana: string, hoje: string): Promise<Res
       .map(([id, dias]) => ({ nome: pessoas.get(id) ?? "—", dias }))
       .sort((a, b) => b.dias - a.dias),
     pedidos: {
-      ...porFrente,
-      lista: pedidos.slice(0, NO_MAXIMO).map((p) => ({
+      desfecho,
+      porClassificacao,
+      lista: classificados.slice(0, NO_MAXIMO).map((p) => ({
         id: p.id,
         titulo: p.titulo,
         cliente: contas.get(p.client_id) ?? null,
         vertente: p.vertente_id
           ? (vertentesDosPedidos.get(p.vertente_id) ?? null)
           : null,
-        frente: p.frente,
+        classificacao: p.classificacao,
+        desfecho: p.desfecho,
         link: `/painel/solicitacoes/${p.id}`,
       })),
       sobraram: Math.max(0, pedidos.length - NO_MAXIMO),
@@ -578,6 +678,36 @@ async function nomesDeVertente(
     await supabase.from("client_vertentes").select("id, nome").in("id", limpos),
   );
   return new Map(linhas.map((v) => [v.id, v.nome]));
+}
+
+/**
+ * O nome de cada tipo de trabalho pedido — a classificação FINA.
+ *
+ * **ELA É A COLUNA QUE O BLOCO NÃO LIA, e é ela que desfaz o "sem
+ * classificação" que mentia:** desde a 0148 a frente é FUNÇÃO do tipo, e dois
+ * dos quatro tipos ativos têm `frente` nula de propósito ("Material impresso"
+ * e "Outro" não são social nem campanha) — então um pedido inteiramente
+ * classificado caía no balde da lacuna. O tipo responde o que a frente não
+ * tem como responder.
+ *
+ * **O DESATIVADO VEM JUNTO**, pela razão escrita em `nomesDeVertente()`: o
+ * relatório desenha o nome do tipo de um pedido que aponta para ele, e sumir
+ * com a linha deixaria o pedido classificado sem nome na tela.
+ * `request_types_select` é `is_staff() or ativo` desde a 0068, então a leitura
+ * da agência alcança os dois.
+ */
+async function nomesDeTipo(
+  ids: (string | null)[],
+): Promise<Map<string, string>> {
+  const limpos = [...new Set(ids.filter(Boolean))] as string[];
+  if (limpos.length === 0) return new Map();
+
+  const supabase = await criarClienteServidor();
+  const linhas = ouFalha(
+    "nomes dos tipos de trabalho dos pedidos",
+    await supabase.from("request_types").select("id, nome").in("id", limpos),
+  );
+  return new Map(linhas.map((t) => [t.id, t.nome]));
 }
 
 async function nomesDePessoas(ids: (string | null)[]): Promise<Map<string, string>> {

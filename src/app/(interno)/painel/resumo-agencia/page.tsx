@@ -8,7 +8,6 @@ import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
 import { PageHeader } from "@/components/shared/page-header";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { horasEMinutos, taxaNoPrazo } from "@/lib/dominio/metricas";
-import { rotuloDaFrente } from "@/lib/dominio/solicitacoes";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
 import {
   lerSemana,
@@ -164,36 +163,84 @@ export default async function PaginaDoResumoDaAgencia({
           que ENTROU, que é a pauta da semana que começa. Acima das entregas
           ele abriria o resumo pela caixa de entrada, que é outra tela.
 
-          **AS TRÊS CONTAGENS SÃO UMA LINHA e não três ladrilhos**, e é a
-          decisão do Início: a lista logo abaixo É esses números, item por
-          item. Três cartões com número grande em cima de uma lista que soma o
-          mesmo é o cartão de "11 entregues" com sete na lista embaixo, que
-          este arquivo já pagou uma vez.
+          **AS CONTAGENS SÃO LINHA e não ladrilho**, e é a decisão do Início:
+          a lista logo abaixo É esses números, item por item. Cartões com
+          número grande em cima de uma lista que soma o mesmo é o cartão de
+          "11 entregues" com sete na lista embaixo, que este arquivo já pagou
+          uma vez.
 
-          **E "sem classificação" só aparece quando existe.** O argumento
-          escrito aqui era que *num banco classificado ele é zero para
-          sempre*, e **essa premissa caiu com a 0137**: a frente deixou de ser
-          exigida na abertura por decisão do usuário, então o pedido sem
-          classificação virou um estado comum e esta linha passou a aparecer
-          toda semana. O `> 0` fica, e por outra razão: ele some quando não há
-          nenhum, que é a semana em que a frase seria a mesma linha com um
-          número a mais. Pinta-se a exceção — ela é que deixou de ser rara.
+          **SÃO DUAS LINHAS, E A DE CIMA É O DESFECHO.** Decisão do usuário:
+          *"atualmente as solicitações estão sendo classificadas só como
+          social ou campanha, faltam coisas para poder entrar no relatório"*.
+          Um bloco que conta quantos CHEGARAM e nunca diz quantos viraram
+          trabalho é uma caixa de entrada com outro nome — e as três contagens
+          que estavam aqui eram as três frentes, ou seja a mesma dimensão
+          repartida, não uma segunda pergunta.
+
+          **E A DE BAIXO PASSOU A SER O TIPO DE TRABALHO.** A frente é a
+          dimensão GROSSA e, desde a 0148, FUNÇÃO do tipo — e dois dos quatro
+          tipos ativos têm frente nula de propósito ("Material impresso" e
+          "Outro" não são social nem campanha). Agrupando pela frente, um
+          pedido inteiramente classificado caía num balde escrito *"sem
+          classificação"*: o relatório confundindo *este tipo não tem frente*
+          com *ninguém classificou*. É exatamente a queixa, e o conserto é
+          agrupar pelo tipo e deixar a lacuna ser só o que de fato é lacuna.
+
+          **E "Sem classificação" só aparece quando existe**, como qualquer
+          outro balde: ela é uma linha da própria lista, sempre a última —
+          um pedido sem tipo E sem frente é a exceção que se pinta, e no meio
+          da frase ela se leria como mais uma categoria de trabalho.
+
+          ***O que NÃO entrou, e é dito em vez de escondido:*** o tempo de
+          resposta. `decidida_em` só é carimbado em `recusada` e `concluida`
+          (0068) — não existe instante da TRIAGEM, então "quanto a agência
+          levou para olhar" não tem como ser medido sem uma coluna nova, e
+          isso é outra pergunta: esta é sobre classificação.
           ------------------------------------------------------------------ */}
       <section className="bg-surface-card rounded-card border p-4">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
           <Inbox aria-hidden className="size-4" />O que os clientes pediram
         </h2>
-        <p className="text-text-muted mt-1 text-sm">
-          {resumo.pedidos.social + resumo.pedidos.campanha + resumo.pedidos.semClassificacao === 0
-            ? "Nenhum pedido novo pelo Portal nesta semana."
-            : [
-                `${resumo.pedidos.social} de social`,
-                `${resumo.pedidos.campanha} de campanha`,
-                ...(resumo.pedidos.semClassificacao > 0
-                  ? [`${resumo.pedidos.semClassificacao} sem classificação`]
+        {resumo.pedidos.porClassificacao.length === 0 ? (
+          <p className="text-text-muted mt-1 text-sm">
+            Nenhum pedido novo pelo Portal nesta semana.
+          </p>
+        ) : (
+          <>
+            <p className="text-text-muted mt-1 text-sm">
+              {/* A CONCORDÂNCIA É ESCRITA, e foi a imagem que cobrou: a
+                  primeira versão saiu "1 recusados" na semana em que houve
+                  um — e um erro de português na linha que a agência lê toda
+                  segunda é a mesma classe do "Carrossei 1" que
+                  `SINGULAR_DO_TIPO` existe para evitar. "esperando" é
+                  invariável, então ele não entra na conta. */}
+              {[
+                ...(resumo.pedidos.desfecho.viraramDemanda > 0
+                  ? [
+                      resumo.pedidos.desfecho.viraramDemanda === 1
+                        ? "1 virou demanda"
+                        : `${resumo.pedidos.desfecho.viraramDemanda} viraram demanda`,
+                    ]
+                  : []),
+                ...(resumo.pedidos.desfecho.esperando > 0
+                  ? [`${resumo.pedidos.desfecho.esperando} esperando`]
+                  : []),
+                ...(resumo.pedidos.desfecho.recusados > 0
+                  ? [
+                      resumo.pedidos.desfecho.recusados === 1
+                        ? "1 recusado"
+                        : `${resumo.pedidos.desfecho.recusados} recusados`,
+                    ]
                   : []),
               ].join(" · ")}
-        </p>
+            </p>
+            <p className="text-text-muted mt-0.5 text-xs">
+              {resumo.pedidos.porClassificacao
+                .map((c) => `${c.quantos} ${c.rotulo}`)
+                .join(" · ")}
+            </p>
+          </>
+        )}
 
         {resumo.pedidos.lista.length > 0 ? (
           <ul className="mt-3 space-y-2">
@@ -216,18 +263,49 @@ export default async function PaginaDoResumoDaAgencia({
                     </span>
                     <span className="font-medium">{pedido.titulo}</span>
                   </span>
-                  {/* O RÓTULO DA FRENTE EM CADA LINHA, e é o que faz as
-                      contagens de cima serem conferíveis: um "3 de campanha"
-                      cuja lista não diz quais é um número que a pessoa não
-                      tem como verificar. */}
-                  <span
-                    className={
-                      pedido.frente
-                        ? "bg-neutral-soft text-neutral shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                        : "bg-warning-soft text-warning shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                    }
-                  >
-                    {rotuloDaFrente(pedido.frente)}
+                  {/* A CLASSIFICAÇÃO EM CADA LINHA, e é o que faz as
+                      contagens de cima serem conferíveis: um "3 Peça para
+                      redes" cuja lista não diz quais é um número que a pessoa
+                      não tem como verificar.
+
+                      E É O RÓTULO DO TIPO, não mais o da frente: desde a 0148
+                      a frente é função do tipo, então desenhar os dois seria
+                      a mesma coisa dita em duas resoluções a dois
+                      centímetros. */}
+                  {/* AS DUAS PÍLULAS QUEBRAM JUNTAS, e foi a imagem de 375px
+                      que mandou: soltas no `flex-wrap`, uma cabia na linha do
+                      contexto e a outra descia sozinha para debaixo do
+                      título — as duas marcas do mesmo pedido em dois lugares
+                      diferentes da linha. Num invólucro elas ou ficam as duas
+                      ao lado do título, ou descem as duas. */}
+                  <span className="flex shrink-0 flex-wrap items-baseline gap-2">
+                    <span
+                      className={
+                        pedido.classificacao.classificado
+                          ? "bg-neutral-soft text-neutral rounded-full px-2 py-0.5 text-[11px] font-medium"
+                          : "bg-warning-soft text-warning rounded-full px-2 py-0.5 text-[11px] font-medium"
+                      }
+                    >
+                      {pedido.classificacao.rotulo}
+                    </span>
+                    {/* O DESFECHO SÓ APARECE QUANDO NÃO É "esperando" —
+                        pinta-se a exceção. A linha sem marca é um pedido em
+                        aberto, que é o estado da maioria do que chegou na
+                        semana, e uma pílula "Esperando" em quase toda linha
+                        seria a mesma palavra repetida oito vezes. */}
+                    {pedido.desfecho !== "esperando" ? (
+                      <span
+                        className={
+                          pedido.desfecho === "virou_demanda"
+                            ? "bg-success-soft text-success rounded-full px-2 py-0.5 text-[11px] font-medium"
+                            : "bg-danger-soft text-danger rounded-full px-2 py-0.5 text-[11px] font-medium"
+                        }
+                      >
+                        {pedido.desfecho === "virou_demanda"
+                          ? "Virou demanda"
+                          : "Recusado"}
+                      </span>
+                    ) : null}
                   </span>
                 </Link>
               </li>

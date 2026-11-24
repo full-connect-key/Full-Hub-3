@@ -221,6 +221,112 @@ export function rotuloDaFrente(frente: SolicitacaoFrente | null): string {
 }
 
 // ---------------------------------------------------------------------------
+// O QUE O RELATÓRIO AGRUPA, e por que a frente sozinha não bastava
+//
+// Decisão do usuário: *"atualmente as solicitações estão sendo classificadas
+// só como social ou campanha, faltam coisas para poder entrar no
+// relatório"*.
+//
+// **MEDIDO ANTES DE ESCREVER, e a medição é a entrega inteira.** O pedido
+// carrega OITO dimensões de classificação — a conta, a frente, o tipo de
+// trabalho, a vertente, a campanha, o período, a composição e as respostas do
+// roteiro — e o bloco "O que os clientes pediram" do Resumo da Agência lia
+// UMA, a frente. É a lição da 0060, da 0127 e da 0128 pela enésima vez: o que
+// faltava não era coluna, era o relatório pedir o que já estava ali.
+//
+// **E A FRENTE É A DIMENSÃO QUE MENTE, o que também foi medido:** dos quatro
+// tipos ativos, DOIS têm `frente` nula **por desenho** — a 0148 escreve que
+// *"ela é NULA em dois dos quatro… inventar uma frente para eles seria somar
+// no relatório o palpite em vez da resposta"*. Então um "Material impresso",
+// classificado de ponta a ponta, caía num balde que o relatório chamava de
+// **"sem classificação"**. Ele confundia *"este tipo não tem frente"* com
+// *"ninguém classificou"*, que é a queixa em quantas palavras.
+// ---------------------------------------------------------------------------
+
+/**
+ * A classificação mais FINA que este pedido tem, e o rótulo dela.
+ *
+ * ---------------------------------------------------------------------------
+ * **É UMA PÍLULA E NÃO DUAS**, e a razão é a 0148: desde ela a frente do
+ * pedido aberto pelo portal é `request_types.frente` — ou seja, uma FUNÇÃO do
+ * tipo. Desenhar "Peça para redes" e "Social" lado a lado é a mesma palavra
+ * duas vezes a dois centímetros, em duas resoluções.
+ *
+ * **A FRENTE SOBREVIVE ONDE ELA INFORMA:** o pedido sem tipo e com frente é o
+ * anterior à 0124 e o que o Atendimento classificou à mão por
+ * `classificarSolicitacao` — ali ela é a única classificação que existe, e é
+ * ela que sai.
+ *
+ * **E `classificado` é FALSO só quando não há nem um nem outro**, que é o
+ * conserto: é esse pedido, e só ele, que a tela pinta como exceção.
+ * ---------------------------------------------------------------------------
+ */
+export type ClassificacaoDoPedido = {
+  /** O nome do tipo, ou a frente, ou "Sem classificação". */
+  rotulo: string;
+  /** Falso só sem tipo E sem frente — é aí que a tela pinta a exceção. */
+  classificado: boolean;
+};
+
+export function classificacaoDoPedido(
+  tipo: string | null,
+  frente: SolicitacaoFrente | null,
+): ClassificacaoDoPedido {
+  if (tipo) return { rotulo: tipo, classificado: true };
+  if (frente) return { rotulo: ROTULOS_DE_FRENTE[frente], classificado: true };
+  return { rotulo: "Sem classificação", classificado: false };
+}
+
+/**
+ * O DESFECHO de um pedido: o que aconteceu com ele.
+ *
+ * ---------------------------------------------------------------------------
+ * **UM BLOCO QUE CONTA CHEGADAS E NÃO DESFECHOS É UMA CAIXA DE ENTRADA, não
+ * um relatório.** O "O que os clientes pediram" recortava por `created_at` e
+ * nunca olhava `status`: ele dizia *"12 pedidos nesta semana"* e parava — e a
+ * pergunta da segunda-feira sobre a fila é se ela está andando, que é
+ * `aceitamos / recusamos / ainda parado`.
+ *
+ * **SÃO TRÊS E NÃO CINCO, e cada fusão tem razão própria.** `nova` e
+ * `em_analise` são as duas *esperando*: a diferença entre elas é se alguém da
+ * agência já abriu a fila — informação NOSSA, e é o mesmo argumento pelo qual
+ * as duas dividem a primeira fase do cliente. E `em_andamento` e `concluida`
+ * são as duas *virou demanda*: **o que foi entregue já está contado no
+ * primeiro bloco desta mesma página**, então um quarto balde aqui seria o
+ * mesmo fato duas vezes na mesma tela.
+ *
+ * **É UM `Record` TOTAL e não uma função com `if`**, que é a decisão de
+ * `DESFECHO_DA_RODADA` (0127): com um ramo final de guarda, um valor novo em
+ * `solicitacao_status` cairia calado em *esperando* — um pedido recusado por
+ * um estado novo apareceria como parado na fila, sem erro em lugar nenhum.
+ * Total sobre o enum, **o compilador cobra o valor novo**.
+ *
+ * **E ELE É MEDIDO AGORA, nunca no fim da semana** — é a decisão escrita de
+ * "O que ficou para trás": o pedido que chegou na sexta e está `nova` na
+ * segunda está *esperando*, e a frase da tela diz que o retrato é de hoje.
+ * ---------------------------------------------------------------------------
+ */
+export const DESFECHOS_DO_PEDIDO = [
+  "esperando",
+  "virou_demanda",
+  "recusado",
+] as const;
+
+export type DesfechoDoPedido = (typeof DESFECHOS_DO_PEDIDO)[number];
+
+export const DESFECHO_DO_STATUS: Record<SolicitacaoStatus, DesfechoDoPedido> = {
+  nova: "esperando",
+  em_analise: "esperando",
+  em_andamento: "virou_demanda",
+  concluida: "virou_demanda",
+  recusada: "recusado",
+};
+
+export function desfechoDoPedido(status: SolicitacaoStatus): DesfechoDoPedido {
+  return DESFECHO_DO_STATUS[status];
+}
+
+// ---------------------------------------------------------------------------
 // AS FASES DO PEDIDO, na tela do cliente
 //
 // Decisão do usuário: *"na aba de pedidos, eles sejam separados em abas, Em
