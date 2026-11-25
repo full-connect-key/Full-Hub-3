@@ -3,23 +3,40 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { BookOpen, FileText, GraduationCap, Search, Clock } from "lucide-react";
+import {
+  BookOpen,
+  Clock,
+  FileText,
+  GraduationCap,
+  Search,
+  X,
+} from "lucide-react";
 
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
+import { ControleSegmentado } from "@/components/shared/controle-segmentado";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   EXPLICACAO_DO_TIPO,
-  FILTROS_DO_ACERVO,
-  MINIMO_PARA_BUSCAR,
+  PLURAL_DO_TIPO,
+  RECORTES_DO_ACERVO,
   ROTULOS_DE_ESTADO,
-  ROTULOS_DE_FILTRO,
+  ROTULOS_DE_RECORTE,
   ROTULOS_DE_TIPO,
+  TIPOS_DO_ACERVO,
   TOM_DO_ESTADO,
-  combinaComFiltro,
-  semAcento,
+  algumFiltroAtivo,
+  combinaComFiltrosDoAcervo,
+  escreverFormatos,
 } from "@/lib/dominio/academy";
-import type { FiltroDoAcervo } from "@/lib/dominio/academy";
+import type { FiltrosDoAcervo } from "@/lib/dominio/academy";
 import type { ItemDoAcervo } from "@/lib/dados/academy";
 import { formatarMinutos } from "@/lib/dominio/tempo";
 import type { AcademyTipo } from "@/lib/supabase/database.types";
@@ -33,7 +50,7 @@ import { cn } from "@/lib/utils";
  * antemão se aquilo é um playbook ou um curso, e três listas obrigariam a
  * procurar em três lugares. O formato vira um FILTRO e um selo no cartão.
  *
- * **O FILTRO E O TERMO MORAM NA URL**, como em toda listagem do produto: o
+ * **OS FILTROS E O TERMO MORAM NA URL**, como em toda listagem do produto: o
  * link precisa ser compartilhável ("olha os obrigatórios que faltam") e
  * sobreviver ao botão de voltar.
  *
@@ -51,17 +68,20 @@ const ICONE_DO_TIPO: Record<AcademyTipo, typeof BookOpen> = {
   curso: GraduationCap,
 };
 
+const RECORTES = RECORTES_DO_ACERVO.map((chave) => ({
+  chave,
+  rotulo: ROTULOS_DE_RECORTE[chave],
+}));
+
 export function Acervo({
   itens,
   categorias,
-  filtro,
-  busca,
+  filtros,
   gestor,
 }: {
   itens: ItemDoAcervo[];
   categorias: string[];
-  filtro: FiltroDoAcervo;
-  busca: string;
+  filtros: FiltrosDoAcervo;
   gestor: boolean;
 }) {
   const router = useRouter();
@@ -69,38 +89,56 @@ export function Acervo({
   const parametros = useSearchParams();
   const [, começar] = useTransition();
 
-  const [termo, setTermo] = useState(busca);
-  const categoria = parametros.get("categoria");
+  // O TERMO É LOCAL E TAMBÉM VAI PARA A URL, e os dois têm papéis diferentes:
+  // o estado filtra a grade a cada tecla, e a URL é o que sobrevive ao botão de
+  // voltar e ao link colado no chat. Quem filtra é o estado — sem ele, cada
+  // letra esperaria uma ida ao servidor para a lista mexer.
+  const [termo, setTermo] = useState(filtros.busca);
+  const comTermo = { ...filtros, busca: termo };
 
-  function navegar(chave: string, valor: string | null) {
+  function navegar(mudancas: Record<string, string | null>) {
     const destino = new URLSearchParams(parametros.toString());
-    if (valor) destino.set(chave, valor);
-    else destino.delete(chave);
+    for (const [chave, valor] of Object.entries(mudancas)) {
+      if (valor) destino.set(chave, valor);
+      else destino.delete(chave);
+    }
     // `replace` e `scroll: false`, como o seletor de visão: cada troca de
     // filtro viraria uma entrada no histórico, e quem está no fim de uma lista
     // perderia o lugar.
-    começar(() => router.replace(`${caminho}?${destino.toString()}`, { scroll: false }));
+    começar(() =>
+      router.replace(`${caminho}?${destino.toString()}`, { scroll: false }),
+    );
   }
 
-  const alvo = semAcento(termo.trim());
-  const buscando = alvo.length >= MINIMO_PARA_BUSCAR;
+  const visiveis = itens.filter((item) =>
+    combinaComFiltrosDoAcervo(item, comTermo),
+  );
 
-  const visiveis = itens.filter((item) => {
-    if (!combinaComFiltro(filtro, item.tipo, item.estado, item.obrigatorio)) return false;
-    if (categoria && item.categoria !== categoria) return false;
-    if (!buscando) return true;
-    // A BUSCA DA GRADE É PELO NOME, pelo resumo e pelas etiquetas. O corpo do
-    // playbook é buscável, e quem o faz é `buscarNoAcervo()` no servidor —
-    // aqui não há o texto para procurar, e fingir que há devolveria "nada
-    // encontrado" para um termo que está escrito no playbook.
-    return (
-      semAcento(item.titulo).includes(alvo) ||
-      semAcento(item.resumo ?? "").includes(alvo) ||
-      item.tags.some((t) => semAcento(t).includes(alvo))
-    );
-  });
+  // CADA DIMENSÃO SE CONTA COM AS OUTRAS E NUNCA COM ELA MESMA, que é a regra
+  // escrita da Biblioteca do portal: com "Concluídos" escolhido, o chip de
+  // Cursos tem de dizer quantos cursos concluídos existem — e não quantos
+  // cursos o acervo tem, que é um número que o clique não cumpre.
+  const semFormato = itens.filter((item) =>
+    combinaComFiltrosDoAcervo(item, { ...comTermo, formatos: [] }),
+  );
 
-  const pendentes = itens.filter((i) => i.obrigatorio && i.estado !== "concluido");
+  const formatos = TIPOS_DO_ACERVO.filter((tipo) =>
+    // SÓ O FORMATO QUE O ACERVO TEM. Um chip de "Cursos" numa agência que não
+    // tem nenhum não é uma resposta, é ruído — é a razão pela qual a fileira de
+    // redes do portal mostra só as redes do mês.
+    itens.some((item) => item.tipo === tipo),
+  );
+
+  const pendentes = itens.filter(
+    (i) => i.obrigatorio && i.estado !== "concluido",
+  );
+
+  function alternarFormato(tipo: AcademyTipo) {
+    const proximos = filtros.formatos.includes(tipo)
+      ? filtros.formatos.filter((t) => t !== tipo)
+      : [...filtros.formatos, tipo];
+    navegar({ formato: escreverFormatos(proximos) });
+  }
 
   return (
     <div className="space-y-5">
@@ -113,7 +151,7 @@ export function Acervo({
           <strong className="text-text-primary">
             {pendentes.length} {pendentes.length === 1 ? "item" : "itens"}
           </strong>{" "}
-          {pendentes.length === 1 ? "esperando" : "esperando"} você
+          esperando você
           {pendentes.some((p) => p.vencido) ? (
             <>
               {" · "}
@@ -125,7 +163,7 @@ export function Acervo({
           {" · "}
           <button
             type="button"
-            onClick={() => navegar("filtro", "para_voce")}
+            onClick={() => navegar({ filtro: "para_voce" })}
             className="text-accent-strong hover:underline"
           >
             ver quais
@@ -144,7 +182,7 @@ export function Acervo({
             value={termo}
             onChange={(evento) => {
               setTermo(evento.target.value);
-              navegar("q", evento.target.value || null);
+              navegar({ q: evento.target.value || null });
             }}
             placeholder="Buscar na biblioteca"
             aria-label="Buscar na biblioteca do Acervo"
@@ -162,38 +200,118 @@ export function Acervo({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        {FILTROS_DO_ACERVO.map((chave) => (
-          <Chip
-            key={chave}
-            ativo={filtro === chave}
-            rotulo={ROTULOS_DE_FILTRO[chave]}
-            aoClicar={() => navegar("filtro", chave === "tudo" ? null : chave)}
-          />
-        ))}
+      {/* -------------------------------------------------------------------
+          ERAM ONZE PÍLULAS IGUAIS DE TRÊS DIMENSÕES, NUMA LINHA SÓ.
 
-        {categorias.length > 0 ? (
-          <>
-            <span className="bg-border mx-1 hidden h-5 w-px sm:block" aria-hidden />
-            {categorias.map((c) => (
+          Decisão do usuário: *"no acervo, quero uma nova proposta de
+          visualização dos filtros, acho que 3 possibilidades de tipos de
+          pesquisa está confuso."*
+
+          Agora cada pergunta tem a FORMA que diz o que ela faz: o recorte é
+          exclusivo e é um controle segmentado; o formato se acumula e são
+          chips; a categoria cresce com o acervo e é um `<Select>`. O argumento
+          inteiro — e as duas saídas recusadas — está em `lib/dominio/academy.ts`,
+          ao lado de `combinaComFiltrosDoAcervo`.
+
+          E O VÃO DE FORA É MAIOR QUE O DE DENTRO, que é o que faz a leitura
+          valer: os chips de formato se encostam com `gap-1.5` e as três
+          perguntas se separam com `gap-3`. Com o mesmo vão nos dois níveis, a
+          proximidade não agrupa nada e a linha volta a se ler como uma fileira
+          de peças soltas — que é o defeito que esta entrega desfaz.
+          ------------------------------------------------------------------- */}
+      <div className="flex flex-wrap items-center gap-3">
+        <ControleSegmentado
+          opcoes={RECORTES}
+          atual={filtros.recorte}
+          aoTrocar={(chave) =>
+            navegar({ filtro: chave === "tudo" ? null : chave })
+          }
+          rotuloAcessivel="Recorte do acervo"
+        />
+
+        {/* O FORMATO VEM DEPOIS DO RECORTE, que é a ordem da pergunta: o
+            recorte diz de QUEM é o material — meu, em andamento, fechado —, e o
+            formato diz o que ele É. E eles só aparecem quando há mais de um:
+            com um formato só, a linha pediria uma escolha que não existe. */}
+        {formatos.length > 1 ? (
+          <div
+            role="group"
+            aria-label="Formato"
+            className="flex flex-wrap items-center gap-1.5"
+          >
+            {formatos.map((tipo) => (
               <Chip
-                key={c}
-                ativo={categoria === c}
-                rotulo={c}
-                aoClicar={() => navegar("categoria", categoria === c ? null : c)}
-              />
+                key={tipo}
+                ativo={filtros.formatos.includes(tipo)}
+                aoClicar={() => alternarFormato(tipo)}
+              >
+                {PLURAL_DO_TIPO[tipo]}
+                <span className="tabular-nums opacity-70">
+                  {semFormato.filter((item) => item.tipo === tipo).length}
+                </span>
+              </Chip>
             ))}
+          </div>
+        ) : null}
+
+        {categorias.length > 1 ? (
+          <Select
+            value={filtros.categoria ?? "todas"}
+            onValueChange={(valor) =>
+              navegar({ categoria: valor === "todas" ? null : valor })
+            }
+          >
+            <SelectTrigger
+              className="w-auto min-w-40 rounded-full"
+              aria-label="Filtrar por categoria"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as categorias</SelectItem>
+              {categorias.map((categoria) => (
+                <SelectItem key={categoria} value={categoria}>
+                  {categoria}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+
+        {/* A CONTAGEM E O "LIMPAR" SÓ EXISTEM COM REFINAMENTO ATIVO — pinta-se
+            a exceção, e o repouso é o acervo inteiro à vista, onde "12 de 12"
+            e um botão que não limpa nada seriam duas peças dizendo que nada
+            aconteceu. */}
+        {algumFiltroAtivo(comTermo) ? (
+          <>
+            <p className="text-text-muted text-sm">
+              {visiveis.length} de {itens.length}{" "}
+              {itens.length === 1 ? "item" : "itens"}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setTermo("");
+                navegar({ q: null, filtro: null, formato: null, categoria: null });
+              }}
+              className="text-text-muted hover:text-foreground inline-flex items-center gap-1 text-sm underline underline-offset-4"
+            >
+              <X aria-hidden className="size-3.5" />
+              Limpar
+            </button>
           </>
         ) : null}
       </div>
 
       {visiveis.length === 0 ? (
         <EmptyState
-          title={buscando ? "Nada com esse termo" : "Nada neste recorte"}
+          title={
+            termo.trim() !== "" ? "Nada com esse termo" : "Nada neste recorte"
+          }
           description={
-            buscando
+            termo.trim() !== ""
               ? "A busca aqui olha o título, o resumo e as etiquetas. O texto de dentro dos playbooks é buscável na página de cada um."
-              : "Troque o filtro acima para ver o resto do acervo."
+              : "Afrouxe um dos filtros acima para ver o resto do acervo."
           }
           className="bg-card rounded-card shadow-cartao border-solid"
         />
@@ -208,14 +326,23 @@ export function Acervo({
   );
 }
 
+/**
+ * O CHIP QUE SE ACUMULA, e `aria-pressed` é o que diz isso.
+ *
+ * Ele é o mesmo desenho do chip da Biblioteca do portal, e a diferença com o
+ * `ControleSegmentado` ao lado é de FORMA e não de estilo: a caixa com um gomo
+ * aceso diz "escolha um", e pílulas soltas dizem "marque quantas quiser". Era
+ * exatamente essa distinção que a fileira antiga não tinha — onze pílulas
+ * iguais, e três comportamentos diferentes atrás delas.
+ */
 function Chip({
   ativo,
-  rotulo,
   aoClicar,
+  children,
 }: {
   ativo: boolean;
-  rotulo: string;
   aoClicar: () => void;
+  children: React.ReactNode;
 }) {
   return (
     <button
@@ -223,13 +350,16 @@ function Chip({
       onClick={aoClicar}
       aria-pressed={ativo}
       className={cn(
-        "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+        // `min-h-9` e `text-sm` são o que alinha o chip com o controle
+        // segmentado ao lado: numa linha onde as duas peças convivem, meio
+        // pixel de diferença de altura lê como peça fora de lugar.
+        "border-input bg-card inline-flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-sm transition-colors",
         ativo
-          ? "bg-action-soft text-action-text"
-          : "bg-card text-text-secondary hover:text-text-primary border",
+          ? "border-action-text bg-action-soft text-action-text font-semibold"
+          : "text-text-secondary hover:text-text-primary",
       )}
     >
-      {rotulo}
+      {children}
     </button>
   );
 }

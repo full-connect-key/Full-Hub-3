@@ -6,7 +6,8 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { acompanhamentoDaEquipe, listarAcervo } from "@/lib/dados/academy";
 import { acompanhamentoDosTours } from "@/lib/dados/tour";
-import { lerFiltro } from "@/lib/dominio/academy";
+import { lerFiltrosDoAcervo } from "@/lib/dominio/academy";
+import type { FiltrosDoAcervo } from "@/lib/dominio/academy";
 
 import { Acervo } from "./acervo";
 import { BarraDaAcademy } from "./barra";
@@ -40,18 +41,27 @@ export default async function PaginaDaAcademy({
   const gestor = ehGestor(sessao.profile.role);
   const aba = parametros.aba === "gestao" && gestor ? "gestao" : "acervo";
 
-  const busca = typeof parametros.q === "string" ? parametros.q : "";
-  const filtro = lerFiltro(parametros.filtro);
+  // OS QUATRO RECORTES SAEM DE UM LEITOR SÓ, e ele é quem traduz o endereço
+  // antigo: `?filtro=playbook` era um FORMATO quando os onze chips eram um
+  // grupo só, e hoje é a seleção de formato — um link salvo tem de ABRIR, e não
+  // quebrar, que é a decisão de `ehVisao()` e de `ehAbaDeMetrica()`.
+  const filtros = lerFiltrosDoAcervo(parametros);
 
   return (
     <div className="space-y-6">
       <BarraDaAcademy atual={aba} gestor={gestor} />
 
-      <Suspense key={`${aba}-${filtro}-${busca}`} fallback={<LoadingSkeleton variant="card" rows={6} />}>
+      {/* A CHAVE COBRE AS QUATRO DIMENSÕES. Com só o recorte dentro dela, trocar
+          de formato ou de categoria não remontaria o `Suspense`, e quem está
+          esperando a lista veria a antiga parada no lugar. */}
+      <Suspense
+        key={`${aba}-${filtros.recorte}-${filtros.formatos.join(",")}-${filtros.categoria ?? ""}-${filtros.busca}`}
+        fallback={<LoadingSkeleton variant="card" rows={6} />}
+      >
         {aba === "gestao" ? (
           <Gestao />
         ) : (
-          <Conteudo usuarioId={sessao.usuarioId} filtro={filtro} busca={busca} gestor={gestor} />
+          <Conteudo usuarioId={sessao.usuarioId} filtros={filtros} gestor={gestor} />
         )}
       </Suspense>
     </div>
@@ -60,13 +70,11 @@ export default async function PaginaDaAcademy({
 
 async function Conteudo({
   usuarioId,
-  filtro,
-  busca,
+  filtros,
   gestor,
 }: {
   usuarioId: string;
-  filtro: ReturnType<typeof lerFiltro>;
-  busca: string;
+  filtros: FiltrosDoAcervo;
   gestor: boolean;
 }) {
   const acervo = await listarAcervo(usuarioId);
@@ -83,8 +91,7 @@ async function Conteudo({
     <Acervo
       itens={acervo}
       categorias={categorias}
-      filtro={filtro}
-      busca={busca}
+      filtros={filtros}
       gestor={gestor}
     />
   );

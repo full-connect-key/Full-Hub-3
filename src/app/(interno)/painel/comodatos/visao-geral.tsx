@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { CartaoDeNumero } from "@/components/shared/cartao-de-numero";
+import { ControleSegmentado } from "@/components/shared/controle-segmentado";
 import { DataTable, type Column } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -143,35 +144,21 @@ export function VisaoGeral({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        {/* A MESMA CASCA DE `SeletorDeVisao`, escrita à mão aqui — e ela
-            já tinha divergido: a caixa era `bg-muted/60` (opacidade sobre
-            um fundo qualquer, que dá uma cor que ninguém mediu, e no tema
-            escuro dá outra) e o item ativo separava por SOMBRA o que agora
-            separa por cor. As classes são as de lá, palavra por palavra. */}
-        <div className="bg-card shadow-cartao inline-flex rounded-lg border p-0.5">
-          {(
-            [
-              ["equipamento", "Por equipamento", PackageOpen],
-              ["pessoa", "Por pessoa", UserRound],
-            ] as const
-          ).map(([chave, rotulo, Icone]) => (
-            <button
-              key={chave}
-              type="button"
-              onClick={() => aoTrocarVisao(chave)}
-              aria-pressed={visao === chave}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
-                visao === chave
-                  ? "bg-action-soft text-action-text font-semibold"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icone aria-hidden className="size-4" />
-              {rotulo}
-            </button>
-          ))}
-        </div>
+        {/* A CASCA ERA ESCRITA À MÃO AQUI, e o comentário de então admitia a
+            cópia — "e ela já tinha divergido": a caixa era opacidade sobre um
+            fundo qualquer e o item ativo separava por SOMBRA o que o
+            compartilhado separa por cor. Hoje as duas classes e as duas telas
+            saem de `ControleSegmentado`, que nasceu quando o recorte do Acervo
+            ia ser a terceira cópia. */}
+        <ControleSegmentado
+          opcoes={[
+            { chave: "equipamento", rotulo: "Por equipamento", Icone: PackageOpen },
+            { chave: "pessoa", rotulo: "Por pessoa", Icone: UserRound },
+          ]}
+          atual={visao}
+          aoTrocar={aoTrocarVisao}
+          rotuloAcessivel="Visualização do inventário"
+        />
 
         <div className="ms-auto flex flex-wrap gap-2">
           <Button

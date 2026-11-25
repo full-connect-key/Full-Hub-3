@@ -18083,6 +18083,128 @@ legenda do calendário. E entrou um e-book que É um link
 como lido" lado a lado no mesmo cartão. Sem ela a rodada terminaria dizendo
 "Pronto" e o que o usuário pediu não sairia em imagem nenhuma.
 
+#### A LINHA DE FILTROS ERAM ONZE PÍLULAS IGUAIS DE TRÊS DIMENSÕES
+
+Decisão do usuário: *"no acervo, quero uma nova proposta de visualização dos
+filtros, acho que 3 possibilidades de tipos de pesquisa está confuso."*
+
+**ELE ESTAVA DESCREVENDO TRÊS PERGUNTAS DESENHADAS COMO UMA.** A fileira tinha
+onze pílulas do mesmo tamanho, da mesma cor e da mesma forma, e por trás delas
+viviam **três dimensões diferentes**:
+
+| As pílulas | O que elas perguntam | Como se comportavam |
+| --- | --- | --- |
+| 1 a 4 | o **estado** — Tudo, Para você, Em andamento, Concluídos | um radio |
+| 5 a 7 | o **formato** — Playbooks, E-books, Cursos | o MESMO radio |
+| 8 a 11 | a **categoria** da conta | um segundo radio |
+
+Um fio separava o grupo 2 do grupo 3 e **nada** separava o 1 do 2 — ou seja, a
+única fronteira desenhada era a única que não precisava ser desenhada, porque
+aquelas duas dimensões já eram parâmetros diferentes da URL.
+
+**E A CONFUSÃO ERA UM BUG, não uma impressão.** `combinaComFiltro` terminava em
+`return tipo === filtro`: estado e formato eram o mesmo radio, então escolher
+"Cursos" **descartava** "Em andamento". **"Os cursos que eu comecei" não tinha
+como ser expresso** — a pessoa clicava nas duas pílulas e a segunda apagava a
+primeira, sem nada na tela dizendo por quê.
+
+##### CADA PERGUNTA GANHOU A FORMA QUE DIZ O QUE ELA FAZ
+
+| A dimensão | A forma | Por quê |
+| --- | --- | --- |
+| recorte | **controle segmentado** | é exclusivo, são quatro e nunca crescem — e a caixa em volta diz que escolher um desliga o outro |
+| formato | **chips que SOMAM** | `?formato=playbook,curso` é "os dois", e é a única das três em que acumular quer dizer alguma coisa |
+| categoria | **`<Select>`** | ela cresce com o acervo: é a lista que pode ter quinze itens amanhã, e quinze pílulas é a fileira de volta |
+
+**A FORMA É A DOCUMENTAÇÃO.** Três desenhos diferentes dizem, sem uma frase de
+ajuda, que são três perguntas e que elas se combinam — e dizem também o que
+cada uma faz com o segundo clique.
+
+**E O VÃO DE FORA É MAIOR QUE O DE DENTRO**, que é o que faz a leitura valer:
+os chips de formato se encostam com `gap-1.5` e as três perguntas se separam
+com `gap-3`. Com o mesmo vão nos dois níveis, a proximidade não agrupa nada e a
+linha volta a se ler como uma fileira de peças soltas.
+
+##### AS DUAS SAÍDAS RECUSADAS, porque elas são as óbvias
+
+**1. Tirar o formato.** É a resposta mais curta para *"três possibilidades está
+confuso"* — e o formato é a dimensão que o acervo mais tem: "quero os
+playbooks" é a pergunta de quem chega procurando um processo da casa. O que
+estava confuso era o formato dividir o radio com o estado, não o formato
+existir.
+
+**2. Dois `<Select>` lado a lado.** Caberia em menos pixels e esconderia o
+estado do acervo atrás de dois cliques: num `<Select>` a contagem de cada
+opção só aparece depois de abrir, e é ela que diz *se vale a pena filtrar*. É
+a decisão da faixa de chips do portal — *filtro recolhido é filtro que ninguém
+descobre*.
+
+##### CADA DIMENSÃO SE CONTA COM AS OUTRAS, e nunca com ela mesma
+
+O número ao lado de "Cursos" é quantos cursos existem **dentro do recorte, da
+categoria e da busca de agora** — e ignora os chips de formato. É a regra que
+a fileira de vertentes da Biblioteca do cliente já escreveu, e pela mesma
+razão: com o formato na própria conta, escolher "Cursos" zeraria "Playbooks" e
+"E-books", e o caminho de volta sumiria. **Um número que o clique não cumpre é
+pior que número nenhum.**
+
+**E SÓ OS FORMATOS QUE O ACERVO TEM ganham chip**, com o grupo inteiro
+desenhado apenas quando há mais de um: um chip de "Cursos" num acervo sem curso
+nenhum é uma opção que, clicada, esvazia a tela — e um grupo com um chip só é
+um interruptor de luz, que é a decisão das camadas do Calendário Full.
+
+##### `?filtro=` CONTINUA COM O NOME DELE, e os formatos são TRADUZIDOS
+
+O parâmetro do recorte não virou `?recorte=` por duas razões medidas: a linha
+de pendências desta mesma tela escreve `?filtro=para_voce` no botão "ver
+quais", e um endereço com `?filtro=concluidos` é um link que alguém mandou no
+chat.
+
+**E os três valores de FORMATO que moravam ali são traduzidos em vez de
+ignorados:** `?filtro=curso` abre o acervo com o chip de Cursos aceso e o
+recorte em "Tudo", que é o que aquele link sempre quis dizer. É a decisão de
+`ehVisao()` e de `ehAbaDeMetrica()` — **um endereço antigo tem de ABRIR, e não
+quebrar**.
+
+**A CONTAGEM E O "Limpar" SÓ EXISTEM COM ALGUM FILTRO ATIVO**
+(`algumFiltroAtivo`), que é a regra da matriz do Day Off: pinta-se a exceção, e
+o repouso de uma biblioteca é mostrar tudo. *"9 de 9 itens × Limpar"* em toda
+visita é a linha que ensina a ignorar a linha.
+
+##### `ControleSegmentado` nasceu aqui, porque esta seria a TERCEIRA cópia
+
+A casca do seletor segmentado — a caixa de `p-0.5` com o item ativo no par
+nomeado — estava escrita à mão em `SeletorDeVisao` e de novo em
+`comodatos/visao-geral.tsx`, **e a segunda já tinha divergido em duas das oito
+classes**; o comentário dela admitia a cópia por escrito. O recorte do Acervo
+seria a terceira: é o limiar de `ICONE_DA_AREA`, que tinha três cópias e duas
+já divergidas.
+
+**O que ele centraliza é a CASCA e nunca a lista**, que é a decisão da
+`BarraDeContexto` palavra por palavra: `VISOES` continua morando no seletor de
+visão, `RECORTES_DO_ACERVO` mora no domínio do Acervo, e o `ancoraDoTour` é
+opcional porque só um dos três chamadores tem passo de tour.
+
+##### E A CATEGORIA VAZAVA PARA O ACOMPANHAMENTO desde que nasceu
+
+`limparAoSair` da barra listava `q` e `filtro`, e **não** `categoria` — o chip
+de categoria era um grupo próprio na fileira antiga e ninguém o acrescentou
+ali. Trocar para a aba de gestão levava junto um recorte que lá não filtra
+nada e fica na URL afirmando que filtra. Hoje são as quatro, e a lista completa
+é o que impede a quinta de nascer esquecida.
+
+**E `PLURAL_DO_TIPO` é escrito à mão**, que é `SINGULAR_DO_TIPO` das campanhas
+(0122) pelo outro lado: uma regra que acrescenta "s" acerta "Playbooks" e
+"Cursos" e erra "E-books" — três palavras escritas custam menos que uma regra
+que acerta duas de três.
+
+***E entrou uma tela por causa disso*** (`80b-academy-filtros`), abrindo
+`?filtro=em_andamento&formato=curso`: ela fotografa exatamente a combinação que
+o `return tipo === filtro` tornava impossível — o segmentado em "Em andamento"
+E o chip "Cursos" aceso, com as contagens recalculadas e os dois cursos
+desenhados. Sem ela a imagem do Acervo mostraria a fileira nova em repouso e
+nada provaria que as três perguntas se somam.
+
 ### Recomendações: o módulo mais leve, e o desenho respeita isso
 
 `recommendations`, `recommendation_likes` e `recommendation_comments`. Alguém

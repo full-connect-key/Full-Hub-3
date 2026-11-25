@@ -1030,6 +1030,12 @@ const TELAS = [
 
   { nome: "80-academy", rota: "/painel/academy", largura: 1600, altura: 1300, role: "socio" },
   { nome: "81-academy-colaborador", rota: "/painel/academy", largura: 1600, altura: 1200, role: "colaborador" },
+  // E UMA TELA COM REFINAMENTO ATIVO, porque em repouso metade da linha nova
+  // nao existe: a contagem e o "Limpar" so aparecem quando alguem filtra, e um
+  // chip de formato marcado e o que separa "escolha um" de "marque quantas
+  // quiser". O recorte escolhido e exatamente o estado que a fileira antiga NAO
+  // sabia expressar -- "cursos em andamento", onde o formato apagava o estado.
+  { nome: "80b-academy-filtros", rota: "/painel/academy?filtro=em_andamento&formato=curso", largura: 1600, altura: 1000, role: "colaborador" },
   // OS TRÊS FORMATOS, UM POR IMAGEM. O playbook em releitura é o que mais
   // importa: é o único estado que desenha a faixa âmbar, e é ele que
   // justifica o módulo ser versionado.

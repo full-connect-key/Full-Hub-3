@@ -37,11 +37,17 @@ export function BarraDaAcademy({
             ]
           : [{ chave: "acervo" as const, rotulo: "Biblioteca", Icone: BookOpen }]
       }
-      // O termo buscado e o filtro são do ACERVO: levados para o
-      // acompanhamento eles não filtram nada e ficam na URL mentindo que
-      // filtram. É o `?status=entregue` que sobrevivia à troca de aba em
-      // Gestão de Tasks.
-      limparAoSair={(destino) => (destino === "gestao" ? ["q", "filtro"] : [])}
+      // OS QUATRO RECORTES SÃO DO ACERVO: levados para o acompanhamento eles
+      // não filtram nada e ficam na URL mentindo que filtram. É o
+      // `?status=entregue` que sobrevivia à troca de aba em Gestão de Tasks.
+      //
+      // E eram DOIS nesta lista, com `categoria` vazando desde que ela nasceu —
+      // o chip de categoria era um grupo próprio na fileira antiga e ninguém o
+      // acrescentou aqui. Quatro dimensões e quatro nomes: a lista completa é o
+      // que impede a quinta de nascer esquecida.
+      limparAoSair={(destino) =>
+        destino === "gestao" ? ["q", "filtro", "formato", "categoria"] : []
+      }
     />
   );
 }

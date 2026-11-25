@@ -322,67 +322,6 @@ export function slugDoTitulo(titulo: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// OS FILTROS DO ACERVO
-// ---------------------------------------------------------------------------
-
-export const FILTROS_DO_ACERVO = [
-  "tudo",
-  "para_voce",
-  "em_andamento",
-  "concluidos",
-  "playbook",
-  "ebook",
-  "curso",
-] as const;
-
-export type FiltroDoAcervo = (typeof FILTROS_DO_ACERVO)[number];
-
-export const ROTULOS_DE_FILTRO: Record<FiltroDoAcervo, string> = {
-  tudo: "Tudo",
-  para_voce: "Para você",
-  em_andamento: "Em andamento",
-  concluidos: "Concluídos",
-  playbook: "Playbooks",
-  ebook: "E-books",
-  curso: "Cursos",
-};
-
-export function lerFiltro(
-  valor: string | string[] | undefined,
-): FiltroDoAcervo {
-  if (
-    typeof valor === "string" &&
-    (FILTROS_DO_ACERVO as readonly string[]).includes(valor)
-  ) {
-    return valor as FiltroDoAcervo;
-  }
-  return "tudo";
-}
-
-/**
- * "PARA VOCÊ" É O OBRIGATÓRIO MAIS O QUE COBRA RELEITURA, e não uma sugestão.
- *
- * O sprint pedia um bloco de recomendação lendo o que a pessoa marcou como
- * "quero desenvolver" — e aquela tabela saiu do produto na 0043, por decisão
- * do usuário. Sem fonte, a escolha foi NÃO inventar uma: uma recomendação
- * fabricada gasta a credibilidade da seção inteira, e a resposta honesta para
- * "o que é meu agora" já existe e é a obrigatoriedade.
- */
-export function combinaComFiltro(
-  filtro: FiltroDoAcervo,
-  tipo: AcademyTipo,
-  estado: EstadoDoItem,
-  obrigatorio: boolean,
-): boolean {
-  if (filtro === "tudo") return true;
-  if (filtro === "para_voce") return obrigatorio || estado === "releitura";
-  if (filtro === "em_andamento")
-    return estado === "em_andamento" || estado === "releitura";
-  if (filtro === "concluidos") return estado === "concluido";
-  return tipo === filtro;
-}
-
-// ---------------------------------------------------------------------------
 // A BUSCA
 // ---------------------------------------------------------------------------
 
@@ -427,3 +366,244 @@ export function trechoDoCasamento(
     (fim < texto.length ? "…" : "")
   );
 }
+
+// ---------------------------------------------------------------------------
+// OS FILTROS DO ACERVO — e eles são TRÊS PERGUNTAS, não uma fileira
+// ---------------------------------------------------------------------------
+
+/**
+ * ERAM ONZE PÍLULAS IGUAIS DE TRÊS DIMENSÕES, lado a lado.
+ *
+ * Decisão do usuário: *"no acervo, quero uma nova proposta de visualização dos
+ * filtros, acho que 3 possibilidades de tipos de pesquisa está confuso."*
+ *
+ * ---------------------------------------------------------------------------
+ * **O QUE ESTAVA CONFUSO NÃO ERA A QUANTIDADE, ERA O DESENHO AFIRMAR UMA COISA
+ * QUE O CÓDIGO NEGAVA.** A fileira tinha onze pílulas do mesmo tamanho, da
+ * mesma cor e do mesmo formato, e dentro delas havia TRÊS perguntas
+ * diferentes — em que pé está o item, que tipo de material ele é, e de que
+ * assunto ele fala. Nada na tela dizia qual era qual: entre `Concluídos` e
+ * `Playbooks` havia um vão de seis pixels, e entre `Cursos` e `Atendimento` um
+ * fio quase invisível.
+ *
+ * **E as três não se combinavam do mesmo jeito**, que é o que fazia a fileira
+ * ensinar errado: `combinaComFiltro` terminava em `return tipo === filtro`,
+ * então escolher "Cursos" **descartava** "Em andamento" — as duas primeiras
+ * dimensões eram um radio só —, enquanto a categoria combinava com o que
+ * estivesse escolhido. Onze alvos idênticos, dois radios, um deles cruzando
+ * com o outro e o outro não.
+ *
+ * **"Cursos em andamento" não tinha como ser pedido**, e é a pergunta mais
+ * óbvia de um acervo de treinamento.
+ * ---------------------------------------------------------------------------
+ * **SÃO TRÊS CONTROLES AGORA, e a FORMA de cada um diz o que ele faz:**
+ *
+ *   - o **recorte** é exclusivo por natureza (o item está em andamento OU
+ *     concluído), e vira um controle segmentado: uma caixa, quatro gomos, um
+ *     aceso. A forma já diz "escolha um";
+ *   - o **formato** são três valores de um enum que não cresce, e viram CHIPS
+ *     que se acumulam — é esta linha que faz "cursos em andamento" existir;
+ *   - a **categoria** cresce com o acervo, e vira `<Select>`. É a regra
+ *     escrita da Biblioteca do portal, palavra por palavra: *"a frente tem
+ *     três valores e não cresce; o mês cresce com a conta, e vinte e quatro
+ *     chips são a fileira de catorze pílulas que a faixa do Social desfez"*.
+ *
+ * ***As duas saídas recusadas ficam escritas, porque a decisão pode voltar:***
+ * tirar a dimensão de formato resolveria a confusão perdendo uma pergunta de
+ * verdade — *"quero fazer um curso"* —, e ele pediu uma visualização mais
+ * clara, não menos função; e dois `<Select>` lado a lado para formato e
+ * categoria se leem como um formulário, e esconderiam atrás de um clique três
+ * valores que nunca crescem.
+ * ---------------------------------------------------------------------------
+ */
+export const RECORTES_DO_ACERVO = [
+  "tudo",
+  "para_voce",
+  "em_andamento",
+  "concluidos",
+] as const;
+
+export type RecorteDoAcervo = (typeof RECORTES_DO_ACERVO)[number];
+
+export const ROTULOS_DE_RECORTE: Record<RecorteDoAcervo, string> = {
+  tudo: "Tudo",
+  para_voce: "Para você",
+  em_andamento: "Em andamento",
+  concluidos: "Concluídos",
+};
+
+/**
+ * O PLURAL DE CADA TIPO, escrito à mão.
+ *
+ * É a decisão de `SINGULAR_DO_TIPO` nas campanhas (0122) pelo outro lado: uma
+ * regra que acrescenta "s" acerta "Playbooks" e "Cursos" e erra "E-books" —
+ * três palavras escritas custam menos que uma regra que acerta duas de três,
+ * e o chip com o plural errado é a tela mostrando erro de português na linha
+ * que a pessoa clica.
+ */
+export const PLURAL_DO_TIPO: Record<AcademyTipo, string> = {
+  playbook: "Playbooks",
+  ebook: "E-books",
+  curso: "Cursos",
+};
+
+export type FiltrosDoAcervo = {
+  recorte: RecorteDoAcervo;
+  /** Vazio quer dizer TODOS, e não "nenhum": é o estado de repouso da linha. */
+  formatos: AcademyTipo[];
+  categoria: string | null;
+  busca: string;
+};
+
+/**
+ * UM LEITOR SÓ, e ele é quem mantém de pé o link que já existe.
+ *
+ * `?filtro=` CONTINUA SENDO O NOME DO RECORTE, e não virou `?recorte=`, por
+ * duas razões: a linha de pendências desta mesma tela escreve
+ * `?filtro=para_voce` no botão "ver quais", e um endereço salvo com
+ * `?filtro=concluidos` é um link que alguém mandou no chat.
+ *
+ * **E os três valores de FORMATO que moravam naquele parâmetro são traduzidos
+ * em vez de ignorados**: `?filtro=curso` abre o acervo com o chip de Cursos
+ * aceso e o recorte em "Tudo", que é o que aquele link sempre quis dizer. É a
+ * decisão de `ehVisao()` e de `ehAbaDeMetrica()` — *um endereço antigo tem de
+ * ABRIR, e não quebrar*.
+ */
+export function lerFiltrosDoAcervo(params: {
+  filtro?: string | string[];
+  formato?: string | string[];
+  categoria?: string | string[];
+  q?: string | string[];
+}): FiltrosDoAcervo {
+  const filtro = umaString(params.filtro);
+  const formato = umaString(params.formato);
+
+  // A COMPATIBILIDADE É SÓ QUANDO `?formato=` NÃO VEIO: com os dois na URL,
+  // quem manda é o parâmetro novo — senão um link antigo acrescentaria um
+  // formato que a pessoa acabou de desmarcar na tela.
+  const doLinkAntigo =
+    formato === null && filtro !== null && ehTipoDoAcervo(filtro)
+      ? [filtro]
+      : [];
+
+  return {
+    recorte:
+      filtro !== null && (RECORTES_DO_ACERVO as readonly string[]).includes(filtro)
+        ? (filtro as RecorteDoAcervo)
+        : "tudo",
+    formatos: doLinkAntigo.length > 0 ? doLinkAntigo : lerFormatos(formato),
+    categoria: umaString(params.categoria),
+    busca: umaString(params.q) ?? "",
+  };
+}
+
+function umaString(valor: string | string[] | undefined): string | null {
+  const texto = Array.isArray(valor) ? valor[0] : valor;
+  return typeof texto === "string" && texto !== "" ? texto : null;
+}
+
+function ehTipoDoAcervo(valor: string): valor is AcademyTipo {
+  return (TIPOS_DO_ACERVO as readonly string[]).includes(valor);
+}
+
+/**
+ * `"playbook,curso"` → `["playbook", "curso"]`, descartando o que não existe.
+ *
+ * **Descartar e não recusar**: um valor torto na URL é um link velho ou um
+ * dedo torto, e a resposta certa é a tela abrir sem aquele chip — nunca um
+ * erro. É `lerFiltro` de sempre, com a lista no lugar do valor único.
+ *
+ * E ele **devolve na ordem de `TIPOS_DO_ACERVO`**, nunca na ordem do clique:
+ * sem isso, dois links com os mesmos dois formatos escritos em ordens
+ * diferentes seriam duas URLs para a mesma tela.
+ */
+export function lerFormatos(valor: string | null): AcademyTipo[] {
+  if (valor === null) return [];
+  const pedidos = new Set(valor.split(",").map((parte) => parte.trim()));
+  return TIPOS_DO_ACERVO.filter((tipo) => pedidos.has(tipo));
+}
+
+/** O inverso, para a tela escrever de volta na URL. Vazio vira `null`, que é o
+ *  que faz o parâmetro SAIR do endereço em vez de ficar como `?formato=`. */
+export function escreverFormatos(formatos: AcademyTipo[]): string | null {
+  const emOrdem = TIPOS_DO_ACERVO.filter((tipo) => formatos.includes(tipo));
+  return emOrdem.length > 0 ? emOrdem.join(",") : null;
+}
+
+/**
+ * "PARA VOCÊ" É O OBRIGATÓRIO MAIS O QUE COBRA RELEITURA, e não uma sugestão.
+ *
+ * O sprint pedia um bloco de recomendação lendo o que a pessoa marcou como
+ * "quero desenvolver" — e aquela tabela saiu do produto na 0043, por decisão
+ * do usuário. Sem fonte, a escolha foi NÃO inventar uma: uma recomendação
+ * fabricada gasta a credibilidade da seção inteira, e a resposta honesta para
+ * "o que é meu agora" já existe e é a obrigatoriedade.
+ *
+ * **E ela não pergunta mais o TIPO**, que é a metade da confusão que esta
+ * função carregava: o `return tipo === filtro` do fim misturava as duas
+ * dimensões num radio só.
+ */
+export function combinaComRecorte(
+  recorte: RecorteDoAcervo,
+  estado: EstadoDoItem,
+  obrigatorio: boolean,
+): boolean {
+  if (recorte === "tudo") return true;
+  if (recorte === "para_voce") return obrigatorio || estado === "releitura";
+  if (recorte === "em_andamento")
+    return estado === "em_andamento" || estado === "releitura";
+  return estado === "concluido";
+}
+
+/**
+ * O ITEM contra as quatro dimensões — e o predicado é UM, para a contagem de
+ * cada chip e a lista desenhada nunca discordarem.
+ *
+ * **É o molde estrutural e não `ItemDoAcervo`**, que mora em `lib/dados/` e é
+ * `server-only`: um tipo de lá importado aqui trancaria o domínio dentro do
+ * servidor, e esta função é chamada de um componente de cliente.
+ */
+export function combinaComFiltrosDoAcervo(
+  item: {
+    tipo: AcademyTipo;
+    estado: EstadoDoItem;
+    obrigatorio: boolean;
+    categoria: string | null;
+    titulo: string;
+    resumo: string | null;
+    tags: string[];
+  },
+  filtros: FiltrosDoAcervo,
+): boolean {
+  if (!combinaComRecorte(filtros.recorte, item.estado, item.obrigatorio))
+    return false;
+
+  // VAZIO QUER DIZER TODOS, e é o que faz o estado de repouso da linha de
+  // chips não esconder nada.
+  if (filtros.formatos.length > 0 && !filtros.formatos.includes(item.tipo))
+    return false;
+
+  if (filtros.categoria !== null && item.categoria !== filtros.categoria)
+    return false;
+
+  if (filtros.busca.length < MINIMO_PARA_BUSCAR) return true;
+
+  const alvo = semAcento(filtros.busca);
+  return (
+    semAcento(item.titulo).includes(alvo) ||
+    semAcento(item.resumo ?? "").includes(alvo) ||
+    item.tags.some((etiqueta) => semAcento(etiqueta).includes(alvo))
+  );
+}
+
+/** Algum refinamento ativo? É ele que decide se a linha da contagem e o
+ *  "Limpar" existem — pinta-se a exceção, e o repouso é não ter nenhum. */
+export function algumFiltroAtivo(filtros: FiltrosDoAcervo): boolean {
+  return (
+    filtros.recorte !== "tudo" ||
+    filtros.formatos.length > 0 ||
+    filtros.categoria !== null ||
+    filtros.busca !== ""
+  );
+}
+

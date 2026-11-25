@@ -2,8 +2,8 @@
 
 import { CalendarDays, Columns3, List, type LucideIcon } from "lucide-react";
 
-import { cn } from "@/lib/utils";
-import { ANCORAS, ancora } from "@/lib/tour/ancoras";
+import { ControleSegmentado } from "@/components/shared/controle-segmentado";
+import { ANCORAS } from "@/lib/tour/ancoras";
 
 export type Visao = "board" | "lista" | "calendario";
 
@@ -55,45 +55,23 @@ export function SeletorDeVisao({
   atual: Visao;
   aoTrocar: (visao: Visao) => void;
 }) {
+  // -------------------------------------------------------------------------
+  // A CASCA SAIU DAQUI e virou `ControleSegmentado`, porque a terceira cópia
+  // dela nasceria no recorte do Acervo — e a segunda, nos Comodatos, já tinha
+  // divergido em duas das oito classes. O que ficou aqui é a LISTA das três
+  // visões e o argumento de por que ela mora num lugar só.
+  //
+  // O que o par nomeado resolveu continua escrito lá: `bg-muted/60` era a
+  // regra da casa sendo quebrada em silêncio — opacidade sobre um fundo
+  // qualquer dá uma cor que ninguém mediu, e no tema escuro dá outra.
+  // -------------------------------------------------------------------------
   return (
-    // ---------------------------------------------------------------------
-    // `bg-muted/60` SAIU, e ele era a regra da casa sendo quebrada em
-    // silêncio: **opacidade sobre um fundo qualquer dá uma cor que ninguém
-    // mediu**, e no tema escuro dá outra. Sessenta por cento de
-    // `--neutral-soft` sobre `--surface-page` dá quase exatamente a página —
-    // o seletor desaparecia no chão. (E o hexadecimal dos dois não entra
-    // nesta frase: `check:cores` varre cor literal em `src/`, e pegou esta
-    // explicação na primeira rodada. A explicação não pode carregar o que
-    // ela proíbe.)
-    //
-    // O que entra é o par nomeado: a caixa é branca como todo contêiner de
-    // conteúdo, e o item ativo usa `--action-soft` com `--action-text`, que é
-    // o mesmo par do item ativo da barra lateral e já está medido em
-    // `check:cores` (5,88:1). O `bg-background`/`shadow-xs` de antes era
-    // branco sobre quase-branco: separava por sombra o que agora separa por
-    // cor.
-    // ---------------------------------------------------------------------
-    <div
-      className="bg-card shadow-cartao inline-flex rounded-lg border p-0.5"
-      {...ancora(ANCORAS.seletorDeVisao)}
-    >
-      {VISOES.map(({ chave, rotulo, Icone }) => (
-        <button
-          key={chave}
-          type="button"
-          onClick={() => aoTrocar(chave)}
-          aria-pressed={atual === chave}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
-            atual === chave
-              ? "bg-action-soft text-action-text font-semibold"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <Icone aria-hidden className="size-4" />
-          {rotulo}
-        </button>
-      ))}
-    </div>
+    <ControleSegmentado
+      opcoes={VISOES}
+      atual={atual}
+      aoTrocar={aoTrocar}
+      rotuloAcessivel="Visualização"
+      ancoraDoTour={ANCORAS.seletorDeVisao}
+    />
   );
 }
