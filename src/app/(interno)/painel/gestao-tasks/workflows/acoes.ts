@@ -7,7 +7,7 @@ import { exigirGestorNaAcao } from "@/lib/acoes/guardas";
 import { executarAcao, falha, sucesso, type Resultado } from "@/lib/acoes/resultado";
 import { recusaDeValidacao } from "@/lib/acoes/validacao";
 import { FUNCOES } from "@/lib/dominio/equipe";
-import { TETO_DE_PECAS } from "@/lib/dominio/workflows";
+import { diasOrdenados, TETO_DE_PECAS } from "@/lib/dominio/workflows";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
 /**
@@ -64,6 +64,14 @@ const esquemaDeEtapa = z.object({
    * 300 e a recusa chegaria como erro de constraint.
    */
   quantidade: z.number().int().min(1).max(TETO_DE_PECAS).default(1),
+  /**
+   * Em que dias da semana as peças saem (migration 0152), 0=domingo a 6=sábado.
+   *
+   * **A FAIXA É DO BANCO E NÃO UM NÚMERO ESCRITO AQUI**, pela razão do teto da
+   * quantidade: `dias_da_semana_validos()` recusa fora de 0..6 e recusa dia
+   * repetido, e dois limites para a mesma coisa é onde eles divergem.
+   */
+  dias_da_semana: z.array(z.number().int().min(0).max(6)).default([]),
 });
 
 const esquemaDeTipo = z.object({
@@ -105,6 +113,11 @@ async function regravarEtapas(
       depende_de_ordem: etapa.depende_de_ordem ?? null,
       parent_ordem: etapa.parent_ordem ?? null,
       quantidade: etapa.quantidade,
+      // OS DIAS SÃO ORDENADOS E SEM REPETIÇÃO antes de gravar, e não é zelo:
+      // `dias_da_semana_validos()` recusa o repetido, e a ordem é o que faz o
+      // rótulo da tela ("Seg, Ter, Qui e Sex") não depender de em que ordem
+      // alguém clicou nos chips.
+      dias_da_semana: diasOrdenados(etapa.dias_da_semana),
     })),
   );
   return error ? error.message : null;
@@ -197,6 +210,25 @@ export async function salvarWorkflow(
         if (quemEspera) {
           return falha(
             `"${quemEspera}" não pode esperar "${etapa.nome}": ela entrega várias peças, e o produto não tem como dizer "espere todas".`,
+          );
+        }
+      }
+
+      /**
+       * AS DUAS RECUSAS DOS DIAS (migration 0152), e elas são DUAS e não três:
+       * a terceira — dia marcado numa etapa que já tem sub-etapas escritas à
+       * mão — já é recusada pelo bloco acima, porque a segunda metade exige
+       * `quantidade >= 2` e a recusa da sub-etapa pega o par.
+       */
+      if (etapa.dias_da_semana.length > 0) {
+        if (etapa.parent_ordem) {
+          return falha(
+            `A sub-etapa "${etapa.nome}" não pode ter dias da semana: os disparos nascem como as sub-etapas da etapa de topo.`,
+          );
+        }
+        if (etapa.quantidade < 2) {
+          return falha(
+            `"${etapa.nome}" tem dias da semana marcados e entrega uma peça só. Diga quantas peças ela entrega, ou desmarque os dias e use o prazo da etapa.`,
           );
         }
       }
@@ -384,6 +416,7 @@ export async function duplicarWorkflow(
           // uma peça onde o original entrega cinquenta.
           parent_ordem: etapa.parent_ordem,
           quantidade: etapa.quantidade,
+          dias_da_semana: etapa.dias_da_semana,
         })),
       );
     }

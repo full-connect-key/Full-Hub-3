@@ -3846,6 +3846,198 @@ um quarto workflow, "Catálogo de produtos", com **duas** etapas que multiplicam
 e não uma: com uma, a imagem do diálogo provaria que ele aparece e não que ele
 pergunta **um número por etapa**.
 
+#### A ETAPA DISPARA EM DIAS DA SEMANA, E A PEÇA SE CHAMA PELO DIA (0152)
+
+Decisão do usuário: *"uma das tarefas da agência são os email marketings,
+preciso que quando eu vá montar o workflow, eu possa selecionar quais dias os
+emails são disparados, no caso são 4 por semana, e sempre que eu for abrir, as
+tasks já tenham o nome como o dia que ela deve ser postada, conseguiu
+entender?"*.
+
+**A 0140 JÁ ENTREGAVA A METADE DIFÍCIL, e é isso que torna esta migration uma
+coluna.** Uma etapa que entrega N peças virou agrupadora com N filhas desde
+aquela migration, e o que faltava eram duas coisas que a cadeia não sabia
+dizer: **em que dias** a série sai, e que o nome de cada peça é **o dia**.
+
+**`quantidade` NÃO MUDA DE SIGNIFICADO, e essa é a decisão central.** Ela
+continua sendo *quantas peças* — a frase da 0140 palavra por palavra — e os
+dias só decidem **onde cada peça cai e como ela se chama**. "Vinte e-mails em
+segunda, terça, quinta e sexta" é `quantidade = 20` com
+`dias_da_semana = {1,2,4,5}`, e não um segundo número ao lado. Por isso a
+abertura não ganhou pergunta nova: `DialogoDePecas` já confirma a quantidade
+desde a 0140, e o que ele passou a dizer é quantas SEMANAS aquele número cobre.
+
+**E UMA COLUNA `semanas` FOI CONSIDERADA E RECUSADA**, pela regra mais repetida
+desta casa: quantas semanas são `peças ÷ dias`, e **o que dá para calcular não
+se guarda** — com ela, `quantidade` e `semanas × dias` seriam duas respostas
+para quantas peças a etapa entrega, e a que divergiria é a guardada. É `atraso`
+não ser coluna e `maoDoPost()` pela enésima vez. **A tela DIVIDE** — *"20 peças
+em Seg, Ter, Qui e Sex cobrem cerca de 5 semanas"* —, nos dois lugares em que a
+pergunta é feita: o editor do workflow e o diálogo da aplicação.
+
+##### `0 = domingo … 6 = sábado`, e é uma convenção só
+
+É o que `date_part('dow')` devolve no Postgres **e** o que
+`Date.prototype.getUTCDay()` devolve no navegador — então os dois lados do
+produto falam o mesmo número, sem de-para no meio. Um de-para aqui seria o
+lugar onde o dia da semana da tela e o do banco começam a divergir, que é a
+armadilha que `COLUNAS_POR_STATUS` e `FUNCOES` já pagaram.
+
+**É `smallint[]` e não sete colunas booleanas nem uma máscara de bits:** o
+array é o que a tela desenha (uma lista de chips marcados), é o que a função de
+expansão percorre, e é o único formato em que *"nenhum dia"* — o caso de quase
+toda etapa do produto — é o `'{}'` do `default`, e não sete `false` que alguém
+precisaria ler em conjunto para descobrir que não há calendário nenhum.
+
+**A trava é FUNÇÃO e não um `check` escrito em linha**
+(`dias_da_semana_validos`), pela razão de `redes_sem_repeticao()` na 0082: *"dia
+repetido"* é uma subconsulta, e o Postgres recusa subconsulta em check
+constraint com *"cannot use subquery in check constraint"*. Ela cobra as duas
+coisas — a faixa de 0 a 6 e a ausência de repetição —, e a repetição importa
+porque é ela que faz a conta das semanas mentir: `{1,1,1}` diria "três dias por
+semana" sobre um único dia.
+
+##### AS TRÊS CONDIÇÕES DA TELA SÃO AS TRÊS RECUSAS DO BANCO
+
+Uma etapa só carrega dias de disparo quando ela é **de topo**, **sem filha
+escrita à mão** e **entrega mais de uma peça** — e as três já eram recusas de
+`conferir_etapas_do_workflow()`:
+
+| Quem recusa | Por quê |
+| --- | --- |
+| a recusa 6 (0140) | sub-etapa não multiplica — os disparos pediriam um quarto nível, e a 0022 recusa o neto |
+| a recusa 7 (0140) | numa etapa que já tem sub-etapas, as peças SERIAM as sub-etapas |
+| **a recusa 11** (0152) | com uma peça só não há o que datar: o prazo da etapa já é a data dela |
+
+**E a recusa 10 é a de cima vista pelo outro lado:** sub-etapa com dias
+marcados. Ela existe porque o `check` da coluna não sabe quem é filho de quem —
+ele olha UMA linha — e porque a recusa 6 só dispara quando a sub-etapa também
+tem `quantidade > 1`: sem a 10, uma sub-etapa com dias e uma peça passaria
+pelas duas e os dias ficariam gravados sem nada que os leia.
+
+**A ORDEM ENTRE A 10 E A 11 É DELIBERADA, e foi medida.** Uma sub-etapa com
+dias cai nas duas (a recusa 6 impede que ela tenha `quantidade > 1`, então ela
+necessariamente tem uma peça só), e **a 10 vem primeiro** — a 11 diria *"diga
+quantas peças ela entrega"*, que é exatamente o que a recusa 6 proíbe numa
+sub-etapa: a dica mandaria a pessoa fazer uma coisa que o banco recusa na linha
+seguinte. *Medido com mutação: invertendo as duas, dois cenários caem e a
+mensagem mostra a 11 pegando no lugar da 10.*
+
+**E `podeTerDias()` é uma função só, lida pelos dois lados da tela** — os chips
+e o payload do Salvar. Duas cópias dariam a divergência mais cara possível
+aqui: a tela oferecendo os chips e a gravação limpando os dias, ou o contrário
+— dias gravados numa etapa que não os desenha, invisíveis até a aplicação
+nomear as peças por data. Quem baixa a quantidade para 1 **perde os dias no
+mesmo instante**, porque é o mesmo `podeTerDias()` que decide o que viaja.
+
+##### O NOME DA PEÇA É O DIA, e a data sai do calendário e não do número
+
+`nomeDoDisparo()` devolve **"Segunda, 01/12"** — o dia da semana por extenso
+mais dia e mês. É o pedido letra por letra (*"as tasks já tenham o nome como o
+dia que ela deve ser postada"*), e é também o que faz a série ser legível na
+ordem em que ela aparece: "E-mail 1" a "E-mail 20" numa lista ordenada por
+prazo não diz qual é a de quinta.
+
+**O dia e o mês saem de `slice` e não de `date-fns`**, que é a decisão de
+`emDiaMes()` nas Solicitações: a coluna é `date`, e `parseISO` a devolve à
+meia-noite LOCAL — num servidor em UTC, o 1º de dezembro que alguém escolheu
+sai como 30 de novembro para quem lê em São Paulo. **E o dia da semana é lido ao
+MEIO-DIA UTC**, pela mesma razão vista do outro lado: às zero hora, qualquer
+deslocamento de fuso ou de horário de verão troca o dia — e aqui trocar o dia
+troca o NOME da peça.
+
+**`diasDeDisparo()` ANDA DIA A DIA e não semana a semana.** A janela começa no
+prazo da etapa (ou no início da demanda, quando o modelo não tem offset) e
+caminha um dia por vez, guardando o que cai em dia marcado — então o primeiro
+disparo é o primeiro dia marcado **a partir** da data de início, e não a
+segunda-feira da semana dela. Semana a semana, abrir o mês numa quarta poria o
+primeiro e-mail na segunda anterior, que é uma data no passado.
+
+**O teto do laço é DERIVADO e não um número mágico:** `7 × quantas + 7` é
+*"sete dias para cada peça, mais uma semana de folga"*, que cobre com sobra até
+o pior caso de um dia marcado só. Ele existe porque uma lista de dias vazia
+faria o laço girar para sempre — e a lista vazia é alcançável, porque a coluna
+aceita `'{}'`.
+
+##### `etapas_resolvidas_do_workflow()` É A PONTE, e ela quase ficou
+
+Aquela RPC é a que a tela chama **sempre que há cliente** — ou seja, em toda
+aplicação de verdade, porque ela é quem resolve o responsável pelos padrões da
+conta (0064). É a mesma ponte que a 0140 escreveu, pelo mesmo motivo: sem a
+coluna no `returns table`, os dias existiriam na tabela, apareceriam no editor
+e **se perderiam na materialização** — as peças nasceriam "Nome 1".."Nome N",
+sem erro em lugar nenhum. *Medido: tirando a coluna de lá, três cenários caem
+com `column "dias_da_semana" does not exist`.*
+
+`drop function` antes do `create`, porque `create or replace` não troca a forma
+de um `returns table`; e `conferir_etapas_do_workflow()` foi **copiada
+inteira** e não remendada, que é a lição da 0030 — `create or replace` se
+reescreve a partir do texto de agora e não avisa quando o texto novo tem menos
+coisa que o velho.
+
+##### E A ACL DA RESOLUÇÃO NASCE ABERTA, o que foi MEDIDO
+
+O `revoke`/`grant` depois do `drop` é a lição da 0097, repetida pela 0108, pela
+0116 e pela 0140. O que esta migration acrescentou é a outra metade dela, e ela
+não estava escrita em lugar nenhum: **`revoke all from public` não alcança
+`anon`**.
+
+O Supabase deixa um `alter default privileges in schema public grant all on
+functions to anon, authenticated, service_role` ligado, então toda função
+recém-criada em `public` nasce executável pelos três. Medida a ACL depois de
+aplicar: **`anon=X` continuava lá**, e o `revoke from public` tinha funcionado
+(não havia entrada de PUBLIC). É a 0142 pela segunda vez, agora com o número.
+
+**NÃO ERA FURO, ERA INCONSISTÊNCIA, e a distinção é a da 0128:** a função não é
+`security definer`, e `workflow_steps_select` é `to authenticated using
+(is_staff())` desde a 0007 — `anon` não tem policy nenhuma naquela tabela e
+leria zero linha de qualquer forma. O `revoke` entra porque **esta migration é
+o momento em que a ACL é escrita**: um `drop`+`create` a reabriria de qualquer
+forma, e deixá-la aberta faria a ACL discordar do comentário ao lado dela.
+
+***E O `grant … to authenticated` MEDE ZERO, que é dito em vez de escondido:***
+tirando-o, nenhum cenário cai — o `alter default privileges` já deixa a função
+chamável. **O que ele compra é independência daquela configuração**: no dia em
+que alguém a apertar, a função continua chamável. Quem mede o par é o cenário
+de `anon`, que falha quando o `revoke` sai.
+
+**Medido com dez mutações**, sobre 2582 cenários: a recusa 10 fora derruba
+**2**, a recusa 11 fora derruba **3**, a dica dela fora derruba **1**, a coluna
+fora da resolução derruba **3**, o `revoke … from anon` fora derruba **1**, o
+`check` da coluna fora derruba **3**, o dedupe da função fora derruba **1**, a
+faixa de 0 a 6 fora derruba **2**, a ordem invertida derruba **2** — e o
+`grant` fora derruba **0**, pela razão do parágrafo acima.
+
+##### Duas coisas que só a imagem pegou
+
+**O nome da etapa saía truncado no diálogo da aplicação.** O `Label` do shadcn
+é `flex items-center`, então a segunda linha — a dos dias e das semanas —
+virou **item de flex lado a lado** com o nome, e o nome, que é o único com
+`truncate`, cedeu a largura: *"Escrever os e-..."*. É a terceira vez que esta
+casa paga a mesma frase — **o título é a única coisa que a linha existe para
+dizer, e é a última que pode encolher.**
+
+**E a frase do diálogo dizia *"tem uma etapa que entregam"***, porque a
+concordância vinha de um plural fixo. É o *"Carrossei 1"* que
+`SINGULAR_DO_TIPO` (0122) existe para evitar, agora na frase que a pessoa lê
+antes de confirmar o número. **Nenhuma das duas é tipo, cor ou árvore de
+acessibilidade**, então nenhuma das oito varreduras as alcança.
+
+***O que isto custa, e é dito em vez de escondido:*** uma peça chamada
+"Segunda, 01/12" não é achável pela busca da pauta (0147) escrevendo
+"e-mail" — e a mãe, que carrega o nome, fica fora daquela busca por ser
+agrupadora (`subtask_eh_agrupadora()`). O que recupera o caso é a outra metade
+da 0147: ela casa também com o título da DEMANDA, e a linhagem da linha
+(`Cliente · Demanda › E-mail marketing`) diz de que frente a peça é. Quem
+quiser o nome no título da peça escreve o nome da etapa no título da demanda,
+que é o que uma campanha de e-mail já faz.
+
+***E a bateria FOI rodada*** — 2582 cenários, todos passando —, com o arquivo
+`51_dias_de_disparo_no_workflow.sql` medindo as sete frentes: a inserção em um
+comando só, a ponte do PASSO 4 como três pessoas diferentes, o `check` nos três
+sentidos, as duas recusas novas, as quatro da 0140 que continuam de pé, e a
+policy de escrita.
+
 #### E A CAMPANHA MANDAVA O ID DA CADEIA ONDE O WORKFLOW É PEDIDO
 
 Relato do usuário: *"quando aplico um workflow aparece que o workflow não foi

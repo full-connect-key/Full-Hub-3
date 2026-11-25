@@ -3226,6 +3226,18 @@ export interface Database {
            * e no outro 80".
            */
           quantidade: number;
+          /**
+           * Em que dias da semana as peças desta etapa saem (migration 0152) —
+           * 0 (domingo) a 6 (sábado), a convenção de `date_part('dow')` e de
+           * `getUTCDay()`.
+           *
+           * Vazio (o default) é a etapa de sempre, com as peças numeradas. Com
+           * dia marcado, as MESMAS `quantidade` peças ganham uma data cada e o
+           * nome do dia — "Segunda, 01/12". **A quantidade não muda de
+           * significado:** ela continua sendo quantas peças, e os dias só
+           * decidem onde elas caem.
+           */
+          dias_da_semana: number[];
           created_at: string;
         };
         Insert: {
@@ -3242,6 +3254,7 @@ export interface Database {
           depende_de_ordem?: number | null;
           parent_ordem?: number | null;
           quantidade?: number;
+          dias_da_semana?: number[];
         };
         Update: {
           nome?: string;
@@ -3255,6 +3268,7 @@ export interface Database {
           depende_de_ordem?: number | null;
           parent_ordem?: number | null;
           quantidade?: number;
+          dias_da_semana?: number[];
         };
         Relationships: [];
       };
@@ -4531,6 +4545,23 @@ export interface Database {
            * e se perderia na hora de materializar.
            */
           quantidade: number;
+          /**
+           * Em que dias da semana as peças desta etapa saem (migration 0152) —
+           * 0 (domingo) a 6 (sábado).
+           *
+           * **ELA PRECISA ESTAR AQUI PELA MESMA RAZÃO DA `quantidade`:** é
+           * esta RPC que a tela chama quando há conta, e a leitura crua de
+           * `workflow_steps` só atende a pré-visualização. Sem a coluna aqui,
+           * os dias existiriam na tabela, apareceriam no editor, e **se
+           * perderiam na hora de materializar** — as peças nasceriam numeradas
+           * em vez de nomeadas pelo dia.
+           *
+           * E este bloco é mantido à MÃO: `check:tipos` liga coluna e
+           * parâmetro e **não confere a forma de um `returns table`
+           * recriado** — quem acrescentar uma coluna ao `returns table` da
+           * função acrescenta a linha aqui no mesmo commit.
+           */
+          dias_da_semana: number[];
         }[];
       };
       /**

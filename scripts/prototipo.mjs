@@ -591,6 +591,23 @@ const TELAS = [
   // que alcanca este workflow.
   { nome: "45d-workflow-pecas-ao-aplicar", rota: "/painel/gestao-tasks/7a000000-0000-0000-0000-000000000001", largura: 1600, altura: 1000, role: "socio",
     clicar: ['[aria-label="Workflow"]', '[role="option"]:has-text("Catálogo de produtos")'] },
+  // O EDITOR COM OS DIAS DE DISPARO (migration 0152): abre o workflow de
+  // e-mail marketing e fotografa os sete chips com quatro marcados, a frase
+  // derivada que diz quantas SEMANAS as pecas cobrem, e as duas outras etapas
+  // SEM o controle -- que e a metade que prova que ele nao aparece onde nao
+  // decide nada (etapa de uma peca so, e etapa com sub-etapa).
+  //
+  // A `45c` nao serve: o "Catalogo de produtos" multiplica e NAO tem dia
+  // marcado, entao a imagem dele sai com os chips todos apagados -- provaria
+  // que o controle existe e nao que ele guarda a escolha.
+  { nome: "45e-workflow-dias", rota: "/painel/gestao-tasks?aba=workflows", largura: 1440, altura: 1400, role: "socio",
+    clicar: 'button:has-text("E-mail marketing")' },
+  // E O DIALOGO COM OS DIAS, que e a outra metade: a linha de baixo de cada
+  // etapa que dispara por dia da semana diz quais sao e quantas semanas o
+  // numero digitado cobre. A `45d` nao serve, pela razao inversa da `45c`: o
+  // catalogo nao tem dia nenhum, entao aquela linha nao e desenhada lá.
+  { nome: "45f-workflow-dias-ao-aplicar", rota: "/painel/gestao-tasks/7a000000-0000-0000-0000-000000000001", largura: 1600, altura: 1000, role: "socio",
+    clicar: ['[aria-label="Workflow"]', '[role="option"]:has-text("E-mail marketing")'] },
   // O MES ABERTO PRECISA DO RECORTE NA URL, desde que a aba Posts saiu: sem
   // `mes` e `cliente` a secao Social desenha o INDICE, que e outra tela. O mes
   // e o corrente porque os posts de exemplo sao datados a partir do dia 1 de

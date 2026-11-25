@@ -1151,7 +1151,24 @@ from (
     ('0151', 'de onde veio cada feriado (PASSO 1)', 'coluna',
              'holidays.origem'),
     ('0151', 'os feriados se calculam (PASSO 5, o fim)', 'funcao',
-             'feriados_do_periodo')
+             'feriados_do_periodo'),
+
+    -- A 0152 TEM TRES LINHAS, pela regra da 0138: os quatro passos dela nao
+    -- dependem um do outro na HORA DE COLAR -- plpgsql nao valida o corpo na
+    -- criacao, entao os PASSOS 3 e 4 recriam as duas funcoes citando
+    -- `dias_da_semana` com ou sem o PASSO 2, e so estouram no clique de
+    -- alguem. Um marcador no fim do arquivo diria `ok` sobre um banco onde a
+    -- coluna nao existe, ou onde a conferencia do modelo nao ganhou as duas
+    -- recusas e o editor deixa salvar uma sub-etapa com dia marcado.
+    --
+    -- (O PASSO 1 e pre-requisito do 2 -- o check chama a funcao --, entao a
+    -- linha da coluna o cobre.)
+    ('0152', 'os dias da semana da etapa (PASSO 2)', 'coluna',
+             'workflow_steps.dias_da_semana'),
+    ('0152', 'as duas recusas dos dias (PASSO 3)', 'no_corpo',
+             'conferir_etapas_do_workflow|dias da semana marcados'),
+    ('0152', 'os dias chegam a materializacao (PASSO 4, o fim)', 'no_corpo',
+             'etapas_resolvidas_do_workflow|e.dias_da_semana')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

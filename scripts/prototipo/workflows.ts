@@ -40,6 +40,7 @@ const POST = "w0000000-0000-0000-0000-000000000001";
 const ENXOVAL = "t0108000-0000-4000-8000-000000000001";
 const LANDING = "w0000000-0000-0000-0000-000000000002";
 const CATALOGO = "t0140000-0000-4000-8000-000000000001";
+const EMAIL = "t0152000-0000-4000-8000-000000000001";
 
 const FLUXOS: FluxoDeExemplo[] = [
   {
@@ -128,6 +129,39 @@ const FLUXOS: FluxoDeExemplo[] = [
       etapa(CATALOGO, "e16", "Tratar as fotos", 3, "Design", 12, true, "cliente", null, null, 50),
     ],
   },
+  {
+    id: EMAIL,
+    nome: "E-mail marketing",
+    descricao:
+      "O caso que a 0152 existe para resolver: quatro disparos por semana, e cada peça se chama pelo dia em que sai.",
+    client_id: null,
+    ativo: true,
+    criado_por: null,
+    created_at: "2026-11-20T10:00:00.000Z",
+    cliente: null,
+    // UMA ETAPA COM DIAS E AS OUTRAS SEM, e nao as tres marcadas: com todas
+    // marcadas a imagem provaria que os chips aparecem e nao que a tela SABE
+    // nao desenha-los -- a razao do evento de cada par da legenda do
+    // calendario, e a mesma pela qual o catalogo e a unica entrada da lista
+    // com `multiplicam` preenchido.
+    //
+    // E OS DIAS SAO {1,2,4,5} -- segunda, terca, quinta e sexta --, que sao
+    // os "4 por semana" do pedido. Eles nao sao DATA: as datas saem de
+    // `diasDeDisparo(inicio, ...)` e andam com o dia em que a demanda abre,
+    // que e a licao dos meses da nota fiscal aplicada ao contrario -- aqui o
+    // que esta escrito e a configuracao, nunca o calendario.
+    etapas: [
+      etapa(EMAIL, "e17", "Pauta do mês", 1, "Social Media", 1, false, null, null),
+      // ELA NAO DEPENDE DE NADA e nada depende dela, pela razao escrita no
+      // catalogo: a etapa que multiplica vira agrupadora ao ser aplicada, e a
+      // 0140 recusa a dependencia nos dois sentidos -- `subtasks_agrupadora`
+      // (0022) recusaria na hora de materializar.
+      etapa(EMAIL, "e18", "Escrever os e-mails", 2, "Redator", 5, false, null, null, null, 20, [
+        1, 2, 4, 5,
+      ]),
+      etapa(EMAIL, "e19", "Subir na ferramenta", 3, "Social Media", 8, false, null, null),
+    ],
+  },
 ];
 
 function etapa(
@@ -142,6 +176,7 @@ function etapa(
   depende: number | null,
   pai?: number | null,
   quantidade?: number,
+  dias?: number[],
 ): TipoComFluxo["etapas"][number] {
   return {
     id,
@@ -162,6 +197,10 @@ function etapa(
     // duas etapas do catalogo a passam, e as treze outras continuam
     // entregando uma peca sem mudar de linha.
     quantidade: quantidade ?? 1,
+    // OS DIAS DE DISPARO (0152) entram com default pela mesma razao: so a
+    // etapa do e-mail marketing os passa, e a lista vazia e o caso comum --
+    // toda etapa que entrega pecas numeradas, sem calendario nenhum.
+    dias_da_semana: dias ?? [],
     created_at: "2026-09-01T10:00:00.000Z",
     responsavelPadrao: null,
   };
@@ -221,9 +260,28 @@ export const TIPOS: WorkflowDaAgencia[] = [
       nome: "Catálogo de produtos",
       etapas: 3,
       multiplicam: [
-        { ordem: 2, nome: "Fotografar", quantidade: 50 },
-        { ordem: 3, nome: "Tratar as fotos", quantidade: 50 },
+        { ordem: 2, nome: "Fotografar", quantidade: 50, dias: [] },
+        { ordem: 3, nome: "Tratar as fotos", quantidade: 50, dias: [] },
       ],
+    },
+  },
+  // O WORKFLOW QUE DISPARA POR DIA DA SEMANA (0152): e ele que faz o dialogo
+  // de pecas dizer quantas SEMANAS o numero cobre, e e a unica entrada da
+  // lista com `dias` preenchido -- pela razao do catalogo, um nivel acima.
+  {
+    id: "t0152000-0000-4000-8000-000000000011",
+    nome: "E-mail marketing",
+    descricao: "Quatro disparos por semana; cada peça se chama pelo dia em que sai.",
+    client_id: null,
+    workflow_template_id: EMAIL,
+    ativo: true,
+    created_at: "2026-11-20T10:00:00.000Z",
+    cliente: null,
+    workflow: {
+      id: EMAIL,
+      nome: "E-mail marketing",
+      etapas: 3,
+      multiplicam: [{ ordem: 2, nome: "Escrever os e-mails", quantidade: 20, dias: [1, 2, 4, 5] }],
     },
   },
   {
@@ -309,6 +367,11 @@ export async function etapasDoWorkflow(
       modelo.etapas.map(
         (etapa): EtapaComQuantidade => ({
           quantidade: pecasDaEtapa(etapa.ordem, etapa.quantidade, pecas),
+          // OS DIAS VEM DO MODELO (0152) e nunca do que a tela confirmou: a
+          // quantidade e confirmada na aplicacao porque o numero de pecas muda
+          // de mes para mes; em que dias os e-mails saem e o combinado da
+          // conta, e nao muda.
+          dias: etapa.dias_da_semana,
           titulo: etapa.nome,
           prazo:
             etapa.prazo_offset_dias === null
@@ -329,6 +392,11 @@ export async function etapasDoWorkflow(
               : (posicaoPorOrdem.get(etapa.depende_de_ordem) ?? null),
         }),
       ),
+      // A DATA DE INICIO atravessa porque e dela que saem os dias de disparo:
+      // o nome de cada peca e o dia em que ela cai, contado a partir daqui --
+      // nenhuma data literal no exemplo, que e a licao dos meses da nota
+      // fiscal.
+      dataInicio,
     ),
   };
 }

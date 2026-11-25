@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  rotuloDosDias,
   TETO_DE_PECAS,
   type EtapaQueMultiplica,
   type PecasPorEtapa,
@@ -101,23 +102,60 @@ export function DialogoDePecas({
         <DialogHeader>
           <DialogTitle>Quantas peças neste mês?</DialogTitle>
           <DialogDescription>
-            Este workflow tem {etapas.length === 1 ? "uma etapa" : `${etapas.length} etapas`} que
-            entregam mais de uma peça. O número do workflow é a sugestão — confirme o deste mês, e
-            cada peça nasce como uma sub-etapa.
+            {/* A CONCORDÂNCIA É ESCRITA À MÃO, e foi a imagem que pegou: com uma
+                etapa só a frase saía "uma etapa que entregam". É o "Carrossei 1"
+                que `SINGULAR_DO_TIPO` existe para evitar, na frase que a pessoa
+                lê antes de confirmar o número. */}
+            Este workflow tem{" "}
+            {etapas.length === 1
+              ? "uma etapa que entrega"
+              : `${etapas.length} etapas que entregam`}{" "}
+            mais de uma peça. O número do workflow é a sugestão — confirme o deste mês, e cada
+            peça nasce como uma sub-etapa. Onde há dias de disparo, cada uma se chama pelo dia em
+            que sai.
           </DialogDescription>
         </DialogHeader>
 
         <ul className="space-y-3">
           {etapas.map((etapa) => (
             <li key={etapa.ordem} className="flex items-center justify-between gap-3">
+              {/* `flex-col items-start`, e é conserto de uma linha que a
+                  imagem pegou: o `Label` do shadcn é `flex items-center`, então
+                  com a segunda linha dos dias os dois spans viraram itens de
+                  flex LADO A LADO — e o nome, que é o único com `truncate`,
+                  cedeu a largura: "Escrever os e-...". **O título é a única
+                  coisa que a linha existe para dizer, e é a última que pode
+                  encolher**, que é a lição que esta casa já pagou três vezes. */}
               <Label
                 htmlFor={`pecas-de-${etapa.ordem}`}
-                className="min-w-0 flex-1 text-sm font-normal"
+                className="min-w-0 flex-1 flex-col items-start gap-0 text-sm font-normal"
               >
                 {/* O NOME NÃO ENCOLHE ATÉ SUMIR: ele é a única coisa que
                     distingue uma linha da outra, e é a última que pode ceder
                     largura — a lição que esta casa já pagou três vezes. */}
                 <span className="block truncate">{etapa.nome}</span>
+                {/* A ETAPA QUE DISPARA POR DIA DA SEMANA DIZ ISSO AQUI
+                    (migration 0152), e é o que faz o número desta linha
+                    significar outra coisa: nela as peças não são N cópias
+                    numeradas, são N disparos — então quantas SEMANAS o número
+                    cobre é a pergunta de quem o digita.
+
+                    A conta é `peças ÷ dias`, a mesma do editor, e ela é
+                    DERIVADA nos dois lugares: uma coluna `semanas` ao lado de
+                    `quantidade` seriam duas respostas para quantas peças a
+                    etapa entrega. */}
+                {etapa.dias.length > 0 ? (
+                  <span className="text-text-muted mt-0.5 block text-xs">
+                    {rotuloDosDias(etapa.dias)} ·{" "}
+                    {(() => {
+                      const escrito = Number(numeros[etapa.ordem]);
+                      const quantas =
+                        Number.isFinite(escrito) && escrito >= 1 ? escrito : etapa.quantidade;
+                      const semanas = Math.ceil(quantas / etapa.dias.length);
+                      return `cerca de ${semanas} semana${semanas > 1 ? "s" : ""}`;
+                    })()}
+                  </span>
+                ) : null}
               </Label>
               <Input
                 id={`pecas-de-${etapa.ordem}`}

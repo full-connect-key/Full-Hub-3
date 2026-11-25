@@ -98,7 +98,7 @@ export async function listarWorkflows(clienteId?: string | null): Promise<Workfl
     idsDeWorkflows.length
       ? supabase
           .from("workflow_steps")
-          .select("template_id, ordem, nome, quantidade")
+          .select("template_id, ordem, nome, quantidade, dias_da_semana")
           .in("template_id", idsDeWorkflows)
           .order("ordem")
       : Promise.resolve({
@@ -108,6 +108,7 @@ export async function listarWorkflows(clienteId?: string | null): Promise<Workfl
             ordem: number;
             nome: string;
             quantidade: number;
+            dias_da_semana: number[];
           }[],
         }),
   ]);
@@ -131,6 +132,10 @@ export async function listarWorkflows(clienteId?: string | null): Promise<Workfl
         ordem: multiplica.ordem,
         nome: multiplica.nome,
         quantidade: multiplica.quantidade,
+        // OS DIAS VIAJAM COM A ETAPA porque é o diálogo que os LÊ: ele diz
+        // quantas semanas o número cobre, e sem eles diria "50 peças" sobre
+        // uma etapa que a tela acabou de datar por dia da semana.
+        dias: multiplica.dias_da_semana ?? [],
       });
       multiplicam.set(multiplica.template_id, lista);
     }
@@ -405,6 +410,13 @@ export async function etapasDoWorkflow(
      */
     etapas: expandirQuantidades(lista.map((etapa): EtapaComQuantidade => ({
       quantidade: etapa.quantidade,
+      /**
+       * OS DIAS DA SEMANA (0152), e eles vêm do MODELO e não do que a tela
+       * confirmou: a quantidade é confirmada na aplicação porque o número de
+       * peças muda de mês para mês; em que dias os e-mails saem é o combinado
+       * da conta, e não muda.
+       */
+      dias: etapa.dias_da_semana ?? [],
       titulo: etapa.nome,
       prazo:
         etapa.prazo_offset_dias !== null
@@ -427,7 +439,7 @@ export async function etapasDoWorkflow(
         etapa.parent_ordem !== null
           ? (posicaoPorOrdem.get(etapa.parent_ordem) ?? null)
           : null,
-    }))),
+    })), dataInicio),
   };
 }
 
@@ -445,6 +457,8 @@ type EtapaDoModelo = {
   parent_ordem: number | null;
   /** Quantas peças iguais esta etapa entrega (migration 0140). */
   quantidade: number;
+  /** Em que dias da semana elas saem (migration 0152), 0=domingo a 6=sábado. */
+  dias_da_semana: number[];
 };
 
 async function resolvidasPelaConta(
@@ -488,6 +502,7 @@ async function cruasDoModelo(templateId: string): Promise<EtapaDoModelo[]> {
     depende_de_ordem: etapa.depende_de_ordem,
     parent_ordem: etapa.parent_ordem,
     quantidade: etapa.quantidade,
+    dias_da_semana: etapa.dias_da_semana,
   }));
 }
 

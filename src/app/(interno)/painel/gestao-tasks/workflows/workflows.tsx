@@ -40,9 +40,15 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { FUNCOES } from "@/lib/dominio/equipe";
 import { PRIORIDADES, ROTULOS_DE_PRIORIDADE } from "@/lib/dominio/tasks";
-import { TETO_DE_PECAS } from "@/lib/dominio/workflows";
+import {
+  DIAS_DA_SEMANA,
+  diasOrdenados,
+  rotuloDosDias,
+  TETO_DE_PECAS,
+} from "@/lib/dominio/workflows";
 import type { TipoComFluxo } from "@/lib/dados/workflows";
 import type { TaskPrioridade, TeamFuncao } from "@/lib/supabase/database.types";
+import { cn } from "@/lib/utils";
 
 import {
   arquivarWorkflow,
@@ -82,6 +88,16 @@ type EtapaEmEdicao = {
    * React o devolve.
    */
   quantidade: string;
+  /**
+   * Em que dias da semana as peças saem (migration 0152), 0=domingo a 6=sábado.
+   *
+   * É NÚMERO E NÃO TEXTO, ao contrário da quantidade ao lado, e a razão é a
+   * mesma vista do outro lado: a quantidade é texto porque um campo numérico
+   * controlado não deixa a pessoa apagar o valor para digitar outro; aqui não
+   * há campo para apagar — o controle é um chip que liga e desliga, e o
+   * estado intermediário não existe.
+   */
+  dias: number[];
 };
 
 function novaChave() {
@@ -100,6 +116,7 @@ function etapaVazia(paiChave: string | null = null): EtapaEmEdicao {
     dependeDe: SEM_VALOR,
     paiChave,
     quantidade: "1",
+    dias: [],
   };
 }
 
@@ -223,6 +240,7 @@ export function Workflows({
             ? null
             : (chaves[tipo.etapas.findIndex((e) => e.ordem === etapa.parent_ordem)] ?? null),
         quantidade: String(etapa.quantidade),
+        dias: etapa.dias_da_semana ?? [],
       })),
     );
   }
@@ -333,6 +351,25 @@ export function Workflows({
     return etapas.some((e) => e.paiChave === chave);
   }
 
+  /**
+   * QUEM PODE TER DIAS DE DISPARO (migration 0152), e é UMA pergunta porque
+   * ela é feita em DOIS lugares: aqui para desenhar os chips, e no payload do
+   * Salvar para limpar o que ficou gravado quando a etapa deixa de poder
+   * tê-los. Duas cópias divergiriam, e a que divergiria é a do payload — que é
+   * justamente a que impede a recusa do banco de chegar na tela de quem já não
+   * vê o controle.
+   *
+   * As três condições são as três recusas de `conferir_etapas_do_workflow`:
+   * sub-etapa (os disparos precisariam de um quarto nível), etapa que já tem
+   * sub-etapas (as peças SERIAM as sub-etapas), e etapa de uma peça só (não há
+   * o que datar).
+   */
+  function podeTerDias(etapa: EtapaEmEdicao) {
+    return (
+      etapa.paiChave === null && !temFilha(etapa.chave) && Number(etapa.quantidade) > 1
+    );
+  }
+
   function salvar() {
     const validas = etapas.filter((e) => e.nome.trim().length > 0);
     const ordemPorChave = new Map(validas.map((e, indice) => [e.chave, indice + 1]));
@@ -362,6 +399,13 @@ export function Workflows({
             // (`quantidade between 1 and 200`), e quem apagou o campo para
             // digitar outro número não está dizendo "nenhuma peça".
             quantidade: Math.max(1, Number(etapa.quantidade) || 1),
+            // OS DIAS SÓ VÃO DE UMA ETAPA QUE OS PODE TER, e a limpeza é aqui
+            // e não no chip: o controle some quando a etapa ganha uma
+            // sub-etapa, ou quando a quantidade volta a 1 — e nos dois casos o
+            // rascunho continuaria carregando o que o banco recusa. A recusa
+            // chegaria como erro de constraint na tela de quem já não vê o
+            // controle para desmarcá-lo.
+            dias_da_semana: podeTerDias(etapa) ? etapa.dias : [],
           })),
         }),
       );
@@ -836,9 +880,102 @@ export function Workflows({
                           />
                           <span className="text-muted-foreground text-xs">
                             {Number(etapa.quantidade) > 1
-                              ? `peças: a etapa agrupa "${etapa.nome || "ela"} 1" até "${etapa.nome || "ela"} ${Number(etapa.quantidade)}", cada uma com este responsável, prazo e aprovação. Quem aplicar o workflow confirma o número.`
-                              : "peça. Mais de uma faz a etapa agrupar as peças como sub-etapas."}
+                              ? etapa.dias.length > 0
+                                ? `peças, uma por dia de disparo. Quem aplicar o workflow confirma o número.`
+                                : `peças: a etapa agrupa "${etapa.nome || "ela"} 1" até "${etapa.nome || "ela"} ${Number(etapa.quantidade)}", cada uma com este responsável, prazo e aprovação. Quem aplicar o workflow confirma o número.`
+                              : "peça. Mais de uma faz a etapa agrupar as peças como sub-etapas — e deixa escolher em que dias da semana elas saem."}
                           </span>
+                        </div>
+                      ) : null}
+
+                      {/* EM QUE DIAS AS PEÇAS SAEM (migration 0152).
+
+                          A CONDIÇÃO DA QUANTIDADE MAIS UMA TERCEIRA, e as
+                          três pelo mesmo motivo: na sub-etapa os disparos
+                          precisariam de um quarto nível, numa etapa que já tem
+                          sub-etapas as peças SERIAM as sub-etapas, e numa etapa
+                          de UMA peça não há o que datar. O banco recusa os três
+                          casos (`conferir_etapas_do_workflow`), então a tela
+                          não oferece o clique que ele nega.
+
+                          A TERCEIRA SÓ FICOU CLARA NA IMAGEM: com os sete chips
+                          desenhados numa etapa de uma peça só, clicar num deles
+                          levava a recusa do banco e nada na tela dizia isso
+                          antes. **O caminho não some em silêncio** — quem o
+                          anuncia é a frase do campo de quantidade logo acima,
+                          que passou a dizer que mais de uma peça deixa escolher
+                          os dias: um caminho que existe e não se anuncia é
+                          indistinguível de um caminho que não existe, que é a
+                          lição do "Inserir tabela 3×3".
+
+                          OS CHIPS SÃO ESCRITOS AQUI e não num componente
+                          compartilhado, porque há UM chamador: o diálogo de
+                          peças LÊ os dias e não os edita. Quando houver um
+                          segundo, ele vira `components/shared/`, que é a regra
+                          desta casa — e não antes, senão é a quarta cópia de
+                          `abas.tsx` ao contrário: um componente de um dono só,
+                          que ninguém relê. */}
+                      {podeTerDias(etapa) ? (
+                        <div className="space-y-1.5 pl-7">
+                          <div
+                            role="group"
+                            aria-label={`Dias de disparo de ${etapa.nome || "esta etapa"}`}
+                            className="flex flex-wrap items-center gap-1.5"
+                          >
+                            <span className="text-muted-foreground text-xs">Sai em</span>
+                            {DIAS_DA_SEMANA.map((dia) => {
+                              const marcado = etapa.dias.includes(dia.valor);
+                              return (
+                                <button
+                                  key={dia.valor}
+                                  type="button"
+                                  aria-pressed={marcado}
+                                  aria-label={dia.longo}
+                                  onClick={() =>
+                                    mudar(etapa.chave, {
+                                      // A LISTA SAI ORDENADA e nunca na ordem do
+                                      // clique, que é a decisão de
+                                      // `SeletorDeRedes`: é ela que o rótulo
+                                      // abaixo lê, e dois cliques em ordens
+                                      // diferentes escreveriam "Qui, Seg" para
+                                      // a mesma escolha.
+                                      dias: diasOrdenados(
+                                        marcado
+                                          ? etapa.dias.filter((d) => d !== dia.valor)
+                                          : [...etapa.dias, dia.valor],
+                                      ),
+                                    })
+                                  }
+                                  className={cn(
+                                    "border-input bg-card inline-flex min-h-8 items-center rounded-full border px-2.5 text-xs transition-colors",
+                                    marcado
+                                      ? "border-accent-strong bg-accent text-accent-foreground font-medium"
+                                      : "hover:bg-accent",
+                                  )}
+                                >
+                                  {dia.curto}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* A FRASE DIVIDE EM VEZ DE PEDIR AS SEMANAS, e é o
+                              que impede uma segunda coluna: quantas semanas o
+                              número cobre é `peças ÷ dias`, e o que dá para
+                              calcular não se guarda. Guardando as semanas,
+                              `quantidade` e `semanas × dias` seriam duas
+                              respostas para quantas peças a etapa entrega.
+
+                              ELA NÃO INVENTA UMA DATA no exemplo do nome: a
+                              data da primeira peça depende de quando a demanda
+                              abre, que esta tela não conhece — escrever
+                              "Segunda, 01/12" aqui seria a tela afirmando um
+                              dia que ela não tem como saber. */}
+                          {etapa.dias.length > 0 ? (
+                            <p className="text-text-muted text-xs">
+                              {`${Number(etapa.quantidade)} peças em ${rotuloDosDias(etapa.dias)} cobrem cerca de ${Math.ceil(Number(etapa.quantidade) / etapa.dias.length)} semana${Math.ceil(Number(etapa.quantidade) / etapa.dias.length) > 1 ? "s" : ""}, a contar do prazo desta etapa. Cada uma se chama pelo dia em que sai — o dia da semana e a data — em vez de numerada.`}
+                            </p>
+                          ) : null}
                         </div>
                       ) : null}
 
