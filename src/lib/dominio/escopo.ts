@@ -33,7 +33,7 @@
 
 import type { Database } from "@/lib/supabase/database.types";
 
-import { hojeNaAgencia } from "./datas";
+import { hojeNaAgencia, mesPorExtenso } from "./datas";
 
 export type ItemDoEscopo =
   Database["public"]["Tables"]["client_scope_items"]["Row"];
@@ -74,27 +74,17 @@ export function competenciaDeAgora(agora: Date = new Date()): string {
   return competenciaDe(hojeNaAgencia(agora));
 }
 
-/** "Novembro de 2026", a partir de uma competência. */
-const MESES = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-];
-
-export function rotuloDaCompetencia(competencia: string): string {
-  const [ano, mes] = competencia.split("-");
-  const nome = MESES[Number(mes) - 1];
-  return nome ? `${nome} de ${ano}` : competencia;
-}
+/**
+ * "Novembro de 2026", a partir de uma competência.
+ *
+ * **É `mesPorExtenso` com outro nome, e hoje é um ALIAS dela.** O array de
+ * meses tinha três cópias em três módulos de domínio, e esta e a de Notas
+ * Fiscais eram a mesma função letra por letra — o dono passou a ser
+ * `lib/dominio/datas.ts`. O nome local fica porque ele é o vocabulário DESTE
+ * módulo (a ficha e o portal falam de competência, não de mês), e é a forma
+ * de `--ferias` apontando para `--roxo`: um valor e dois nomes.
+ */
+export const rotuloDaCompetencia = mesPorExtenso;
 
 /**
  * Os doze meses que o seletor da ficha oferece, do corrente para trás.

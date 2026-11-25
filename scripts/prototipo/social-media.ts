@@ -679,6 +679,31 @@ const MESES_DE_SOCIAL: MesDeSocial[] = [
     fase: { titulo: "Layout", responsavel: "Bruno Lima" },
   },
   {
+    // O MES FECHADO SEM RELATORIO, e ele existe por causa do selo.
+    //
+    // A Optica Visao e a conta que o stub do relatorio deixa SEM relatorio de
+    // proposito -- e "Relatorio pendente" so aparece num mes que fechou e
+    // continua a vista, nem no mes em producao (o relatorio e preenchido no
+    // fim dele) nem no arquivado (ele ja saiu do caminho). Sem este mes o selo
+    // nao sairia em imagem nenhuma: a entrega nova so aparece ao lado do
+    // Outubro da Mundo Verde, que TEM relatorio e por isso nao desenha nada --
+    // e sao os dois juntos que provam que ele escolhe.
+    //
+    // O mes e anterior aos dois que o stub do relatorio conhece, e so fica
+    // mais velho: e isso que o mantem sem relatorio em qualquer dia do ano.
+    taskId: "mes-ov-09",
+    clienteId: OPTICA,
+    cliente: "Óptica Visão",
+    mes: "2026-09-01",
+    status: "concluido",
+    concluidaEm: "2026-09-30T12:00:00Z",
+    arquivadaEm: null,
+    pecas: 8,
+    aprovadas: 8,
+    esperandoCliente: 0,
+    fase: null,
+  },
+  {
     taskId: "mes-mz-10",
     // ELA FICA FORA DE `CLIENTES_EXEMPLO`, de propósito: é o terceiro estado
     // do ladrilho da conta — sem logo, iniciais. Os dois de cima apontam para

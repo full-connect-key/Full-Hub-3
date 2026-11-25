@@ -687,6 +687,14 @@ const TELAS = [
   { nome: "57b-social-indice", rota: "/painel/social-media", largura: 1440, altura: 1100, role: "socio" },
   { nome: "57c-social-indice-arquivados", rota: "/painel/social-media?aba=social&situacao=arquivados", largura: 1440, altura: 800, role: "socio" },
   { nome: "57d-social-indice-375", rota: "/painel/social-media", largura: 375, altura: 1400, role: "socio" },
+  // O SELO "Relatorio pendente", e a tela existe para o par.
+  //
+  // O recorte "Em producao" nao serve: o relatorio e preenchido no FIM do mes,
+  // entao ali o selo nunca aparece de proposito. Em "Concluidos" ficam os dois
+  // lado a lado -- o Outubro da Mundo Verde, que tem relatorio publicado e por
+  // isso nao desenha nada, e o Setembro da Optica Visao, que fechou sem ele.
+  // Com um so, a imagem provaria que o selo aparece e nao que ele ESCOLHE.
+  { nome: "57l-social-indice-concluidos", rota: "/painel/social-media?aba=social&situacao=concluidos", largura: 1440, altura: 900, role: "socio" },
   // E PARA O COLABORADOR, que e quem ganhou a barra: ate aqui ele alcancava uma
   // secao so e via o `PageHeader` no lugar dela. A imagem prova que ele tem
   // Posts e Meses, e NAO tem Fluxos.
@@ -711,6 +719,26 @@ const TELAS = [
   { nome: "57f-social-encerrar-o-mes", rota: `/painel/social-media?${MES_DO_SOCIAL}`, largura: 1440, altura: 1500, role: "socio" },
   { nome: "57g-social-encerrar-375", rota: `/painel/social-media?${MES_DO_SOCIAL}`, largura: 375, altura: 2000, role: "socio" },
   { nome: "57h-social-encerrar-colaborador", rota: `/painel/social-media?${MES_DO_SOCIAL}`, largura: 1440, altura: 1300, role: "colaborador-social" },
+  // O RELATORIO DO MES (0150), que e a terceira secao -- item 18 do pedido:
+  // *"podemos passar essa parte de social, para uma aba a parte de
+  // relatorios, para permitir que os dados sejam editados pela social"*.
+  //
+  // A ROTA LEVA `mes` E `cliente`, que e o que a barra de contexto NAO limpa
+  // ao sair para ca: sem os dois a tela abre nos seletores e o formulario nao
+  // sai em imagem nenhuma -- seria a foto de uma tela pedindo duas escolhas.
+  //
+  // E SAO AS DUAS REDES QUE O STUB DEVOLVE, nao as cinco que os posts do
+  // exemplo usam: cinco blocos de dez campos seriam cinquenta campos na foto,
+  // e a imagem provaria que a tela rola e nao que ela comeca pelas redes que o
+  // mes tem. O chip de acrescentar a terceira fica visivel ao lado.
+  { nome: "57i-social-relatorio", rota: `/painel/social-media?aba=relatorios&${MES_DO_SOCIAL}`, largura: 1440, altura: 2200, role: "socio" },
+  { nome: "57j-social-relatorio-375", rota: `/painel/social-media?aba=relatorios&${MES_DO_SOCIAL}`, largura: 375, altura: 3400, role: "socio" },
+  // E A COLABORADORA DO SOCIAL TEM A SECAO, que e a outra metade do item 18:
+  // *"editados pela social"* nomeia quem preenche, e a social media e
+  // `colaborador`. A `57e` prova que ela NAO tem Fluxos; esta prova que ela
+  // TEM Relatorios -- so a primeira passaria num filtro que escondesse as
+  // duas, e so esta passaria num que mostrasse as duas.
+  { nome: "57k-social-relatorio-colaborador", rota: `/painel/social-media?aba=relatorios&${MES_DO_SOCIAL}`, largura: 1440, altura: 2200, role: "colaborador-social" },
   { nome: "58-fluxos-de-social", rota: "/painel/social-media?aba=fluxos", largura: 1440, altura: 1000, role: "socio" },
   // O EDITOR, aberto. Ele abre com o molde da casa, e e a unica imagem em que
   // se ve o seletor de papel, o interruptor do portao e as duas pontas
@@ -1309,7 +1337,19 @@ const TELAS = [
   { nome: "15b-portal-itens", rota: "/portal/itens", largura: 1280, altura: 1300 },
   { nome: "15c-portal-itens-urgente", rota: "/portal/itens?prazo=urgente", largura: 1280, altura: 900 },
   { nome: "15d-portal-configuracoes", rota: "/portal/configuracoes", largura: 1280, altura: 1500 },
-  { nome: "16-portal-social-media", rota: "/portal/social-media", largura: 1360, altura: 1300 },
+  // O MES DO SOCIAL NO PORTAL, e e nele que o bloco de desempenho (0150)
+  // aparece: ele mora DENTRO do mes, depois do cabecalho do lote e antes dos
+  // filtros, porque *"o tempo todo"* (item 17) quer dizer ao lado do material
+  // -- uma aba propria poria outubro a dois cliques de outubro, com um seletor
+  // de mes ao lado de um seletor de mes.
+  //
+  // A ALTURA SUBIU POR CAUSA DELE: com a de antes a grade de pecas sairia
+  // cortada, e a entrega nova degradaria uma conferencia velha.
+  { nome: "16-portal-social-media", rota: "/portal/social-media", largura: 1360, altura: 1750 },
+  // E EM 375, porque a grade de metricas vai a uma coluna e o selo de ganho
+  // desce para a segunda linha do numero: a imagem e a unica coisa que diz se
+  // ele continua encostado no valor quando o resto quebra.
+  { nome: "16ab-portal-relatorio-375", rota: "/portal/social-media", largura: 375, altura: 2600 },
   { nome: "16d-portal-social-lista", rota: "/portal/social-media?visao=lista", largura: 1280, altura: 1200 },
   { nome: "16e-portal-post", rota: "/portal/social-media/p1", largura: 1280, altura: 2100 },
   { nome: "16f-portal-post-aprovado", rota: "/portal/social-media/p5", largura: 1280, altura: 1500 },
@@ -1650,6 +1690,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/posts": ["./scripts/prototipo/posts.ts"],
   "@/lib/dados/social-flows": ["./scripts/prototipo/social-flows.ts"],
   "@/lib/dados/social-media": ["./scripts/prototipo/social-media.ts"],
+  "@/lib/dados/relatorio-do-social": ["./scripts/prototipo/relatorio-do-social.ts"],
   "@/lib/dados/conteudo": ["./scripts/prototipo/conteudo.ts"],
   "@/lib/dados/campanhas": ["./scripts/prototipo/campanhas.ts"],
   "@/lib/dados/calendario": ["./scripts/prototipo/calendario.ts"],

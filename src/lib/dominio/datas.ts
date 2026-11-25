@@ -154,3 +154,64 @@ export function segundaDaSemana(data: string): string {
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
   return d.toISOString().slice(0, 10);
 }
+
+/**
+ * O VOCABULÁRIO DE MÊS, e ele passou a ter um dono.
+ *
+ * ---------------------------------------------------------------------------
+ * **ERAM TRÊS CÓPIAS DO MESMO ARRAY DE MESES**, em três módulos de domínio —
+ * `notas-fiscais.ts` (`mesPorExtenso`), `escopo.ts` (`rotuloDaCompetencia`) e
+ * `posts.ts` (dentro de `nomeDaPastaDoMes`) —, e as duas primeiras eram a
+ * MESMA FUNÇÃO com dois nomes: as duas recebem o `date` do Postgres e
+ * devolvem "Setembro de 2027". A quarta cópia seria a que divergiria, que é a
+ * história de `ICONE_DA_AREA` — ele tinha três cópias e duas já tinham
+ * divergido.
+ *
+ * **Os dois módulos REEXPORTAM, então nenhuma chamada mudou**, que é a
+ * decisão de `somarDias` e `segundaDaSemana` logo acima: `mesPorExtenso` tem
+ * oito chamadores em Notas Fiscais e no Financeiro, e trocar oito importações
+ * para mover uma linha de texto é churn sem nada em troca. O que se ganha é
+ * um lugar para olhar.
+ *
+ * **E O TEXTO É MONTADO DO TEXTO, nunca por `new Date(iso)`** — a razão está
+ * escrita na origem: aquilo interpreta a string como UTC e, em qualquer fuso
+ * a oeste, devolve o mês ANTERIOR. "Agosto" numa nota de setembro, que é a
+ * mesma família do contador de atrasadas que abre este arquivo.
+ *
+ * ***O que isto NÃO alcança, e é dito em vez de escondido:*** o array dentro
+ * de `nomeDaPastaDoMes` em `posts.ts` continua lá. Aquela função monta outra
+ * frase — `Social · Outubro de 2026`, sem barra, porque `/` é legal num nome
+ * de pasta do Drive —, então ela não é esta com outro nome; o que ela poderia
+ * reusar é o NOME do mês, e isso é uma passada própria.
+ * ---------------------------------------------------------------------------
+ */
+export const MESES_POR_EXTENSO = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+
+/** `2027-09-01` → "Setembro de 2027". Aceita `2027-09` também. */
+export function mesPorExtenso(competencia: string): string {
+  const [ano, mes] = competencia.split("-");
+  return `${MESES_POR_EXTENSO[Number(mes) - 1] ?? mes} de ${ano}`;
+}
+
+/** "2027-09" → o primeiro dia, que é como a competência é gravada. */
+export function competenciaDoMes(mes: string): string {
+  return `${mes}-01`;
+}
+
+/** "2027-09-01" → "2027-09". O inverso de `competenciaDoMes`. */
+export function mesDaCompetencia(competencia: string): string {
+  return competencia.slice(0, 7);
+}

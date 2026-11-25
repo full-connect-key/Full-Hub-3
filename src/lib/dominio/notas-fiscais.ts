@@ -1,5 +1,11 @@
 import type { NfStatus } from "@/lib/supabase/database.types";
 
+import {
+  competenciaDoMes,
+  mesDaCompetencia,
+  mesPorExtenso,
+} from "./datas";
+
 /**
  * O vocabulário da nota fiscal da pessoa (0065).
  *
@@ -39,26 +45,17 @@ export const EXPLICACAO_DE_NF: Record<NfStatus, string> = {
 };
 
 /**
- * A competência em "Setembro de 2027".
+ * A competência em "Setembro de 2027", e o par que converte mês ↔ dia 1.
  *
- * Recebe o `date` do Postgres (`2027-09-01`) e NÃO usa `new Date(iso)`: isso
- * interpreta a string como UTC e, em qualquer fuso a oeste, devolve o mês
- * anterior — "agosto" numa nota de setembro. O texto é montado do texto.
+ * **AS TRÊS SÃO REEXPORTAÇÃO e não definição**: o array de meses tinha três
+ * cópias em três módulos de domínio, e o dono passou a ser
+ * `lib/dominio/datas.ts`, que é quem responde às perguntas de data. Os oito
+ * chamadores daqui não mudaram — a decisão de `somarDias` e
+ * `segundaDaSemana`, que o mesmo arquivo reexporta para o calendário e para o
+ * resumo da semana. A razão de o texto ser montado do texto, e não com
+ * `new Date(iso)`, está escrita lá.
  */
-const MESES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
-
-export function mesPorExtenso(competencia: string): string {
-  const [ano, mes] = competencia.split("-");
-  return `${MESES[Number(mes) - 1] ?? mes} de ${ano}`;
-}
-
-/** "2027-09" → o primeiro dia, que é como a competência é gravada. */
-export function competenciaDoMes(mes: string): string {
-  return `${mes}-01`;
-}
+export { mesPorExtenso, competenciaDoMes, mesDaCompetencia };
 
 /**
  * O PRIMEIRO MÊS QUE A AGÊNCIA EMITE PELO FULL HUB.
@@ -246,10 +243,6 @@ export function diaEMes(iso: string): string {
   return `${dia}/${mes}`;
 }
 
-/** "2027-09-01" → "2027-09". O inverso de `competenciaDoMes`. */
-export function mesDaCompetencia(competencia: string): string {
-  return competencia.slice(0, 7);
-}
 
 /**
  * UMA RECUSADA CUJO MÊS JÁ TEM NOTA VIVA NÃO É PENDÊNCIA.

@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Archive, CalendarPlus, CalendarRange, CheckCircle2 } from "lucide-react";
+import {
+  Archive,
+  BarChart3,
+  CalendarPlus,
+  CalendarRange,
+  CheckCircle2,
+} from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -71,6 +77,7 @@ export function IndiceDoSocial({
   contaFixada,
   podeAbrirMes,
   logos,
+  relatorios,
 }: {
   meses: MesDeSocial[];
   situacao: SituacaoDoMes;
@@ -96,6 +103,27 @@ export function IndiceDoSocial({
    * `Map` não atravessa a serialização e chegaria vazio, sem erro nenhum.
    */
   logos: Record<string, string | null>;
+  /**
+   * OS MESES QUE JÁ TÊM RELATÓRIO PUBLICADO (0150), por `cliente|AAAA-MM`.
+   *
+   * ---------------------------------------------------------------------------
+   * **ELE EXISTE PARA COBRAR O MÊS FECHADO, e é a razão de o relatório não ser
+   * o campo que ninguém preenche** — que é o argumento da 0015 palavra por
+   * palavra: *"quem abre a demanda está com pressa, quem procura o material
+   * está semanas depois, e as duas pessoas raramente são a mesma"*. O
+   * relatório é preenchido no FIM do mês, e sem nada na porta do módulo
+   * dizendo qual mês fechou sem ele, ele é a entrega que todo mundo esquece.
+   *
+   * **É UM OBJETO E NÃO UM `Map`**, que é a fronteira servidor → cliente pela
+   * mesma razão dos logos: um `Map` não atravessa a serialização e chegaria
+   * vazio, sem erro nenhum.
+   *
+   * **E É UM BOOLEANO E NÃO A LINHA**, porque o que o cartão desenha é uma
+   * pendência e não um dado: o número, o comentário e quem publicou moram na
+   * aba de Relatórios, e mandá-los para cá seria payload que nenhuma tela lê.
+   * ---------------------------------------------------------------------------
+   */
+  relatorios: Record<string, boolean>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -253,7 +281,15 @@ export function IndiceDoSocial({
                 <ul className="grid grid-cols-[repeat(auto-fill,minmax(0,250px))] gap-2.5">
                   {naFaixa.map((m) => (
                     <li key={m.taskId}>
-                      <CartaoDoMes mes={m} clienteId={conta.clienteId} />
+                      <CartaoDoMes
+                        mes={m}
+                        clienteId={conta.clienteId}
+                        temRelatorio={
+                          relatorios[
+                            `${conta.clienteId}|${m.mes.slice(0, 7)}`
+                          ] === true
+                        }
+                      />
                     </li>
                   ))}
                 </ul>
@@ -294,9 +330,11 @@ export function IndiceDoSocial({
 function CartaoDoMes({
   mes,
   clienteId,
+  temRelatorio,
 }: {
   mes: MesNaArvore;
   clienteId: string;
+  temRelatorio: boolean;
 }) {
   const fracao = mes.pecas === 0 ? null : mes.aprovadas / mes.pecas;
 
@@ -361,6 +399,30 @@ function CartaoDoMes({
           <span className="truncate">{oQueEstaAcontecendo(mes)}</span>
         )}
       </span>
+
+      {/* O RELATÓRIO PENDENTE SÓ APARECE NO MÊS FECHADO, e a condição é o que
+          separa uma cobrança de um aviso em todo cartão.
+
+          **Um mês em produção legitimamente não tem relatório**: ele é
+          preenchido no fim, com os números que as redes só dão depois de as
+          peças irem ao ar — "Relatório pendente" ali seria a mesma frase em
+          quatro cartões de toda conta, que é o aviso que ninguém mais lê.
+          Pinta-se a exceção, que é a decisão da matriz do Day Off.
+
+          **E O PUBLICADO NÃO DESENHA NADA**, pela mesma regra: a ausência
+          desta linha é a resposta.
+
+          **E O ARQUIVADO TAMBÉM NÃO, que é a outra metade da mesma conta.**
+          Arquivar é tirar o mês da navegação — ele sai da lista depois de 90
+          dias e a tela diz isso por extenso —, então uma cobrança ali é uma
+          cobrança que ninguém vai atender: o mês já saiu do caminho de quem
+          trabalha. O que ela cobra é o mês que FECHOU e continua à vista. */}
+      {mes.concluido && !mes.arquivadaEm && !temRelatorio ? (
+        <span className="text-warning flex items-center gap-1.5 text-[11px] font-medium">
+          <BarChart3 aria-hidden className="size-3 shrink-0" />
+          Relatório pendente
+        </span>
+      ) : null}
     </Link>
   );
 }

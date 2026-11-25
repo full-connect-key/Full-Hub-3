@@ -16,7 +16,17 @@ import type {
  * os dois lados precisam não mora em `lib/dados/`, que é `server-only`.
  */
 
-export const PLATAFORMAS: PlataformaSocial[] = [
+/**
+ * As redes que o produto conhece.
+ *
+ * **É TUPLA E NÃO `PlataformaSocial[]`, que é a lição da 0109 palavra por
+ * palavra:** `z.enum` pede `readonly [string, ...string[]]`, e um array tipado
+ * não serve — foi essa a razão pela qual a lista dos tipos de evento vivia
+ * COPIADA à mão dentro da action, e a cópia ficou com sete valores no dia em
+ * que o enum do banco ganhou o oitavo. O `satisfies` é a trava: uma rede que
+ * não exista em `plataforma_social` não compila.
+ */
+export const PLATAFORMAS = [
   "instagram",
   "facebook",
   "linkedin",
@@ -24,7 +34,7 @@ export const PLATAFORMAS: PlataformaSocial[] = [
   "youtube",
   "twitter",
   "pinterest",
-];
+] as const satisfies readonly PlataformaSocial[];
 
 export const ROTULO_DA_PLATAFORMA: Record<PlataformaSocial, string> = {
   instagram: "Instagram",

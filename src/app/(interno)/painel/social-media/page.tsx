@@ -19,9 +19,19 @@ import {
   type SituacaoDoMes,
 } from "@/lib/dados/social-media";
 import { fluxosDeSocial } from "@/lib/dados/social-flows";
-import { AbasDoSocial } from "./abas";
+import {
+  estadoDosRelatorios,
+  redesDoMes,
+  relatorioDoMes,
+} from "@/lib/dados/relatorio-do-social";
+import {
+  mesesParaRelatar,
+  publicado,
+} from "@/lib/dominio/relatorio-do-social";
+import { AbasDoSocial, type AbaDoSocial } from "./abas";
 import { IndiceDoSocial } from "./indice-do-social";
 import { FluxosDeSocial } from "./fluxos-de-social";
+import { RelatorioDoSocialNaTela } from "./relatorio-do-social";
 
 import { driveConfigurado } from "@/lib/drive/config";
 import { SocialMedia } from "./social-media";
@@ -134,6 +144,83 @@ async function Fluxos() {
 }
 
 /**
+ * A ABA RELATÓRIOS (migration 0150), que é o item 18 do pedido.
+ *
+ * ---------------------------------------------------------------------------
+ * **ELA É DE `EQUIPE` E NÃO DA GESTÃO**, ao contrário de Fluxos, e a frase do
+ * usuário é que decide: *"para permitir que os dados sejam editados pela
+ * social"* — a social media é `colaborador`, e `exigirAcessoARota` é a MESMA
+ * guarda das outras duas seções. Quem recusa a escrita é
+ * `social_reports_write`, que é `is_staff()`: aqui não há nada que a RLS não
+ * resolva, e uma segunda pergunta de perfil seria a 0060.
+ *
+ * ---------------------------------------------------------------------------
+ * **A CONTA SE RESOLVE PELA LISTA, e nunca direto do `?cliente=`** — a
+ * doutrina do `?pessoa=` da pauta da equipe, palavra por palavra: é de lá que
+ * sai o nome do cabeçalho, e é ela que VALIDA o uuid, então um id colado na
+ * URL só vira consulta se for de uma conta ATIVA. Sem isso, `relatorioDoMes()`
+ * seria chamada com um uuid que a RLS devolve vazio, e a tela desenharia um
+ * formulário em branco com o nome da conta ausente.
+ *
+ * **E O MÊS SE RESOLVE PELO SELETOR, pela mesma razão.** `mesesParaRelatar()`
+ * oferece doze; um `?mes=` fora deles — digitado, ou herdado de um mês de
+ * social mais antigo que um ano — cai no corrente, em vez de abrir um
+ * formulário que o seletor ao lado afirma não existir. *O custo está dito:*
+ * quem vier de um mês de 2024 clicando em "Relatórios" chega em novembro, e o
+ * seletor diz qual mês está aberto.
+ * ---------------------------------------------------------------------------
+ */
+async function Relatorios({ parametros }: { parametros: Parametros }) {
+  await exigirAcessoARota("/painel/social-media");
+
+  const contas = (await listarClientes())
+    .filter((c) => c.ativo)
+    .map((c) => ({ id: c.id, nome_empresa: c.nome_empresa }));
+
+  const conta = contas.find((c) => c.id === texto(parametros, "cliente")) ?? null;
+
+  const meses = mesesParaRelatar();
+  const pedido = texto(parametros, "mes");
+  const mes = pedido && meses.includes(pedido) ? pedido : meses[0];
+
+  // SEM CONTA ESCOLHIDA NÃO HÁ CONSULTA NENHUMA, e não é só economia: as duas
+  // leituras recortam por `client_id`, então chamá-las com nulo seria pedir ao
+  // banco o relatório de ninguém. A tela desenha os dois seletores e a frase.
+  if (!conta) {
+    return (
+      <RelatorioDoSocialNaTela
+        contas={contas}
+        clienteId={null}
+        nomeDaConta={null}
+        mes={mes}
+        relatorio={null}
+        numeros={[]}
+        anteriores={[]}
+        redes={[]}
+      />
+    );
+  }
+
+  const [{ relatorio, numeros, anteriores }, redes] = await Promise.all([
+    relatorioDoMes(conta.id, mes),
+    redesDoMes(conta.id, mes),
+  ]);
+
+  return (
+    <RelatorioDoSocialNaTela
+      contas={contas}
+      clienteId={conta.id}
+      nomeDaConta={conta.nome_empresa}
+      mes={mes}
+      relatorio={relatorio}
+      numeros={numeros}
+      anteriores={anteriores}
+      redes={redes}
+    />
+  );
+}
+
+/**
  * O ÍNDICE DO SOCIAL: uma conta por cartão, com os meses dela dentro.
  *
  * **ELA É DE `EQUIPE` e não da gestão**, ao contrário de Fluxos: achar o mês
@@ -174,6 +261,18 @@ async function Indice({ parametros }: { parametros: Parametros }) {
     logosDasContas(),
   ]);
 
+  // O ESTADO DO RELATÓRIO DE CADA MÊS (0150), e ela vem DEPOIS e não dentro do
+  // `Promise.all`: os ids das contas saem da PRIMEIRA consulta, que é a mesma
+  // razão pela qual a leitura do escopo e a do relatório do portal também ficam
+  // de fora do bloco paralelo delas.
+  //
+  // **É UMA IDA E NÃO UMA POR MÊS**, que é o argumento escrito na função: a
+  // faixa desenha até quatro meses por conta, e uma consulta por cartão seriam
+  // dezenas de idas ao banco para desenhar dezenas de selos.
+  const estados = await estadoDosRelatorios(
+    meses.map((m) => m.clienteId),
+  );
+
   return (
     <IndiceDoSocial
       meses={meses}
@@ -181,6 +280,12 @@ async function Indice({ parametros }: { parametros: Parametros }) {
       contaFixada={conta}
       podeAbrirMes={podeAbrirMes}
       logos={Object.fromEntries(logos)}
+      // O QUE ATRAVESSA É UM BOOLEANO POR MÊS, e não a linha: `publicado()` é
+      // a mesma pergunta que a policy do cliente faz, e respondê-la aqui é o
+      // que impede a tela de ter uma segunda definição de "publicado".
+      relatorios={Object.fromEntries(
+        [...estados].map(([chave, linha]) => [chave, publicado(linha)]),
+      )}
     />
   );
 }
@@ -207,8 +312,13 @@ export default async function PaginaDeSocialMedia({
    * recusa é a policy de escrita. Recusar a rota inteira seria esconder dele a
    * corrente que ele percorre.
    */
-  const aba =
-    souGestor && texto(parametros, "aba") === "fluxos" ? "fluxos" : "social";
+  const pedida = texto(parametros, "aba");
+  const aba: AbaDoSocial =
+    pedida === "fluxos" && souGestor
+      ? "fluxos"
+      : pedida === "relatorios"
+        ? "relatorios"
+        : "social";
 
   /**
    * DENTRO DE SOCIAL HÁ DOIS ESTADOS, e quem os separa é `?mes=`.
@@ -302,6 +412,13 @@ export default async function PaginaDeSocialMedia({
       {aba === "fluxos" ? (
         <Suspense fallback={<LoadingSkeleton variant="table" rows={4} />}>
           <Fluxos />
+        </Suspense>
+      ) : aba === "relatorios" ? (
+        <Suspense
+          key={JSON.stringify(parametros)}
+          fallback={<LoadingSkeleton variant="table" rows={5} />}
+        >
+          <Relatorios parametros={parametros} />
         </Suspense>
       ) : mesAberto ? (
         <Suspense

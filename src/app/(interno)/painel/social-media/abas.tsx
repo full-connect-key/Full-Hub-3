@@ -1,13 +1,13 @@
 "use client";
 
-import { CalendarRange, Workflow } from "lucide-react";
+import { BarChart3, CalendarRange, Workflow } from "lucide-react";
 
 import { BarraDeContexto, type SecaoDoModulo } from "@/components/shared/barra-de-contexto";
 
-export type AbaDoSocial = "social" | "fluxos";
+export type AbaDoSocial = "social" | "fluxos" | "relatorios";
 
 /**
- * As DUAS seções de Social Media.
+ * As TRÊS seções de Social Media.
  *
  * ---------------------------------------------------------------------------
  * **A ABA POSTS SAIU, e "Meses" virou "Social"** — decisão do usuário: *"a aba
@@ -41,10 +41,30 @@ export type AbaDoSocial = "social" | "fluxos";
  * tem. **Fluxos continua sendo só da gestão**, pela separação da 0046 e da
  * 0068 — desenhar a corrente que toda conta percorre é configuração do
  * produto, e achar o mês em que se trabalha é o trabalho do dia.
+ *
+ * ---------------------------------------------------------------------------
+ * **E A TERCEIRA É "RELATÓRIOS", QUE É O ITEM 18 DO PEDIDO** — decisão do
+ * usuário: *"podemos passar essa parte de social, para uma aba a parte de
+ * relatórios, para permitir que os dados sejam editados pela social"*.
+ *
+ * **ELA É DE `EQUIPE` E NÃO DA GESTÃO, e a frase dele é que decide isso:**
+ * *"editados pela social"* nomeia quem preenche, e a social media é
+ * `colaborador`. Com `roles: GESTAO` — ou com o filtro que esconde Fluxos — o
+ * módulo esconderia o relatório exatamente de quem ele é para, que é o
+ * argumento que trouxe o Social Media inteiro para `EQUIPE` na 0042 e que a
+ * 0110 repetiu nas Solicitações: *perfil de acesso e função na agência são
+ * coisas diferentes*.
+ *
+ * **E ELA É UMA SEÇÃO E NÃO UMA TERCEIRA VISÃO do mês**, que é a decisão da
+ * pauta da equipe palavra por palavra: o seletor de visão troca o DESENHO do
+ * mesmo conteúdo — as mesmas peças em grade, em lista ou em calendário — e a
+ * barra navega entre ASSUNTOS. *O que foi produzido* e *como ele foi* são dois,
+ * com outra consulta e outra tabela.
  * ---------------------------------------------------------------------------
  */
 const SECOES: SecaoDoModulo<AbaDoSocial>[] = [
   { chave: "social", rotulo: "Social", Icone: CalendarRange },
+  { chave: "relatorios", rotulo: "Relatórios", Icone: BarChart3 },
   { chave: "fluxos", rotulo: "Fluxos", Icone: Workflow },
 ];
 
@@ -78,16 +98,28 @@ export function AbasDoSocial({
       // **E voltar para Social limpa `?mes=` também**, que é o que faz o
       // clique na própria seção ser o caminho de volta ao índice: sem isso,
       // quem está num mês aberto clicaria em "Social" e continuaria nele.
-      limparAoSair={() => [
-        "visao",
-        "mes",
-        "cliente",
-        "foco",
-        "post",
-        "situacao",
-        "contas",
-        "anos",
-      ]}
+      //
+      // **E RELATÓRIOS É A EXCEÇÃO: ele leva `cliente` e `mes` consigo.** Quem
+      // está olhando outubro da Mundo Verde e clica em "Relatórios" quer o
+      // relatório DAQUELE mês — não um seletor vazio para escolher de novo a
+      // conta e o mês que a tela ao lado já sabia. É a decisão da porta das
+      // áreas de Minhas Tasks: o endereço é o da linha, e não o do índice do
+      // módulo. O caminho de volta continua limpando os dois, porque ali a
+      // pergunta é outra — qual conta tem mês aberto.
+      limparAoSair={(destino) =>
+        destino === "relatorios"
+          ? ["visao", "foco", "post", "situacao", "contas", "anos"]
+          : [
+              "visao",
+              "mes",
+              "cliente",
+              "foco",
+              "post",
+              "situacao",
+              "contas",
+              "anos",
+            ]
+      }
     />
   );
 }

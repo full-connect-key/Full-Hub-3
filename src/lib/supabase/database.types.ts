@@ -246,6 +246,36 @@ export type PlataformaSocial =
   | "pinterest";
 
 /**
+ * O que se mede do social de um mês (`metrica_social`, 0150).
+ *
+ * **É ENUM E NÃO TEXTO LIVRE**, pela razão de `deliverables.tipo` (0122) e de
+ * `posts.midia` (0042): é a dimensão por onde a tela agrupa e compara, e com
+ * texto livre "Curtidas" e "curtidas" viram duas linhas do mesmo número — o
+ * total sai plausível e errado, que é o modo de falha desta casa.
+ *
+ * **E `seguidores` é o único ESTOQUE da lista.** Os outros nove são FLUXO: o
+ * alcance de outubro é o alcance de outubro, e somá-lo com o de setembro dá a
+ * soma de dois meses. Seguidor não — ele é o total daquele instante, então o
+ * que informa é a diferença e nunca a soma. A distinção mora em
+ * `lib/dominio/relatorio-do-social.ts`, porque ela decide o DESENHO; uma
+ * coluna `eh_estoque` aqui seria a segunda verdade sobre o mesmo fato.
+ */
+export type MetricaSocial =
+  | "alcance"
+  | "impressoes"
+  | "visualizacoes"
+  | "curtidas"
+  | "comentarios"
+  | "compartilhamentos"
+  | "salvamentos"
+  | "cliques"
+  | "visitas_perfil"
+  | "seguidores";
+
+/** De onde veio o número: digitado pela social media, ou puxado da rede. */
+export type FonteDaMetrica = "manual" | "integracao";
+
+/**
  * O papel de um elo da corrente do social (`social_flow_papel`, 0087).
  *
  * **ELE EXISTE PARA O PRODUTO PARAR DE PERGUNTAR PELO NOME.** Até a 0087 a
@@ -4204,6 +4234,105 @@ export interface Database {
         };
         Relationships: [];
       };
+      /**
+       * O relatorio de desempenho do social de UM mes de UMA conta (0150).
+       *
+       * **`publicado_em` E O PORTAO**, e e por ele que a policy do cliente
+       * pergunta: o relatorio nasce rascunho, a social media digita os
+       * numeros ao longo do mes, e o cliente so le depois que alguem decidiu
+       * que esta pronto. Sem ele, um alcance digitado pela metade chegaria ao
+       * portal no instante do `upsert`.
+       *
+       * **E `publicado_por` e carimbado por gatilho**, nunca digitado: policy
+       * nao limita coluna, e sem o carimbo um PATCH diria que outra pessoa
+       * publicou.
+       */
+      social_reports: {
+        Row: {
+          id: string;
+          client_id: string;
+          /** Sempre o dia 1, carimbado por gatilho. */
+          competencia: string;
+          /** A leitura do mes, escrita pela social media. O cliente le. */
+          comentario: string | null;
+          publicado_em: string | null;
+          publicado_por: string | null;
+          criado_por: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          competencia: string;
+          comentario?: string | null;
+          publicado_em?: string | null;
+          publicado_por?: string | null;
+          criado_por?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          competencia?: string;
+          comentario?: string | null;
+          publicado_em?: string | null;
+          publicado_por?: string | null;
+          criado_por?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /**
+       * Um numero de um relatorio: uma metrica, numa rede, naquele mes (0150).
+       *
+       * **O `unique (report_id, plataforma, metrica)` e o que faz a tela poder
+       * ser um `upsert`**: redigitar o alcance do Instagram corrige o numero,
+       * nunca acrescenta uma segunda linha — o erro que uma tabela de
+       * lancamento solto comete e que ninguem ve, porque o total continua
+       * somando.
+       *
+       * **`fonte` nasce com a tabela e hoje vale sempre `manual`.** Ela e a
+       * unica parte da integracao automatica que esta aqui desde o comeco: no
+       * dia em que o token da Meta existir, o que ele escreve entra por esta
+       * mesma tabela, e a tela precisa poder dizer qual numero foi digitado e
+       * qual foi puxado.
+       */
+      social_report_metrics: {
+        Row: {
+          id: string;
+          report_id: string;
+          plataforma: PlataformaSocial;
+          metrica: MetricaSocial;
+          valor: number;
+          fonte: FonteDaMetrica;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          report_id: string;
+          plataforma: PlataformaSocial;
+          metrica: MetricaSocial;
+          valor: number;
+          fonte?: FonteDaMetrica;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          report_id?: string;
+          plataforma?: PlataformaSocial;
+          metrica?: MetricaSocial;
+          valor?: number;
+          fonte?: FonteDaMetrica;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       // As quatro perguntas derivadas do Academy (0096). Nenhuma escreve: o
@@ -5521,6 +5650,7 @@ export interface Database {
       rec_categoria: RecCategoria;
       status_rodada: StatusRodada;
       plataforma_social: PlataformaSocial;
+      metrica_social: MetricaSocial;
       campaign_status: CampaignStatus;
       deliverable_tipo: DeliverableTipo;
       notification_tipo: NotificationTipo;

@@ -1091,7 +1091,37 @@ from (
     -- das policies -- que e o pior lugar para morrer, porque tabela de pe sem
     -- RLS e tabela legivel por quem tiver a chave anon.
     ('0149', 'o escopo do contrato (PASSO 4, o fim)', 'trigger',
-             'auditoria_client_scope_usage')
+             'auditoria_client_scope_usage'),
+
+    -- 0150 - O RELATORIO DO SOCIAL
+    --
+    -- SAO TRES LINHAS PARA TRES PASSOS INDEPENDENTES, pela regra que a 0138
+    -- escreveu: o marcador do fim responde se a colagem chegou ao FIM e e cego
+    -- para a que SALTA um passo. Os PASSOS 1 a 3 sao pre-requisito um do
+    -- outro -- o enum, o relatorio, o numero -- e o marcador do fim os cobre;
+    -- o 4, o 5 e o 6 nao dependem um do outro, e cada falta tem uma cara
+    -- propria:
+    --
+    --   sem o 4 a competencia nao e carimbada no dia 1, e `unique (client_id,
+    --   competencia)` deixa de significar UM relatorio por mes -- outubro
+    --   passa a caber duas vezes, e a tela desenha um dos dois sem dizer qual;
+    --
+    --   sem o 5 as duas tabelas ficam DE PE E SEM RLS, que e o pior lugar de
+    --   todos para morrer: tabela sem RLS e tabela legivel por quem tiver a
+    --   chave anon, e o numero de toda conta sai de uma vez;
+    --
+    --   sem o 6 o relatorio fica fora da trilha de auditoria, e quem trocar um
+    --   alcance de doze mil para dezoito mil nao deixa rastro.
+    --
+    -- E A LINHA DO PASSO 5 CONFERE O CORPO e nao a existencia: o que faz o
+    -- rascunho nao chegar ao cliente e o `publicado_em` dentro do `using`, e
+    -- uma policy recriada sem ele continuaria existindo com o nome certo.
+    ('0150', 'o relatorio do social (PASSO 4, o carimbo)', 'trigger',
+             'social_reports_carimba'),
+    ('0150', 'o rascunho nao chega ao cliente (PASSO 5, a RLS)', 'policy',
+             'social_reports|social_reports_select|publicado_em'),
+    ('0150', 'o relatorio do social (PASSO 6, o fim)', 'trigger',
+             'auditoria_social_report_metrics')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
