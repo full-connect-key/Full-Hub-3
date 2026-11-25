@@ -9,6 +9,7 @@ import type { Client } from "@/lib/supabase/database.types";
 
 import { FormularioDeCliente } from "../formulario-de-cliente";
 import { ConfiguracoesDoFluxo, type PessoaDaEquipe } from "./configuracoes-do-fluxo";
+import { EscopoDoContrato } from "./escopo-do-contrato";
 import { VertentesDaConta } from "./vertentes";
 import { UsuariosDoCliente, type UsuarioComAcesso } from "./usuarios";
 import { ZonaDePerigoDoCliente } from "./zona-de-perigo";
@@ -31,6 +32,7 @@ export function DetalheDoCliente({
   ehSocio,
   ehGestor,
   vertentes,
+  escopo,
   fluxo,
 }: {
   cliente: Client;
@@ -42,6 +44,11 @@ export function DetalheDoCliente({
   ehGestor: boolean;
   /** As vertentes da conta (migration 0118), para a aba delas. */
   vertentes: React.ComponentProps<typeof VertentesDaConta>["vertentes"];
+  /** O escopo do contrato mensal (migration 0149), para a aba dele. */
+  escopo: Omit<
+    React.ComponentProps<typeof EscopoDoContrato>,
+    "clienteId" | "nomeDaEmpresa"
+  >;
   /** O que a aba Configurações do fluxo desenha (migration 0064). */
   fluxo: Omit<
     React.ComponentProps<typeof ConfiguracoesDoFluxo>,
@@ -57,6 +64,10 @@ export function DetalheDoCliente({
             estrutura da conta — o que a demanda, a Biblioteca e o relatório
             vão usar —, e o fluxo é quem aprova o quê dentro dela. */}
         <TabsTrigger value="vertentes">Vertentes</TabsTrigger>
+        {/* O ESCOPO É ABA PRÓPRIA e não um bloco da de fluxo, pela razão
+            escrita em `escopo-do-contrato.tsx`: aquela responde quem aprova o
+            quê, e esta responde o que foi contratado. */}
+        <TabsTrigger value="escopo">Escopo do contrato</TabsTrigger>
         <TabsTrigger value="fluxo">Configurações do fluxo</TabsTrigger>
         <TabsTrigger value="atividade">Atividade</TabsTrigger>
       </TabsList>
@@ -120,6 +131,14 @@ export function DetalheDoCliente({
           clienteId={cliente.id}
           nomeDaEmpresa={cliente.nome_empresa}
           vertentes={vertentes}
+        />
+      </TabsContent>
+
+      <TabsContent value="escopo">
+        <EscopoDoContrato
+          clienteId={cliente.id}
+          nomeDaEmpresa={cliente.nome_empresa}
+          {...escopo}
         />
       </TabsContent>
 

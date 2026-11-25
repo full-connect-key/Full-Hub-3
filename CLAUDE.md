@@ -11322,6 +11322,164 @@ responder FALTA em vez de `ok`. **E não há ordenação por arrasto:** `ordem` 
 coluna desde o primeiro dia e a pasta nova entra no fim, mas a tela não a
 edita — quem quiser outra ordem renomeia, e o arrasto é decisão própria.
 
+#### O ESCOPO DO CONTRATO, E QUANTO JÁ FOI USADO (0149)
+
+Decisão do usuário: *"No portal do cliente, deve aparecer um espaço onde
+mostra quantos % do escopo do contrato mensal, o cliente já usou. essas
+quantidades devem ser preenchidas pela agência na parte interna, onde
+visualiza a conta cliente a cliente. assim, o cliente vai saber quantos posts
+ele ainda tem direito, e outras informações em aberto"*.
+
+**A FRASE DELE JÁ DECIDE A METADE QUE MAIS PESA — *"preenchidas pela
+agência"* —, e a medição confirma por quê.** A leitura óbvia é DERIVAR o
+usado: contar os posts do mês, as peças da campanha, os entregáveis. **Medido
+contra o Postgres de produção: 21 contas ativas, 3 posts, 0 entregáveis, 0
+meses de social abertos, 0 campanhas.** Um "usado" contado leria **0% em toda
+conta, todo mês**, e o bloco que existe para dizer o que sobra diria que nada
+foi feito.
+
+**E CONTAR EXIGIRIA UM DE-PARA QUE O PRODUTO RECUSA EM TRÊS LUGARES.** "Posts
+no feed" não é uma coluna: a mídia é `posts.midia` (enum, 0042), o formato é
+`posts.formato` (texto livre desde a 0032, *"esses nomes mudam a cada
+temporada de produto das plataformas"*), e o material de campanha é
+`deliverables.tipo` (0122). Os três são vocabulários **deliberadamente
+separados**, e amarrá-los a um item de contrato seria o produto decidindo o
+que a agência pode cobrar — que é exatamente a decisão que o contrato toma
+fora daqui.
+
+Então o contratado **e** o usado são digitados, e o que é derivado é a conta
+entre os dois: a porcentagem, quanto sobra e a cor.
+
+##### SÃO DUAS TABELAS, e a razão é a 0015
+
+`client_scope_items` é o contrato — uma linha por item, por conta, digitada
+UMA vez. `client_scope_usage` é o consumo — uma linha por item por mês.
+
+Uma tabela só, com a competência na chave, obrigaria a **redigitar o contrato
+inteiro todo mês**: 21 contas × uma dúzia de itens são ~252 linhas por mês
+para dizer de novo o que já estava combinado. É o campo que ninguém preenche
+da 0015, com o custo multiplicado por doze.
+
+##### O `usado` PODE PASSAR DO CONTRATADO, e é o ponto
+
+O `check` é `usado >= 0` e **não há teto**. Um teto esconderia justamente o
+mês em que a conta estourou o contrato — que é a conversa que este bloco
+existe para abrir, e o caso que a agência cobra. A barra para em 100% porque
+uma barra mais larga que a caixa estoura a linha; o texto ao lado diz
+*"2 além do contratado neste mês"*, e a observação do mês explica.
+
+**E `observacao` é lida pelo CLIENTE**, o que fica escrito no rótulo do campo
+(*"o cliente lê"*): ela é onde *"2 impulsionamentos extras aprovados por
+e-mail no dia 12"* mora. Sem ela, um número acima do contratado chega sem
+explicação na tela de quem vai receber a cobrança.
+
+##### NÃO HÁ DELETE, nas duas
+
+O item que saiu do contrato se **desativa** — a regra de `client_vertentes`
+(0118) e de `skills.ativa`. Apagar levaria junto o consumo já lançado, que é o
+registro do que aconteceu naqueles meses; e o desativado continua na ficha,
+porque é lá que se reativa um. **No portal ele não aparece:**
+`escopoParaOCliente()` filtra o inativo, e o que ele vê é o contrato de hoje.
+
+**E o item desativado não recebe lançamento novo**, que é a ausência pelo
+avesso da ponte construída e nunca atravessada: ele saiu do portal, então o
+número lançado ali seria um número que ninguém lê. O que já foi lançado
+continua na linha, porque desativar não apaga nada.
+
+##### `competencia` É CARIMBADA NO DIA 1, por gatilho
+
+A forma de `finance_entries.competencia` (0013): guardar `2026-11-17` faria
+"novembro" depender de qual dia alguém digitou, e `(item_id, competencia)`
+deixaria de ser único por mês. O índice de unicidade do ITEM é **parcial** e
+por `lower(btrim(descricao))` onde `ativo` — a forma de `client_folders`
+(0139): "Posts" e "posts " são o mesmo item, e o desativado não impede
+cadastrar de novo com o mesmo nome.
+
+##### `nivelDoEscopo()` NÃO É `nivelDaCarga()`, e os limiares são outros
+
+Os dois pintam quatro degraus com o MESMO par de cor medido, e a pergunta é
+diferente: `nivelDaCarga()` tem um degrau `vazio` que quer dizer **ausência de
+trabalho**, e aqui zero usado é o começo bom de todo mês — não é exceção
+nenhuma. Reaproveitar a função poria âmbar em quem ainda não começou.
+
+São três: até 80% em `--success`, acima em `--warning`, e acima de 100 em
+`--danger`. **E a cor nunca é o único sinal**: o número vem antes da
+porcentagem, e o `aria-label` da barra carrega a frase inteira
+(`fraseDoItem()`), porque quem usa leitor de tela não tem o verde nem o âmbar.
+
+##### A LEITURA É UMA CONSULTA COMUM, nunca `security definer`
+
+`client_scope_items_select` e `client_scope_usage_select` são
+`is_staff() or client_id in my_client_ids()` — a RLS **já permite**, então uma
+função `definer` não destravaria nada e entregaria o contrato de qualquer
+conta a quem tiver a chave anon. É a forma de `busca_global()` (0073) e de
+`vertentesDoCliente()` (0118).
+
+**E são DUAS idas e não um embed**, pela razão escrita em `lib/dados/clientes.ts`:
+o embed do PostgREST depende do nome exato da constraint e recusa o `select`
+INTEIRO quando não o acha — foi assim que uma campanha recém-criada não
+apareceu em lugar nenhum.
+
+**A competência é PARÂMETRO da leitura e não `now()` dentro dela**, porque a
+ficha troca de mês: quem lança o consumo de outubro no dia 3 de novembro
+precisa de outubro, e uma função que lê o relógio não teria como ouvir.
+
+##### Na ficha: uma aba própria, e o mês se troca SEM navegar
+
+É aba e não um bloco dentro de "Dados", que é a decisão de `vertentes.tsx`:
+são duas coisas na mesma tela — o que foi contratado (digitado uma vez) e o
+que foi usado (digitado todo mês) —, e empilhá-las embaixo do contato faria a
+ficha pedir rolagem para chegar ao que se mexe mensalmente.
+
+**O MÊS É ESTADO LOCAL E A RELEITURA É UMA ACTION**, e isso é mecânico: as
+abas da ficha são `Tabs defaultValue`, sem estado na URL — uma navegação para
+trocar o mês devolveria a pessoa para a aba Dados. `buscarEscopoDoMes()` é
+leitura numa Server Action, que tem precedente em `buscarDisponibilidade` e em
+`buscarPreviaDoLink`.
+
+**E o estado é DERIVADO, nunca sincronizado por efeito:** a primeira versão
+tinha `setLinhas(linhasIniciais)` dentro de um `useEffect` — exatamente o que o
+`react-hooks/set-state-in-effect` do projeto reprova, e o que a faixa de
+disponibilidade já tinha pago. O que a tela guarda é `{mes, linhas}` da última
+leitura, toda escrita relê, e **os controles ficam inertes enquanto uma
+leitura de mês está em voo**: sem isso daria para salvar o número de um mês
+sob a competência de outro, porque os campos são `key`ados pelo mês.
+
+**A `key` dos campos leva o mês**, e é a mesma mecânica: `defaultValue` é lido
+na montagem, então sem ela trocar de mês deixaria na tela o número do mês
+anterior.
+
+##### No portal: o NÚMERO antes da porcentagem, e o bloco SOME
+
+Ele pediu a porcentagem, e o que decide alguma coisa é *"7 de 12"* e *"5 em
+aberto"* — 58% é a leitura de relance. Por isso o número vem primeiro, em tom
+normal, e a porcentagem depois, em `--text-muted`.
+
+**E O BLOCO NÃO É DESENHADO quando a conta não tem item nenhum**, que é o
+estado das 21 contas ativas de hoje: uma caixa dizendo "nenhum escopo
+cadastrado" apareceria em todo portal, todo dia, para informar em alguns. É a
+regra dos blocos de exceção do Início.
+
+**O nome da empresa só aparece com DUAS**, que é `empresaUnicaDoAcervo()`
+palavra por palavra: quem responde por uma conta não precisa que a tela diga
+qual é.
+
+**E A VISUALIZAÇÃO ADMINISTRATIVA PASSA `[clienteId]`, nunca
+`obterMinhasEmpresas()`** — aquela função devolve **todas** as contas ativas
+para `is_staff()` (0002), então a tela da gestão mostraria o contrato das 21
+empresas dentro do portal de uma. É o mesmo cuidado que `identidadeDoPortal()`
+já tinha.
+
+***O que NÃO foi feito, e é dito em vez de escondido:*** **a migration não foi
+aplicada e a bateria não foi rodada contra ela** — o `apply_migration` do
+Supabase ficou sem resposta no limite de tempo, e a 0149 está escrita e
+pendente de colagem. A linha do `onde-esta-o-banco.sql` aponta para o gatilho
+de auditoria de `client_scope_usage`, que é a última coisa que o arquivo cria.
+E **não há histórico de contrato**: trocar a quantidade de um item muda a
+porcentagem de TODO mês, inclusive os fechados — a tela escreve isso ao lado
+do campo e manda criar um item novo quando o contrato foi renegociado, que é
+a decisão de quem usa e não uma coluna a mais.
+
 #### Preferências e registro
 
 `client_notification_prefs` fecha em `user_id = auth.uid()` nas quatro

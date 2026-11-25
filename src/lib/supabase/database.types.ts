@@ -854,6 +854,93 @@ export interface Database {
         };
         Relationships: [];
       };
+      /**
+       * O escopo do contrato MENSAL de uma conta (migration 0149).
+       *
+       * Uma linha por item do que foi contratado — "Posts no feed", 12. Ela e
+       * digitada UMA VEZ por conta, e nao se apaga: desativa-se, senao o
+       * consumo de todo mes que aponta para o item vai junto.
+       */
+      client_scope_items: {
+        Row: {
+          id: string;
+          client_id: string;
+          descricao: string;
+          quantidade: number;
+          /** Opcional: "horas", "GB". Nulo quer dizer que a descricao e a unidade. */
+          unidade: string | null;
+          /** Passo de dez, para inserir no meio sem renumerar o resto. */
+          ordem: number;
+          ativo: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          descricao: string;
+          quantidade: number;
+          unidade?: string | null;
+          ordem?: number;
+          ativo?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          descricao?: string;
+          quantidade?: number;
+          unidade?: string | null;
+          ordem?: number;
+          ativo?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /**
+       * Quanto de um item do escopo a conta usou em UM mes (migration 0149).
+       *
+       * **`usado` PODE passar de `quantidade`**, e o `check` so cobra que ele
+       * nao seja negativo: um teto aqui esconderia o mes em que o cliente
+       * pediu mais do que contratou, que e a conversa que o bloco do portal
+       * existe para abrir.
+       *
+       * **`competencia` e sempre o dia 1**, carimbada por gatilho — a forma de
+       * `finance_entries.competencia` (0013): sem isso "novembro" depende de
+       * qual dia alguem digitou.
+       */
+      client_scope_usage: {
+        Row: {
+          id: string;
+          item_id: string;
+          competencia: string;
+          usado: number;
+          observacao: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          competencia: string;
+          usado?: number;
+          observacao?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          item_id?: string;
+          competencia?: string;
+          usado?: number;
+          observacao?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       client_flow_defaults: {
         Row: {
           id: string;

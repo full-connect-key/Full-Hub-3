@@ -168,6 +168,12 @@ const TELAS = [
   // nenhuma imagem mostraria o vazio.
   { nome: "10l1-cliente-vertentes", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1100, role: "socio", clicar: 'button:has-text("Vertentes")' },
   { nome: "10l2-cliente-vertentes-vazia", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000b", largura: 1440, altura: 800, role: "socio", clicar: 'button:has-text("Vertentes")' },
+  // O ESCOPO DO CONTRATO (0149). São DUAS telas porque o estado de todas as
+  // 21 contas ativas de hoje é o VAZIO: com a conta que tem contrato sozinha,
+  // a imagem provaria que a lista aparece e não que a tela sabe dizer que não
+  // há item nenhum — a lição da Óptica Visão sem atendente (0062).
+  { nome: "10l3-cliente-escopo", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1500, role: "socio", clicar: 'button:has-text("Escopo do contrato")' },
+  { nome: "10l4-cliente-escopo-vazio", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000b", largura: 1440, altura: 900, role: "socio", clicar: 'button:has-text("Escopo do contrato")' },
   { nome: "10l-cliente-fluxo", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 1440, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
   { nome: "10m-cliente-fluxo-vazio", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000b", largura: 1440, altura: 1600, role: "desenvolvedor", clicar: 'button:has-text("Configurações do fluxo")' },
   { nome: "10n-cliente-fluxo-375", rota: "/painel/pessoas/clientes/c0000000-0000-0000-0000-00000000000a", largura: 375, altura: 1800, role: "socio", clicar: 'button:has-text("Configurações do fluxo")' },
@@ -1629,6 +1635,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/acessos": ["./scripts/prototipo/acessos.ts"],
   "@/lib/dados/fluxo-do-cliente": ["./scripts/prototipo/fluxo-do-cliente.ts"],
   "@/lib/dados/vertentes": ["./scripts/prototipo/vertentes.ts"],
+  "@/lib/dados/escopo": ["./scripts/prototipo/escopo.ts"],
   "@/lib/dados/notas-fiscais": ["./scripts/prototipo/notas-fiscais.ts"],
   "@/lib/dados/novidades": ["./scripts/prototipo/novidades.ts"],
   "@/lib/dados/tasks": ["./scripts/prototipo/tasks.ts"],

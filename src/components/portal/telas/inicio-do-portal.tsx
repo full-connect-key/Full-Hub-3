@@ -12,11 +12,13 @@ import { CapaDoCartao } from "@/components/shared/capa-do-cartao";
 import { identidadeDoPortal } from "@/lib/dados/clientes";
 import { IdentidadeDoCliente } from "@/components/portal/identidade-do-cliente";
 import { SocialQueChegou } from "@/components/portal/social-que-chegou";
+import { EscopoDoMes } from "@/components/portal/escopo-do-mes";
 import {
   campanhasDoCliente,
   entregaveisDaCampanha,
 } from "@/lib/dados/campanhas";
 import { obterMinhasEmpresas } from "@/lib/dados/clientes";
+import { escopoDasContas } from "@/lib/dados/escopo";
 import { mesesDeSocialDoCliente } from "@/lib/dados/posts";
 import { meusPedidos } from "@/lib/dados/solicitacoes";
 import {
@@ -32,6 +34,7 @@ import {
   periodoCurto,
   progresso,
 } from "@/lib/dominio/campanhas";
+import { competenciaDeAgora } from "@/lib/dominio/escopo";
 import { ordenarPorUrgencia, progressoDoMaterial } from "@/lib/dominio/portal";
 import { ANCORAS, ancora } from "@/lib/tour/ancoras";
 
@@ -64,6 +67,7 @@ export async function InicioDoPortal({
   nome: string;
 }) {
   const { hoje } = prazosDoPortal();
+
   const [itens, atividade, campanhas, identidade, mesesDeSocial, pedidos] =
     await Promise.all([
       itensDoPortal(clienteId ?? undefined),
@@ -137,6 +141,25 @@ export async function InicioDoPortal({
       empresas.map((empresa) => registrarAcesso(empresa.id, "login")),
     );
   }
+
+  // O ESCOPO DO CONTRATO (0149), e ele é a única leitura desta tela que fica
+  // FORA do `Promise.all` de cima — por mecânica e não por descuido: os ids
+  // das contas vêm de `obterMinhasEmpresas()`, que é outra consulta.
+  //
+  // **E para a equipe o id é o da conta sendo vista**, nunca a lista inteira:
+  // `obterMinhasEmpresas()` devolve TODAS as contas ativas para quem é
+  // `is_staff()` — a visualização administrativa mostraria o contrato das 21.
+  //
+  // `obterMinhasEmpresas()` é `cache`, e esta tela já a chama para registrar o
+  // acesso: não há segunda ida ao banco por causa desta linha.
+  const empresasDoEscopo = clienteId
+    ? [{ id: clienteId, nome_empresa: identidade?.nome ?? "" }]
+    : await obterMinhasEmpresas();
+  const mesDoEscopo = competenciaDeAgora();
+  const escopoPorConta = await escopoDasContas(
+    empresasDoEscopo.map((e) => e.id),
+    mesDoEscopo,
+  );
 
   const pendentes = itens
     .filter((i) => i.status === "em_aprovacao")
@@ -257,6 +280,24 @@ export async function InicioDoPortal({
         base={base}
         comoEquipe={comoEquipe}
         meses={mesesDeSocial}
+      />
+
+      {/* ------------------------------------------- o escopo do contrato --
+
+          Ele vem DEPOIS do que chegou e ANTES dos quatro números, e a ordem é
+          a da pergunta: o que chegou agora é a novidade, e o escopo é o que
+          enquadra os números de baixo — "aprovados no mês 7" ao lado de "7 de
+          12 posts" lê como uma frase só. Abaixo dos números ele seria a
+          explicação chegando depois do que ela explica.
+
+          **E ele some quando a conta não tem escopo cadastrado**, que é o
+          estado de toda conta hoje: a razão está no componente. */}
+      <EscopoDoMes
+        competencia={mesDoEscopo}
+        contas={empresasDoEscopo.map((empresa) => ({
+          nome: empresa.nome_empresa,
+          linhas: escopoPorConta.get(empresa.id) ?? [],
+        }))}
       />
 
       {/* ------------------------------------------------- os quatro números --

@@ -1081,7 +1081,17 @@ from (
     ('0148', 'o briefing rico do pedido (PASSO 1)', 'coluna',
              'client_requests|briefing_rico'),
     ('0148', 'o video e peca para rede (PASSO 6.5, o fim)', 'roteiro',
-             'Peça para redes|Reels ou vídeo')
+             'Peça para redes|Reels ou vídeo'),
+
+    -- 0149 - O ESCOPO DO CONTRATO MENSAL
+    --
+    -- O MARCADOR E A ULTIMA COISA QUE O ARQUIVO CRIA: o gatilho de auditoria
+    -- do CONSUMO, no PASSO 4. As duas tabelas nascem no PASSO 1 e no PASSO 2,
+    -- e um marcador numa delas diria `ok` sobre uma colagem que morreu antes
+    -- das policies -- que e o pior lugar para morrer, porque tabela de pe sem
+    -- RLS e tabela legivel por quem tiver a chave anon.
+    ('0149', 'o escopo do contrato (PASSO 4, o fim)', 'trigger',
+             'auditoria_client_scope_usage')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

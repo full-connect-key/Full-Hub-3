@@ -13,6 +13,7 @@ import {
   vinculosDoCliente,
 } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { escopoDaConta } from "@/lib/dados/escopo";
 import {
   fluxosDaConta,
   padroesDaConta,
@@ -23,6 +24,7 @@ import { fluxosDeSocial } from "@/lib/dados/social-flows";
 import { DetalheDoCliente } from "./detalhe";
 import { IdentidadeDoPortal } from "./identidade-do-portal";
 import { VisitasAoPortal } from "./visitas-ao-portal";
+import { competenciaDeAgora } from "@/lib/dominio/escopo";
 import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import { Voltar } from "@/components/shared/voltar";
 
@@ -51,6 +53,7 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
     // `Promise.all` estaria se referindo a si mesmo.
     correntes,
     vertentes,
+    escopo,
   ] = await Promise.all([
       usuariosDoCliente(id),
       listarEquipeAtiva(),
@@ -71,6 +74,10 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
       // reativa uma, e uma vertente que some de lá é uma que ninguém
       // consegue trazer de volta — a decisão da aba Fluxos do Social Media.
       vertentesDoCliente(id),
+      // O ESCOPO DO MÊS CORRENTE (0149), e é o mês que o cliente está vendo:
+      // a aba troca de mês por action, sem navegar — as abas da ficha são
+      // `defaultValue`, então uma navegação devolveria a pessoa para Dados.
+      escopoDaConta(id, competenciaDeAgora()),
     ]);
 
   const acessos = await ultimosAcessos(usuarios.map((u) => u.id));
@@ -122,6 +129,7 @@ export default async function PaginaDoCliente({ params }: PageProps<"/painel/pes
         ehSocio={ehSocio(sessao.profile.role)}
         ehGestor={ehDaGestao}
         vertentes={vertentes}
+        escopo={{ competencia: competenciaDeAgora(), linhas: escopo }}
         fluxo={{ padroes, fluxos, fluxosDeSocial: correntes, recorrencias }}
       />
     </div>
