@@ -195,6 +195,7 @@ export function PainelLateralDaTask({
                 usuarioId={detalhe.usuarioId}
                 agoraDoServidor={detalhe.agora}
                 feriados={detalhe.feriados}
+                feriadosDoCliente={detalhe.feriadosDoCliente}
               />
 
               <Referencias

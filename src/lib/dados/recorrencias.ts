@@ -1,6 +1,9 @@
 import "server-only";
 
 import { ouFalha } from "./consulta";
+import { feriadosComNome } from "./full-days";
+
+import { hojeNaAgencia } from "@/lib/dominio/datas";
 
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Json, TaskRecurrence } from "@/lib/supabase/database.types";
@@ -191,23 +194,25 @@ export async function buscarRecorrencia(id: string) {
 /**
  * Os feriados que a prévia precisa.
  *
- * A PRÉVIA OLHA 18 MESES À FRENTE no modo task por ocorrência, e a tabela de
- * feriados vai até 2030 desde a 0038. Buscar o intervalo inteiro de uma vez é
- * o mesmo motivo do calendário do Full Days: a prévia recalcula a cada tecla,
- * e não dá para consultar o banco a cada tecla.
+ * A PRÉVIA OLHA 18 MESES À FRENTE no modo task por ocorrência. Buscar o
+ * intervalo inteiro de uma vez é o mesmo motivo do calendário do Day Off: a
+ * prévia recalcula a cada tecla, e não dá para consultar o banco a cada tecla.
+ *
+ * **ELA PASSOU A IR POR `feriadosComNome()` na 0151**, e com isso a frase que
+ * estava aqui deixou de valer: *"a tabela de feriados vai até 2030 desde a
+ * 0038"*. Ela ia, e a prévia olha três anos à frente — então em 2028 a regra
+ * recorrente passaria a cair em feriado sem ninguém notar, porque um ano sem
+ * feriado na tabela não aparece vazio, aparece NORMAL. A função nova semeia o
+ * ano antes de responder, e a tabela deixou de ter fim.
+ *
+ * E o nome vem junto e é descartado aqui de propósito: a prévia só precisa
+ * saber se o dia É feriado, e uma segunda leitura "sem nome" ao lado seria a
+ * porta por onde um ano não semeado voltaria a entrar.
  */
 export async function feriadosParaAPrevia(): Promise<string[]> {
-  const supabase = await criarClienteServidor();
-  const hoje = new Date();
-  const fim = new Date(hoje.getFullYear() + 3, 11, 31);
-  const feriados = ouFalha(
-    "os feriados da prévia",
-    await supabase
-      .from("holidays")
-      .select("data")
-      .gte("data", hoje.toISOString().slice(0, 10))
-      .lte("data", fim.toISOString().slice(0, 10)),
-  );
+  const hoje = hojeNaAgencia();
+  const fim = `${Number(hoje.slice(0, 4)) + 3}-12-31`;
+  const feriados = await feriadosComNome(hoje, fim);
   return feriados.map((f) => f.data);
 }
 

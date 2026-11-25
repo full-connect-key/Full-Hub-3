@@ -969,6 +969,22 @@ const TELAS = [
   // tela existindo; sao as duas juntas que mostram quem a alcanca.
   { nome: "67a-full-days-registrar-periodo", rota: "/painel/full-days?aba=lancamentos", largura: 1600, altura: 1300, role: "socio" },
   { nome: "67b-full-days-registrar-403", rota: "/painel/full-days?aba=lancamentos", largura: 1200, altura: 700, role: "colaborador" },
+  // A ABA FERIADOS (0151), e ela e a unica tela do produto onde as tres metades
+  // do pedido aparecem juntas: a lista do que o produto CALCULOU sozinho, a
+  // marca de origem do que alguem escreveu a mao, e as emendas sugeridas.
+  //
+  // O FERIADO DE ORIGEM `agencia` DO EXEMPLO CAI NUMA TERCA, calculado por
+  // `naProximaTerca()` no stub: `emendasSugeridas()` propoe a ponte so para a
+  // terca e para a quinta, e com uma data de delta fixo a secao "Emendas
+  // possiveis" sairia em imagem um dia em sete -- a armadilha dos meses da nota
+  // fiscal com outra cara. A mesma linha prova as duas coisas: a marca de
+  // origem e a emenda que ela gera.
+  //
+  // E SAO AS DUAS JUNTAS, como a 67a e a 67b: a aba e `is_gestor()`, e uma
+  // imagem so mostraria a tela existindo. O nome da segunda carrega o `403`,
+  // que e como o gerador sabe que a recusa e o resultado esperado.
+  { nome: "67c-full-days-feriados", rota: "/painel/full-days?aba=feriados", largura: 1600, altura: 1400, role: "socio" },
+  { nome: "67d-full-days-feriados-403", rota: "/painel/full-days?aba=feriados", largura: 1200, altura: 700, role: "colaborador" },
 
 
   // --- Sprint 8 + 0095: Financeiro, DUAS ABAS ----------------------------

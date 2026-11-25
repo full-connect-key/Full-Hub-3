@@ -6,6 +6,7 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { feriadosDeClientes } from "@/lib/dados/calendario";
 import { feriadosComNome } from "@/lib/dados/full-days";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { fluxosDeSocial } from "@/lib/dados/social-flows";
@@ -67,14 +68,21 @@ async function Conteudo() {
   // o mês que vem se produz nos trinta dias que o antecedem (0089).
   const anoCorrente = Number(hojeNaAgencia().slice(0, 4));
 
-  const [clientes, equipe, fluxos, feriados] = await Promise.all([
+  const inicioDaJanela = `${anoCorrente - 1}-01-01`;
+  const fimDaJanela = `${anoCorrente + 3}-12-31`;
+
+  const [clientes, equipe, fluxos, feriados, feriadosPorConta] = await Promise.all([
     listarClientes(),
     listarEquipeAtiva(),
     // SÓ OS ATIVOS: a tela oferece o que dá para aplicar, e um fluxo
     // desativado é um que a agência tirou do ar sem apagar — oferecê-lo
     // abriria um mês com a corrente que ela aposentou.
     fluxosDeSocial({ apenasAtivos: true }),
-    feriadosComNome(`${anoCorrente - 1}-01-01`, `${anoCorrente + 3}-12-31`),
+    feriadosComNome(inicioDaJanela, fimDaJanela),
+    // O FERIADO DE CADA CONTA vem INTEIRO, e não recortado: a conta é
+    // escolhida na tela, e uma leitura por troca de cliente seria uma volta ao
+    // servidor no meio do preenchimento. Quem recorta é o componente.
+    feriadosDeClientes(inicioDaJanela, fimDaJanela),
   ]);
 
   return (
@@ -85,6 +93,7 @@ async function Conteudo() {
       equipe={equipe.map((p) => ({ id: p.id, nome: p.nome }))}
       fluxos={fluxos}
       feriados={mapaDeFeriados(feriados)}
+      feriadosPorConta={feriadosPorConta}
       driveLigado={driveConfigurado()}
     />
   );

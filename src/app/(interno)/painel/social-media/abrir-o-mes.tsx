@@ -144,6 +144,7 @@ export function AbrirOMes({
   equipe,
   fluxos,
   feriados,
+  feriadosPorConta,
   driveLigado = false,
 }: {
   clientes: { id: string; nome_empresa: string }[];
@@ -167,6 +168,17 @@ export function AbrirOMes({
    * de aceitar o bloco que a tela já preencheu.
    */
   feriados: Record<string, string>;
+  /**
+   * OS FERIADOS DE CADA CONTA, por `client_id` (os `events` com
+   * `tipo = 'feriado_cliente'`).
+   *
+   * **ELE VEM INTEIRO E NÃO RECORTADO, ao contrário da tela da etapa**, e é
+   * esta tela a razão de `feriadosDeClientes()` devolver por conta: aqui o
+   * cliente é escolhido NA TELA, e uma leitura por troca de conta seria uma
+   * volta ao servidor no meio do preenchimento. Quem recorta é o `useMemo`
+   * abaixo, com a conta que está escolhida agora.
+   */
+  feriadosPorConta?: Record<string, { data: string; nome: string }[]>;
   /**
    * A integração com o Drive está configurada?
    *
@@ -231,6 +243,20 @@ export function AbrirOMes({
    * lado a lado convidam a comparar duas pessoas, que é outra tela.
    */
   const [faixaAberta, setFaixaAberta] = useState<string | null>(null);
+
+  /**
+   * O FERIADO DA CONTA ESCOLHIDA, data → nome.
+   *
+   * O recorte é aqui porque a conta é escolhida nesta tela, e sem ela não há
+   * conta cuja agenda avisar — então o aviso de cliente simplesmente não
+   * existe até alguém escolher, que é a verdade.
+   */
+  const feriadosDoCliente = useMemo(() => {
+    if (!cliente) return undefined;
+    const lista = feriadosPorConta?.[cliente];
+    if (!lista || lista.length === 0) return undefined;
+    return Object.fromEntries(lista.map((f) => [f.data, f.nome]));
+  }, [cliente, feriadosPorConta]);
 
   // O TOTAL CONTA POSTS, e nunca posts vezes redes — é a conta inteira desta
   // mudança, e a mesma que `abrir_mes_de_social()` faz do outro lado. Se as
@@ -910,7 +936,11 @@ export function AbrirOMes({
                         dia útil, que é precisamente o caso que aquela linha
                         não alcança. Ele só aparece quando existe, então não
                         há linha a mais no caso normal. */}
-                    <AvisoDeFeriado data={periodo.inicio} feriados={feriados} />
+                    <AvisoDeFeriado
+                      data={periodo.inicio}
+                      feriados={feriados}
+                      feriadosDoCliente={feriadosDoCliente}
+                    />
                   </div>
 
                   {/*
@@ -955,7 +985,11 @@ export function AbrirOMes({
                         este aviso existe para evitar — num campo que nasce em
                         branco e que alguém preenche justamente quando o
                         trabalho dura mais de um dia. */}
-                    <AvisoDeFeriado data={periodo.fim} feriados={feriados} />
+                    <AvisoDeFeriado
+                      data={periodo.fim}
+                      feriados={feriados}
+                      feriadosDoCliente={feriadosDoCliente}
+                    />
                   </div>
                 </div>
 

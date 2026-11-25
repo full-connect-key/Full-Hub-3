@@ -16,6 +16,7 @@ import { ehGestor } from "@/lib/auth/roles";
 import { campanhaDaTask } from "@/lib/dados/campanhas";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { feriadosDeClientes } from "@/lib/dados/calendario";
 import { feriadosComNome } from "@/lib/dados/full-days";
 import { prazosDeHoje, souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { obterTask, urlsDosArquivos } from "@/lib/dados/tasks";
@@ -54,7 +55,15 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
   const hoje = hojeNaAgencia();
   const anoCorrente = Number(hoje.slice(0, 4));
 
-  const [clientes, equipe, tipos, ehDoAtendimento, vertentes, feriados] =
+  const [
+    clientes,
+    equipe,
+    tipos,
+    ehDoAtendimento,
+    vertentes,
+    feriados,
+    feriadosPorConta,
+  ] =
     await Promise.all([
     listarClientes(),
     listarEquipeAtiva(),
@@ -67,6 +76,10 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
     // lista, menos quando é justamente a que esta demanda já aponta.
     vertentesDoCliente(task.client_id),
     feriadosComNome(`${anoCorrente - 1}-01-01`, `${anoCorrente + 3}-12-31`),
+    // A MESMA JANELA, pela mesma razão: o campo aceita o que for digitado, e
+    // um aviso que só conhece o futuro fica calado justamente quando alguém
+    // erra o ano.
+    feriadosDeClientes(`${anoCorrente - 1}-01-01`, `${anoCorrente + 3}-12-31`),
   ]);
 
   const urls = await urlsDosArquivos(
@@ -224,6 +237,16 @@ export default async function PaginaDaTask({ params }: PageProps<"/painel/gestao
                 souGestor={souGestor}
                 usuarioId={sessao.usuarioId}
                 feriados={mapaDeFeriados(feriados)}
+                /* RECORTADO NA CONTA DESTA DEMANDA, aqui e não dentro do
+                   componente: quem sabe de quem é a demanda é esta tela. Uma
+                   demanda sem cliente — o rascunho antes de alguém escolher —
+                   não tem feriado de conta a avisar, e aí o aviso continua
+                   respondendo pela agência. */
+                feriadosDoCliente={
+                  task.client_id
+                    ? mapaDeFeriados(feriadosPorConta[task.client_id] ?? [])
+                    : undefined
+                }
                 /* Hoje e agora saem do SERVIDOR e descem prontos, como em
                    toda tela do produto: se cada navegador lesse o próprio
                    relógio, o cronômetro renderizado aqui e o hidratado lá

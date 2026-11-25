@@ -168,6 +168,64 @@ export const itensDoCalendario = cache(
       }
     }
 
+    // -----------------------------------------------------------------------
+    // A TERCEIRA ORIGEM: os feriados nacionais (0151)
+    //
+    // Decisão do usuário, item 3: *"no calendário, quero que você puxe sozinho
+    // os feriados"*. Ela segue a forma do aniversário em tudo, e pelas mesmas
+    // razões:
+    //
+    // **Ela não vem da view.** `holidays` nunca foi origem dela — e não pode
+    // ser uma agora, porque esta leitura é a que GARANTE o ano:
+    // `feriados_do_periodo()` calcula o que falta antes de responder, e uma
+    // view é só um `select`. Sem a garantia, a tela de 2031 abriria vazia e
+    // isso NÃO se lê como ano sem feriado: se lê como ano normal, que é o modo
+    // de falha que a 0038 já descreveu.
+    //
+    // **Só sem filtro de cliente**, pela regra desta tela desde a 0105: um
+    // feriado nacional não tem empresa, e filtrar por cliente deixa de fora o
+    // que não tem uma. O feriado de CLIENTE continua vindo da view, por
+    // `events`, e é ele que o recorte por conta encontra.
+    //
+    // **E a falha dela não derruba a tela**, a exceção escrita de `ouFalha()`
+    // que o aniversário já carrega: ela acrescenta chips a uma grade que já
+    // está desenhada.
+    // -----------------------------------------------------------------------
+    if (!filtros.clientes?.length) {
+      const { data: feriados, error } = await supabase.rpc("feriados_do_periodo", {
+        p_inicio: filtros.de,
+        p_fim: filtros.ate,
+      });
+
+      if (error) {
+        console.error("[calendário] feriados:", error);
+      } else {
+        for (const f of feriados ?? []) {
+          itens.push({
+            // O ID É A DATA, e ela basta: `holidays.data` é único desde a
+            // 0011 — não há dois feriados no mesmo dia.
+            id: `feriado-${f.data}`,
+            tipo: "feriado",
+            titulo: f.nome,
+            dataInicio: f.data,
+            dataFim: f.data,
+            clientId: null,
+            cliente: null,
+            // A ORIGEM VIAJA NO `status`, que é a coluna que já carrega "o que
+            // esta linha é" para o evento. Nenhuma tela a desenha hoje: quem
+            // decide a cor e o rótulo é `item.tipo`, e o que ela permite é a
+            // tela de amanhã distinguir o nacional do que a agência gravou à
+            // mão sem uma consulta nova.
+            status: f.origem,
+            // SEM LINK: a tela de feriados mora em `/painel/full-days`, que é
+            // `EQUIPE` na rota e `is_gestor()` na aba — um colaborador
+            // clicando cairia na seção que o produto não oferece a ele.
+            link: "",
+          });
+        }
+      }
+    }
+
     return itens.sort(
       (a, b) =>
         a.dataInicio.localeCompare(b.dataInicio) ||
@@ -305,5 +363,76 @@ export const pessoasDaEquipeNoCalendario = cache(
     })
     .filter((p): p is PessoaDoCalendario => p !== null)
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  },
+);
+
+/**
+ * Os feriados de CLIENTE de um período, por conta.
+ *
+ * Decisão do usuário, item 3: *"permita que eu salve feriados pontuais, no
+ * caso de algum cliente tiver algum feriado específico"*.
+ *
+ * **ELE JÁ ERA LANÇÁVEL, e é por isso que esta leitura não tem migration.**
+ * `events.tipo` tem `feriado_cliente` desde a 0055, com `client_id` e
+ * `bloqueia_ferias` ao lado, e o Calendário Full o oferece no seletor de tipo.
+ * O que faltava era ele CHEGAR ao aviso do campo de data — ele existia no
+ * calendário da agência e não existia no instante em que alguém data uma
+ * etapa daquela conta, que é onde ele decide alguma coisa.
+ *
+ * **E ELE NÃO ENTRA EM `holidays`, que é a decisão central.** Aquela tabela é
+ * lida por `dias_uteis()`, `disponibilidade_bruta()` e
+ * `datas_da_recorrencia()` — ou seja, ela responde *"a AGÊNCIA trabalha neste
+ * dia?"*. No feriado de um cliente a agência trabalha: a equipe está aqui, as
+ * outras contas andam, e o único efeito é que aquela conta não responde.
+ * Gravá-lo ali tiraria o dia da conta de dias úteis de todo mundo.
+ *
+ * **DEVOLVE POR CONTA e não para uma conta só**, pela razão das vertentes na
+ * 0122: a abertura do mês de social escolhe o cliente na TELA, e uma leitura
+ * por troca de conta seria uma volta ao servidor no meio do preenchimento. Com
+ * o mapa inteiro em mãos, o aviso funciona no instante do clique.
+ *
+ * **E O PERÍODO É EXPANDIDO AQUI, dia a dia.** `events` guarda `data_inicio` e
+ * `data_fim` — um feriado de dois dias é UMA linha —, e quem consome é o
+ * `AvisoDeFeriado`, que compara UMA data. Expandir no componente faria cada um
+ * dos três chamadores escrever o mesmo laço, e o terceiro erraria a borda.
+ */
+export const feriadosDeClientes = cache(
+  async (
+    inicio: string,
+    fim: string,
+  ): Promise<Record<string, { data: string; nome: string }[]>> => {
+    const supabase = await criarClienteServidor();
+
+    const linhas = ouFalha(
+      "os feriados de cliente",
+      await supabase
+        .from("events")
+        .select("nome, client_id, data_inicio, data_fim")
+        .eq("tipo", "feriado_cliente")
+        .not("client_id", "is", null)
+        .lte("data_inicio", fim)
+        .gte("data_fim", inicio),
+    );
+
+    const porConta: Record<string, { data: string; nome: string }[]> = {};
+
+    for (const linha of linhas) {
+      if (!linha.client_id) continue;
+      const lista = (porConta[linha.client_id] ??= []);
+
+      // O TETO DE 60 DIAS É UMA GUARDA e não uma regra de produto: um
+      // `data_fim` de dedo torto — 2032 no lugar de 2026 — viraria dois mil
+      // dias no mapa que o navegador recebe. Sessenta cobre qualquer parada
+      // de conta que alguém lance de verdade.
+      let dia = linha.data_inicio;
+      for (let passo = 0; passo < 60 && dia <= linha.data_fim; passo += 1) {
+        if (dia >= inicio && dia <= fim) lista.push({ data: dia, nome: linha.nome });
+        const proximo = new Date(`${dia}T12:00:00`);
+        proximo.setDate(proximo.getDate() + 1);
+        dia = proximo.toISOString().slice(0, 10);
+      }
+    }
+
+    return porConta;
   },
 );

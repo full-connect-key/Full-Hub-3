@@ -15923,6 +15923,191 @@ ano sem feriado na tabela não aparece vazio — aparece **normal**: o Natal de
 2029 vira um dia útil qualquer e um afastamento de três dias em cima dele sai
 com três no lugar de dois. Ninguém desconfia olhando a tela.
 
+#### OS FERIADOS SE CALCULAM, E A AGÊNCIA GRAVA OS DELA (0151)
+
+Decisão do usuário, item 3: *"no calendário, quero que você puxe sozinho os
+feriados, e que permita que eu salve feriados pontuais, no caso de algum
+cliente tiver algum feriado especifico, ou emendas de feriado"*.
+
+**O PARÁGRAFO ACIMA É O PEDIDO, e ele estava escrito aqui há dois sprints:**
+*"um ano sem feriado na tabela não aparece vazio — aparece normal"*. A 0011
+escreveu 2026 e 2027 à mão, a 0038 estendeu para 2025 e 2028–2030 — **78
+linhas digitadas uma por uma** —, e a conclusão daquele sprint foi que *"a
+tabela de feriados foi atrás do calendário"*. Ela ia atrás de novo em 2031.
+
+**SÃO QUATRO METADES, e duas não precisavam de migration:**
+
+| o que ele pede | o que faltava |
+| --- | --- |
+| **puxe sozinho** | `feriados_nacionais()` e `garantir_feriados_nacionais()` — a 0151 |
+| **salve feriados pontuais** | `holidays_write` é `is_gestor()` desde a 0011, e **tela nenhuma jamais a exerceu** |
+| **emendas de feriado** | `emendasSugeridas()`, derivada e não gravada |
+| **feriado específico de um cliente** | `events.tipo = 'feriado_cliente'` existe desde a 0055 — faltava ele CHEGAR ao aviso do campo de data |
+
+##### OS TREZE SÃO CALCULADOS, e a Páscoa é Meeus/Butcher
+
+`feriados_nacionais(ano)` é `immutable` e **não lê tabela nenhuma**: nove datas
+fixas mais quatro contadas da Páscoa (Carnaval em `−48` e `−47`, Sexta-feira
+Santa em `−2`, Corpus Christi em `+60`). **Carnaval e Corpus são legalmente
+ponto facultativo e entram assim mesmo**, pela decisão escrita no `comment` da
+tabela desde a 0011 — *"na prática a agência não abre"*. E 20 de novembro está
+na lista fixa porque ele é nacional desde a Lei 14.759/2023.
+
+**O ALGORITMO FOI CONFERIDO CONTRA O QUE A MÃO ESCREVEU, e é o cenário mais
+forte do arquivo 50:** toda linha das 78 que a 0011 e a 0038 digitaram é
+reproduzida pelo cálculo, data e nome — mismatches = 0. Um erro de um dia em
+qualquer móvel de qualquer ano aparece ali, e seria um Carnaval em cima de um
+dia útil qualquer no ano que o produto gera sozinho.
+
+##### A GARANTIA ACONTECE NA LEITURA, e não numa rotina de madrugada
+
+`feriados_do_periodo(inicio, fim)` semeia os anos que o período toca e devolve
+o que a tabela tem. **Uma rotina teria de adivinhar quantos anos à frente
+gerar — e é adivinhar errado que deixou a tabela acabando em 2030.** Ela custa
+um `select` numa tabela de uma dezena de linhas e um `insert` uma vez por ano
+por banco; a rotina custaria o mesmo e erraria o horizonte.
+
+**E ELA SEMEIA OS DOIS ANOS DE UM PERÍODO QUE ATRAVESSA A VIRADA.** A visão de
+semana mostra 28/12 a 03/01, e lendo só o ano do início o janeiro abriria sem
+feriado — que é a lição da união do mês com a seleção na faixa de
+disponibilidade (0081). **O cenário mede a DATA e não a contagem:** naquela
+janela o único feriado é 1º de janeiro, ou seja o do ano de baixo, então uma
+versão que semeasse só o ano do início devolveria zero.
+
+##### `holiday_years` É O QUE FAZ APAGAR SER DESFAZER
+
+É a tabela que mais importa da migration, e ela tem duas colunas. **Sem ela, o
+feriado que a agência apagou volta na próxima leitura** — o `on conflict` não
+deixa duplicar, então ele reaparece sem erro em lugar nenhum. É o pior modo de
+falha do módulo: a agência decide abrir na terça de Carnaval, apaga o dia, e
+ele renasce sozinho na próxima vez que alguém abre o calendário.
+
+**E O PASSO 6 É A OUTRA METADE DISSO:** ele marca como semeados os seis anos
+que as migrations escreveram à mão. Sem ele a migration não muda nada e faz
+estrago — a primeira leitura semearia 2025 a 2030 de novo, e um feriado que a
+agência tivesse apagado antes voltaria.
+
+**ELA TEM SELECT E MAIS NADA.** Nenhuma policy de INSERT, UPDATE ou DELETE —
+quem escreve é a função, que é `security definer`: a forma de `notifications`,
+onde a única porta é `notificar()`. **E o que isso protege é o oposto do que
+parece:** marcar um ano à mão não acrescenta nada, faz o produto **nunca**
+semear aquele ano — um `insert` de 2099 ali deixaria 2099 silenciosamente sem
+feriado para sempre, que é o modo de falha da 0038 com uma causa que ninguém
+procuraria.
+
+##### O QUE A AGÊNCIA ESCREVEU GANHA
+
+`on conflict (data) do nothing`, que é a frase da 0038: um dia que a agência já
+gravou com outro nome não é sobrescrito pela semeadura. **A versão errada óbvia
+é `do update`, e ela deixa a CONTAGEM idêntica** — 2033 fica com treze feriados
+das duas formas; só o NOME e a ORIGEM separam as duas, e é por isso que o
+cenário lê as duas colunas em vez de contar linhas.
+
+**`origem` É COLUNA, e ela é o que a geração olha para decidir o que pode
+tocar.** Duas de duas (`nacional`, `agencia`), com `check` — sem ele um
+terceiro valor entraria calado, e uma linha com origem desconhecida não seria
+nem protegida como da agência nem regerada como nacional. **E a action escreve
+`'agencia'` EXPLÍCITA, nunca pelo default da coluna:** uma linha da agência que
+herdasse o `'nacional'` seria tratada pela geração como dela, e apagá-la
+deixaria de ser desfazer.
+
+##### A JANELA TORTA RECUSA, e não grampeia
+
+De 2024 a 2060, no máximo onze anos de uma vez; fora disso a função **devolve
+0**. A faixa existe porque esta função é chamada de uma LEITURA DE TELA, e o
+ano dela vem de uma data que pode ter sido colada na URL: sem limite, um
+`?mes=1900-01` semearia dois séculos por causa de um endereço torto.
+
+**A PRIMEIRA VERSÃO GRAMPEAVA, com `greatest(p_de, 2020)`, e foi medida: ela
+gerou 65 linhas de 2020 a 2024.** Truncar é *aceitar e fazer outra coisa*, que
+a 0025 diz ser pior que recusar — e recusando, a tela que pediu um ano torto
+simplesmente não recebe feriado daquele ano, que é a verdade: ninguém escreveu
+feriado de 1900. **E o cenário olha a TABELA e não o retorno:** medir só o `0`
+passaria por uma versão que grampeasse para dentro de anos já semeados.
+
+##### A tela: a sexta seção do Day Off, e não um módulo
+
+`?aba=feriados`, e **é seção e não rota própria** porque a pergunta é a do Day
+Off — quais dias a agência não trabalha. Um `/painel/feriados` seria um item a
+mais na barra lateral, a direção oposta à do sprint que tirou dois de lá.
+
+**Ela é `is_gestor()` e não `is_socio()`:** `holidays_write` é `is_gestor()`
+desde a 0011, e uma segunda pergunta embaixo de uma primeira que já barra todo
+mundo não barra ninguém (0060). O cliente **lê** os feriados, e isso é o
+desenho: `holidays_select` é `to authenticated using (true)` desde a 0011,
+porque o Cronograma do portal e a grade do mês mostram os mesmos dias.
+
+**SÃO TRÊS SEÇÕES, e a ordem é a da decisão:** o que já está na lista, as
+emendas que o produto sugere, e o dia escrito à mão. Começando pelo formulário,
+a pessoa gravaria um dia sem ter visto que ele já estava lá.
+
+**A CHAVE É A DATA e não um id**, porque `holidays.data` é único desde a 0011 —
+então gravar é um `upsert` e não existe "dois feriados no mesmo dia". **E a
+action RECUSA sobrescrever um nome nacional**, com a frase dizendo qual é: a
+agência renomear o Natal não é um caso, é um dedo torto.
+
+**AS EMENDAS SÃO DERIVADAS E NUNCA GRAVADAS**, que é a diferença inteira entre
+elas e os nacionais: o nacional é um fato do calendário e nasce sozinho; a
+emenda é uma escolha da agência, e gravá-la por conta própria faria o produto
+fechar a casa num dia que ninguém combinou. **São dois casos só** — terça
+sugere a segunda, quinta sugere a sexta —, porque nos dois o dia sugerido é o
+único dia útil entre o feriado e o fim de semana; feriado na segunda ou na
+sexta já emenda sozinho, e na quarta não há emenda sem dois dias. **E o dia já
+gravado não é sugerido de novo**, que é o que faz a seção sumir quando a
+agência já decidiu tudo.
+
+##### O FERIADO DO CLIENTE NÃO ENTRA EM `holidays`
+
+É a decisão central da outra metade do pedido. Aquela tabela é lida por
+`dias_uteis()`, `disponibilidade_bruta()` e `datas_da_recorrencia()` — ela
+responde *"a AGÊNCIA trabalha neste dia?"*. **No feriado de um cliente a
+agência trabalha:** a equipe está aqui, as outras contas andam, e o único
+efeito é que aquela conta não responde. Gravá-lo ali tiraria o dia da conta de
+dias úteis de todo mundo.
+
+Ele mora em `events` com `tipo = 'feriado_cliente'`, que existe desde a 0055 com
+`client_id` e `bloqueia_ferias` ao lado — **então esta metade não tem
+migration**: o que faltava era ele chegar ao `AvisoDeFeriado`, com a frase dele
+própria, no instante em que alguém data uma etapa daquela conta.
+`feriadosDeClientes()` devolve **por conta** e não para uma conta só, pela razão
+das vertentes na 0122: a abertura do mês escolhe o cliente na TELA, e uma
+leitura por troca de conta seria uma volta ao servidor no meio do
+preenchimento. **E o período é expandido na leitura, dia a dia** — `events`
+guarda as duas pontas e quem consome compara UMA data; expandir no componente
+faria os três chamadores escreverem o mesmo laço, e o terceiro erraria a borda.
+
+##### E O CALENDÁRIO FULL GANHOU O NACIONAL COMO TERCEIRA ORIGEM
+
+É onde o pedido começa — *"no calendário"* —, e ela **não vem da view**:
+`holidays` nunca foi origem de `calendar_events` e não pode ser, porque
+`feriados_do_periodo()` SEMEIA antes de responder e uma view não escreve. O
+`id` da linha é a própria data, que basta por ela ser única.
+
+**Ele divide o âmbar com `feriado_cliente`**, e a legenda agrupa os dois em
+*"Feriado nacional e do cliente"* — a decisão das oito categorias em cinco
+pares: oito tons distintos numa grade de mês viram confete. **E ele sai quando
+alguém filtra por cliente**, como a convenção da casa e o aniversário: feriado
+nacional não tem empresa, e a regra desta tela desde a 0105 é que filtrar por
+cliente deixa de fora o que não tem uma.
+
+**2555 cenários, todos passando, medidos com SEIS mutações:** o PASSO 6 fora
+derruba **6**, a função deixando de pular o ano já semeado derruba **3** — e
+nos dois o primeiro cenário a cair é o Carnaval apagado voltando —, o
+`do update` derruba **2** (e o terceiro cenário, o da contagem, **passa** nos
+dois, que é exatamente o que o comentário dele afirma), o grampeamento derruba
+**7**, uma policy de escrita em `holiday_years` derruba **4**, e o `revoke` de
+`anon` fora derruba **2**.
+
+***O que NÃO foi feito, e é dito em vez de escondido:*** **a migration não foi
+aplicada** — a 0149 vem antes dela na ordem e está esperando resposta. A linha
+do `onde-esta-o-banco.sql` são DUAS, pela régua da 0138: a coluna `origem` do
+PASSO 1, de que nenhum outro passo depende, e `feriados_do_periodo` do PASSO 5,
+que é a última coisa que o arquivo cria — com o PASSO 6 declarado como
+`-- SEM LINHA:`, porque ele não cria objeto nenhum, só semeia `holiday_years`
+com os anos que já estavam na tabela. **E não há tela para o feriado de
+cliente:** ele se lança no Calendário Full, pelo seletor de tipo que existe
+desde a 0055, e dar a ele um campo na ficha da conta é decisão própria.
+
 **Quantos meses cabem na linha é pergunta de largura, não de breakpoint:**
 `repeat(auto-fill, minmax(min(420px, 100%), 1fr))`. A coluna do calendário
 muda de tamanho com o painel ao lado, e um `lg:` fixo dava 60px por célula,
@@ -21018,6 +21203,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| Os feriados se calculam | **O calendário passou a gerar os feriados nacionais sozinho, e a agência grava os dela** (migration 0151) — decisão do usuário, item 3: *"no calendário, quero que você puxe sozinho os feriados, e que permita que eu salve feriados pontuais, no caso de algum cliente tiver algum feriado especifico, ou emendas de feriado"*. **O PEDIDO ESTAVA ESCRITO AQUI HÁ DOIS SPRINTS:** *"um ano sem feriado na tabela não aparece vazio — aparece normal"* — a 0011 escreveu 2026 e 2027 à mão, a 0038 estendeu para 2025 e 2028–2030, **78 linhas digitadas uma por uma**, e a conclusão daquele sprint foi que *"a tabela de feriados foi atrás do calendário"*. Ela ia atrás de novo em 2031. **SÃO QUATRO METADES, e duas não precisavam de migration:** `holidays_write` é `is_gestor()` desde a 0011 e **tela nenhuma jamais a exerceu**; `events.tipo = 'feriado_cliente'` existe desde a 0055, e o que faltava era ele CHEGAR ao aviso do campo de data. **Os treze são calculados** — nove datas fixas mais quatro contadas da Páscoa por Meeus/Butcher, com Carnaval e Corpus entrando pela decisão escrita no `comment` da 0011 (*"na prática a agência não abre"*) e 20 de novembro na lista fixa pela Lei 14.759/2023 —, e **o algoritmo foi conferido contra o que a mão escreveu:** toda linha das 78 é reproduzida, data e nome, mismatches = 0. **A GARANTIA ACONTECE NA LEITURA e não numa rotina:** uma rotina teria de adivinhar quantos anos à frente gerar, e é adivinhar errado que deixou a tabela acabando em 2030. E ela semeia os DOIS anos de um período que atravessa a virada, com o cenário medindo a DATA e não a contagem — na janela de 28/12 a 03/01 o único feriado é o do ano de baixo. **`holiday_years` É O QUE FAZ APAGAR SER DESFAZER:** sem ela o feriado que a agência apagou volta na próxima leitura, sem erro em lugar nenhum — e **o PASSO 6 é a outra metade disso**, marcando como semeados os seis anos que as migrations escreveram, senão a migration não muda nada e faz estrago. Ela tem **SELECT e mais nada**, porque marcar um ano à mão não acrescenta nada: faz o produto **nunca** semear aquele ano. **O que a agência escreveu ganha** (`on conflict (data) do nothing`), e a versão errada óbvia — `do update` — deixa a CONTAGEM idêntica: só o nome e a origem separam as duas. **A janela torta RECUSA e não grampeia:** a primeira versão usava `greatest(p_de, 2020)` e **foi medida gerando 65 linhas de 2020 a 2024** — truncar é *aceitar e fazer outra coisa*, que a 0025 diz ser pior que recusar. Na tela é a **sexta seção do Day Off**, `is_gestor()`, com três seções na ordem da decisão, chave pela DATA e recusa de sobrescrever um nome nacional; **as emendas são DERIVADAS e nunca gravadas** (dois casos só: terça sugere a segunda, quinta sugere a sexta). **E o feriado do cliente NÃO entra em `holidays`**, porque aquela tabela é lida por `dias_uteis()` e responde *"a AGÊNCIA trabalha neste dia?"* — no feriado de um cliente a agência trabalha. O Calendário Full ganhou o nacional como **terceira origem**, dividindo o âmbar com o do cliente. **2555 cenários, seis mutações medidas** (6 / 3 / 2 / 7 / 4 / 2) — e a terceira deixa o cenário da contagem **passando**, que é exatamente o que o comentário dele afirma. ***Dito em vez de escondido:*** a migration está escrita e **não aplicada** (a 0149 vem antes e espera resposta), e não há tela para o feriado de cliente — ele se lança no Calendário Full, pelo seletor que existe desde a 0055. |
 | O briefing do cliente | **O pedido do portal passou a ter o MESMO editor de briefing do lado de dentro** (migration 0148), e com ele quatro decisões vizinhas — *"com tabelas, grifando"*, *"pode tirar o onde isso entra"*, *"videos tbm são peças para rede"*, *"referencias devem vir só depois do briefing"*. **Quase tudo já existia:** o `EditorRico` desde o Sprint 3, o par jsonb + texto desde `tasks.briefing_rico`, o roteiro desde a 0068 — o banco são DUAS colunas, `client_requests.briefing_rico` e `request_types.frente`. **`descricao` FICA e é a metade de texto do par**, porque renomear coluna com quatro leitores é migration arriscada sem nada em troca, e **quem decide se há briefing é o TEXTO**: um doc do TipTap vazio ainda é um parágrafo. **A FRENTE PASSOU A SER DO TIPO**, e isso é o item 12 inteiro — os três cartões de frente da 0137 saem da tela, o tipo diz a frente, e ela é NULA em dois dos quatro, que é o *"Não sei dizer"* daquele sprint em outra forma. É COLUNA e não um de-para na tela porque o catálogo é **conteúdo da agência e não schema** (0137): com o mapa no código, acrescentar um tipo exigiria deploy. **O roteiro perde a pergunta que o briefing já faz** — três dos quatro tinham um `texto_longo` obrigatório que é o briefing com outro nome —, e ***a resposta que fica órfã aparece com a chave crua e um aviso***, que é a decisão da 0068: **medido contra produção, UM pedido** ficou assim. **E o VÍDEO sai por `ativo = false`** — desativar e nunca apagar, a regra da etiqueta do Acervo —, com **ZERO pedidos apontando para ele**, medido; onde ele passa a ser pedido é a pergunta `formato` de "Peça para redes", que já estava lá. ***E o REALCE é atributo de `textStyle` e nunca uma marca própria, o que só a imagem pegou:*** o exemplo escrevia `{ type: "backgroundColor" }`, e **um documento inválido não estoura no TipTap — ele cai para um parágrafo vazio**, então a tela saía com o título do briefing e nada embaixo; nenhuma das dez verificações alcança isso, porque um jsonb é um jsonb para o `tsc`. ***E o `check:cores` pegou os meus próprios comentários pela nona vez.*** **2498 cenários, três mutações medidas** (2 / 3 / 2), e o marcador do `onde-esta-o-banco.sql` são DUAS linhas, com o bloco do vídeo **movido para o fim do arquivo de propósito** — a régua da 0138: passo de que nenhum outro depende precisa da linha dele. |
 | A tabela ajustável | **A tabela do briefing deixou de ser só 3×3** — decisão do usuário: *"no texto do briefing ele permite apenas tabelas 3x3, pode mudar isso? quero que seja ajustavel"*. **Isto desfaz uma decisão minha, e fica registrado como reversão:** estava escrito aqui que *"o tamanho inicial não é um seletor de dimensão, e a ausência é decisão — as linhas se acrescentam dentro com o Tab"*. **O argumento errava sobre a DESCOBERTA e não sobre o caso comum:** os comandos que fazem a tabela crescer só existem DENTRO dela, num menu que precisa do cursor numa célula, e quem leu *"Inserir tabela 3×3"* concluiu, com razão, que o produto só faz 3×3 — **um caminho que existe e não se anuncia é indistinguível de um caminho que não existe**, que é a terceira vez que este arquivo paga essa frase. **É `Popover` e não `MenuDaBarra`, por mecânica e não por desenho:** um campo de texto dentro de um `DropdownMenu` do Radix **não recebe o que se digita** — o menu captura a tecla para a busca por letra dele. **São DOIS CAMPOS e não uma grade de passar o mouse:** a grade é o que o Word faz e tem um teto que o campo não tem, e ela é um `role="grid"` com navegação por seta escrita à mão onde dois campos são teclado nativo. **O valor mora no rascunho como TEXTO**, pela razão da quantidade de peças do workflow: um `<input type="number"` controlado por número não deixa o campo ficar vazio enquanto a pessoa apaga. **E o botão CONTA** — *"Inserir tabela 4 × 6"* —, inerte fora da faixa **com a razão escrita**, nunca clampando em silêncio: *aceitar e fazer outra coisa* é o que a 0025 diz ser pior que recusar com explicação. ***E a frase do pé só existe FORA da tabela***, o que a imagem mostrou: dentro dela os cinco comandos estão logo abaixo, e dizer que o menu *ganha* o que ele já tem é a tela descrevendo o que está a dois centímetros. ***E o axe pegou o popover sem nome*** (`aria-dialog-name`) — **e o do PRAZO da Gestão de Tasks não carregava `aria-label` nenhum**, achado que nunca tinha aparecido porque tela nenhuma do protótipo o abria: saiu no mesmo commit. |
 | A pauta desde sempre | **A pauta da equipe passou a dizer que é inteira, e ganhou busca por título** (migration 0147) — decisão do usuário em duas frases: *"preciso que a pauta que apareça seja toda a pauta da pessoa, desde sempre. e poder pesquisar por titulo, para achar a task caso não lembre quem fez"*. **A PRIMEIRA METADE JÁ ERA VERDADE, e o que faltava era a tela DIZER:** `carregar()` não tem janela de data nem filtro de status, e o que a fazia parecer semanal é a VIZINHANÇA — ela mora embaixo de uma grade da semana corrente. A linha no cabeçalho é a entrega dessa metade, e ela é uma frase e não SQL. **A BUSCA É DA EQUIPE INTEIRA, e a frase dele é que decide isso:** *"caso não lembre quem fez"* — uma busca que exige escolher o nome primeiro não responde nada a quem não sabe o nome. **E ela NÃO é `security definer`**, que é a linha que mais importa: `subtasks_select` é `is_staff()` desde a 0007 e `profiles_select` passou a ser `is_staff() and role <> 'cliente'` na 0132, então a RLS **já permite** e uma função comum deixa a policy valer dentro dela — é a forma de `busca_global()`. **Medido com mutação: virando `definer`, a CLIENTE acha quatro linhas da pauta da agência.** **Então por que uma função de banco, se a RLS já permite?** Por uma coisa só: `sem_acento()` é `immutable` e não pode ficar do lado esquerdo de um filtro do PostgREST — buscar "midia" tem de achar "mídia". **A comparação é `strpos` e não `like`** (com `like '%termo%'` quem busca "100%" busca qualquer coisa), e ela devolve ONDE casou, que é a ordenação. **UMA LINHA POR (ETAPA, PESSOA), e quem agrupa é a TELA** — um `jsonb` de pessoas no `returns table` é um molde que **`check:tipos` não confere**. **E `total` conta ETAPAS e não linhas, contado ANTES do corte**, que também é por etapa: cortando LINHAS, a última sairia com uma das duas pessoas dela. **A agrupadora fica fora** por `subtask_eh_agrupadora()`, e o rascunho pela consulta e não pela RLS — o par escrito desde a 0028. **O campo só vai para a URL no Enter**, que é a decisão da busca da auditoria, e o piso é de duas letras: **medido, com piso de uma a busca por "v" devolve dez linhas**. **Treze cenários novos, todos por `conferir_como`**, porque a função é `invoker` e medir como dono do banco não mediria nada. |

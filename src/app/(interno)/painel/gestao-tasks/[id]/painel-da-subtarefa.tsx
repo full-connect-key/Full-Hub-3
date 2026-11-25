@@ -99,6 +99,7 @@ export function PainelDaSubtarefa({
   podeGerenciar,
   usuarioId,
   feriados,
+  feriadosDoCliente,
   aoFechar,
 }: {
   subtarefa: SubtarefaDetalhada;
@@ -110,6 +111,8 @@ export function PainelDaSubtarefa({
   usuarioId: string;
   /** Os feriados, data → nome: o aviso dos dois campos de data. */
   feriados: Record<string, string>;
+  /** Os feriados da conta desta demanda, quando ela tem uma. */
+  feriadosDoCliente?: Record<string, string>;
   aoFechar: () => void;
 }) {
   const router = useRouter();
@@ -581,7 +584,11 @@ export function PainelDaSubtarefa({
                       ser o campo que a pessoa acabou de mexer. Com um aviso
                       só, começar no dia 25 e entregar no dia 2 daria uma
                       frase que não diz qual das duas datas é a do feriado. */}
-                  <AvisoDeFeriado data={valor.data_inicio} feriados={feriados} />
+                  <AvisoDeFeriado
+                    data={valor.data_inicio}
+                    feriados={feriados}
+                    feriadosDoCliente={feriadosDoCliente}
+                  />
                 </>
               ) : (
                 <span className="text-sm">
@@ -603,7 +610,11 @@ export function PainelDaSubtarefa({
                     value={valor.prazo}
                     onChange={(evento) => mexer({ prazo: evento.target.value })}
                   />
-                  <AvisoDeFeriado data={valor.prazo} feriados={feriados} />
+                  <AvisoDeFeriado
+                    data={valor.prazo}
+                    feriados={feriados}
+                    feriadosDoCliente={feriadosDoCliente}
+                  />
                 </>
               ) : (
                 <span className="text-sm">

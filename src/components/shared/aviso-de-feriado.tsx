@@ -36,25 +36,55 @@ import { AlertTriangle } from "lucide-react";
  * fato pelo desenho. Um `<input type="date">` não mostra nada: digitar 25/12
  * ali não dá sinal nenhum, e é essa superfície que este aviso cobre.
  *
- * O mapa vem pronto de quem renderiza (data → nome), para a leitura ser uma
- * por visita e não uma por tecla.
+ * **O FERIADO DE CLIENTE TEM FRASE PRÓPRIA, e isso não é estilo.** "A equipe
+ * não trabalha neste dia" é FALSO quando o feriado é de uma conta: a agência
+ * está aqui, as outras contas andam, e o que muda é que aquela conta não
+ * responde. Reaproveitar a frase diria à pessoa que a casa fecha num dia em
+ * que ela vai trabalhar — e, pior, no único caso em que datar ali é
+ * deliberado: a peça que sai na véspera do feriado do cliente é montada com
+ * ele dentro. Por isso são dois mapas e não um, e `holidays` continua
+ * respondendo só pela AGÊNCIA (`dias_uteis()` lê aquela tabela).
+ *
+ * **E QUANDO O DIA É OS DOIS, o nacional ganha.** Ele é o que tira o dia da
+ * conta de dias úteis; o do cliente, nesse dia, não acrescenta nada que mude a
+ * decisão. Duas linhas empilhadas embaixo do campo seriam dois avisos para um
+ * clique.
+ *
+ * Os mapas vêm prontos de quem renderiza (data → nome), para a leitura ser uma
+ * por visita e não uma por tecla — e o do cliente já vem recortado na conta
+ * certa: quem sabe de qual conta é a demanda é a tela, não este componente.
  */
 export function AvisoDeFeriado({
   data,
   feriados,
+  feriadosDoCliente,
 }: {
   /** A data escolhida, em `yyyy-MM-dd`, ou vazio. */
   data: string | null | undefined;
-  /** O mapa data → nome do feriado, montado por quem renderiza. */
+  /** O mapa data → nome do feriado da agência, montado por quem renderiza. */
   feriados: Record<string, string>;
+  /**
+   * O mapa data → nome dos feriados da CONTA desta demanda, quando ela é
+   * conhecida. Ausente onde a tela não sabe de qual conta se trata — e aí o
+   * aviso continua respondendo pela agência, que é o que ela sabe.
+   */
+  feriadosDoCliente?: Record<string, string>;
 }) {
   const nome = data ? feriados[data] : undefined;
-  if (!nome) return null;
+  const doCliente = data && !nome ? feriadosDoCliente?.[data] : undefined;
+  if (!nome && !doCliente) return null;
 
   return (
     <p className="text-warning flex items-start gap-1.5 text-xs">
       <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-      <span>Feriado: {nome} — a equipe não trabalha neste dia.</span>
+      {nome ? (
+        <span>Feriado: {nome} — a equipe não trabalha neste dia.</span>
+      ) : (
+        <span>
+          Feriado do cliente: {doCliente} — a agência trabalha, mas a conta não
+          responde neste dia.
+        </span>
+      )}
     </p>
   );
 }

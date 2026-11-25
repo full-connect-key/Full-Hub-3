@@ -68,7 +68,13 @@ const LEGENDA: { cor: string; rotulo: string }[] = [
   { cor: COR_DO_TIPO_DE_EVENTO.evento_fullers, rotulo: "Eventos Fullers" },
   { cor: COR_DO_TIPO_DE_EVENTO.convencao, rotulo: "Convenção e feira" },
   { cor: COR_DO_TIPO_DE_EVENTO.lancamento, rotulo: "Lançamento" },
-  { cor: COR_DO_TIPO_DE_EVENTO.feriado_cliente, rotulo: "Feriado do cliente" },
+  // A ENTRADA DO FERIADO AGRUPA AS DUAS ORIGENS (0151), e é o que a regra desta
+  // legenda manda: o nacional divide o âmbar com o do cliente, e duas linhas
+  // mostrando a mesma amostra são piores que uma — a pessoa procura a
+  // diferença, não acha, e passa a desconfiar do resto. Na GRADE elas se
+  // distinguem sozinhas, pelo que o chip já desenha: o do cliente carrega a
+  // empresa na segunda linha, e um feriado nacional não tem nenhuma.
+  { cor: COR_DO_TIPO_DE_EVENTO.feriado_cliente, rotulo: "Feriado nacional e do cliente" },
   { cor: COR_DO_TIPO_DE_EVENTO.reuniao, rotulo: "Reunião, treinamento e outro" },
   // O ANIVERSÁRIO FECHA A LISTA (0130), e ele é a única entrada que não sai de
   // `COR_DO_TIPO_DE_EVENTO` — porque não é um tipo de evento: é a outra

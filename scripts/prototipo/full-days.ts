@@ -287,13 +287,72 @@ export async function listarTime(): Promise<PessoaDoTime[]> {
  * e a tela `56d` fecha o periodo noutro dia — e sao eles que mostram, na mesma
  * imagem, que a linha sabe FALTAR.
  */
-const FERIADOS = [
+const FERIADOS: { data: string; nome: string; origem: string }[] = [
   // 1. O PRAZO DE "Criar KV" (`dia(1)` em `tasks.ts`), que e a etapa que o
   //    modal de `46-subtarefa-painel` abre.
-  { data: emDias(1), nome: "Dia Nacional de Zumbi e da Consciencia Negra" },
+  { data: emDias(1), nome: "Dia Nacional de Zumbi e da Consciência Negra", origem: "nacional" },
   // 2. O DIA QUE A TELA `56c-abrir-o-mes-periodo` CLICA na faixa.
-  { data: diaDaFaixaDoSocial(2), nome: "Finados" },
+  { data: diaDaFaixaDoSocial(2), nome: "Finados", origem: "nacional" },
+  // 3. UM FERIADO DA AGENCIA (0151), e ele faz DOIS trabalhos de uma vez.
+  //
+  //    O primeiro e a marca de ORIGEM: sem ele a lista sairia com as linhas
+  //    calculadas e nenhuma marca, e a imagem provaria que a tela LISTA e nao
+  //    que ela DISTINGUE o que o produto calculou do que alguem escreveu a
+  //    mao -- que e a unica coisa que a coluna `origem` decide na tela.
+  //
+  //    O segundo e a secao "Emendas possiveis", e e por isso que ele cai numa
+  //    TERCA: `emendasSugeridas()` propoe a ponte so para a terca e para a
+  //    quinta, e uma data de delta fixo e terca em um dia de sete -- a secao
+  //    sairia em imagem uma vez por semana, que e a mesma armadilha dos meses
+  //    da nota fiscal com outra cara. `naProximaTerca()` a calcula.
+  { data: naProximaTerca(10), nome: "Aniversário da cidade", origem: "agencia" },
 ];
+
+/**
+ * A PRIMEIRA TERCA DAQUI A `minimo` DIAS, DENTRO DO ANO CORRENTE.
+ *
+ * SAO DUAS EXIGENCIAS E AS DUAS VIERAM DA IMAGEM.
+ *
+ * A TERCA e porque `emendasSugeridas()` so propoe a ponte para o feriado que
+ * cai na terca ou na quinta: com uma data de delta fixo, a secao "Emendas
+ * possiveis" sairia em imagem um dia de sete -- a armadilha dos meses da nota
+ * fiscal com outra cara.
+ *
+ * O ANO CORRENTE e porque a lista abre `<details open>` so no ano de HOJE, e
+ * a primeira versao desta linha caiu no ano seguinte: o grupo saiu fechado,
+ * dizendo "1 feriado", e a marca de origem -- a unica coisa que a coluna
+ * `origem` decide na tela -- nao apareceu em imagem nenhuma. A imagem provava
+ * que a tela LISTA e nao que ela DISTINGUE.
+ *
+ * O `minimo` e 10 e nao 40 pela mesma razao: em novembro, 40 dias atravessam
+ * a virada. Dez dias deixam a terca entre os deltas 10 e 16, fora das datas
+ * que os avisos de feriado das outras telas usam -- elas sao todas da semana
+ * que vem.
+ *
+ * NA ULTIMA QUINZENA DE DEZEMBRO nao sobra terca no ano, e ai ela cai na
+ * primeira de janeiro: o grupo sai fechado e a marca de origem volta a faltar
+ * na imagem. E dito em vez de escondido -- sao poucos dias, e e a mesma
+ * virada que o `anoCorrente` da tela esta prestes a atravessar.
+ */
+function naProximaTerca(minimo: number): string {
+  const hoje = new Date();
+  const d = new Date();
+  d.setDate(d.getDate() + minimo);
+  // 2 e terca em `getDay()`. O laco anda no maximo seis dias.
+  while (d.getDay() !== 2) d.setDate(d.getDate() + 1);
+
+  // Atravessou o ano? Volta para a ultima terca que ainda cabe nele.
+  if (d.getFullYear() !== hoje.getFullYear()) {
+    const ultima = new Date(hoje.getFullYear(), 11, 31);
+    while (ultima.getDay() !== 2) ultima.setDate(ultima.getDate() - 1);
+    if (ultima > hoje) {
+      d.setFullYear(ultima.getFullYear(), ultima.getMonth(), ultima.getDate());
+    }
+  }
+
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 /**
  * O DIA 2 DO MES QUE A FAIXA DE `abrir-o-mes` ABRE.
@@ -335,8 +394,13 @@ export async function feriadosEntre(inicio: string, fim: string): Promise<Set<st
 export async function feriadosComNome(
   inicio: string,
   fim: string,
-): Promise<{ data: string; nome: string }[]> {
-  return FERIADOS.filter((f) => f.data >= inicio && f.data <= fim);
+): Promise<{ data: string; nome: string; origem: string }[]> {
+  // ORDENADO POR DATA, que e o que `feriados_do_periodo()` devolve: sem isso a
+  // imagem saia com 26/11 acima de 02/10 dentro do mesmo ano -- o exemplo
+  // mostrando o produto num estado que ele nao alcanca.
+  return FERIADOS.filter((f) => f.data >= inicio && f.data <= fim).sort((a, b) =>
+    a.data.localeCompare(b.data),
+  );
 }
 
 export async function matrizDoPeriodo(

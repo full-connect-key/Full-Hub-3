@@ -112,41 +112,42 @@ export const listarTime = cache(async (): Promise<PessoaDoTime[]> => {
 
 /** Os feriados de um intervalo, como conjunto de datas ISO. */
 export async function feriadosEntre(inicio: string, fim: string): Promise<Set<string>> {
-  const supabase = await criarClienteServidor();
-  const data = ouFalha(
-    "os feriados do período",
-    await supabase
-      .from("holidays")
-      .select("data")
-      .gte("data", inicio)
-      .lte("data", fim),
-  );
-  return new Set(data.map((h) => h.data));
+  const feriados = await feriadosComNome(inicio, fim);
+  return new Set(feriados.map((h) => h.data));
 }
 
 /**
- * Os feriados do período, com o NOME de cada um.
+ * Os feriados do período, com o NOME e a ORIGEM de cada um.
  *
- * **Ela tem DOIS leitores, e o segundo não é do Day Off.** Nasceu para a grade
- * do calendário rolável, que precisa do nome para dizer por que o dia está
- * apagado; desde o aviso de feriado dos campos de data (`AvisoDeFeriado`) ela
- * responde também ao modal da etapa e à abertura do mês de social. É a mesma
- * pergunta — *quais datas do período são feriado, e como se chamam* —, e uma
- * segunda leitura ao lado seria o lugar onde as duas respostas divergem.
+ * **Ela tem QUATRO leitores, e só um é do Day Off.** Nasceu para a grade do
+ * calendário rolável, que precisa do nome para dizer por que o dia está
+ * apagado; o aviso de feriado dos campos de data (`AvisoDeFeriado`) a levou ao
+ * modal da etapa e à abertura do mês de social; e desde a 0151 ela desenha
+ * também a tela de cadastro, que é quem lê `origem`. É a mesma pergunta —
+ * *quais datas do período são feriado, como se chamam, e de onde vieram* —, e
+ * uma segunda leitura ao lado seria o lugar onde as respostas divergem.
+ *
+ * **ELA PASSOU A CHAMAR `feriados_do_periodo()` E NÃO A LER A TABELA**, e é a
+ * entrega da 0151 do lado de cá: aquela função SEMEIA os feriados nacionais do
+ * período antes de responder. Lendo `holidays` direto, um ano que nenhuma
+ * migration escreveu à mão volta VAZIO — e a 0038 já escreveu o que isso
+ * parece: *"um ano sem feriado na tabela não aparece vazio, aparece NORMAL"*.
+ *
+ * E `feriadosEntre()` passou a chamá-la em vez de ter a consulta dela: duas
+ * leituras com duas portas seriam o lugar onde o calendário do Day Off teria
+ * feriado e a contagem de dias úteis não.
  */
 export async function feriadosComNome(
   inicio: string,
   fim: string,
-): Promise<{ data: string; nome: string }[]> {
+): Promise<{ data: string; nome: string; origem: string }[]> {
   const supabase = await criarClienteServidor();
   const data = ouFalha(
-    "os feriados com nome",
-    await supabase
-      .from("holidays")
-      .select("data, nome")
-      .gte("data", inicio)
-      .lte("data", fim)
-      .order("data"),
+    "os feriados do período",
+    await supabase.rpc("feriados_do_periodo", {
+      p_inicio: inicio,
+      p_fim: fim,
+    }),
   );
   return data;
 }

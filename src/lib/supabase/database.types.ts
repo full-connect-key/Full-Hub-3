@@ -454,7 +454,15 @@ export type EventoTipo =
  * interruptor, e ele so tem dois valores porque sao duas as origens.
  * ---------------------------------------------------------------------------
  */
-export type TipoNoCalendario = "evento" | "aniversario";
+/**
+ * A ORIGEM de uma linha do Calendario Full.
+ *
+ * `evento` e o que a view produz; os outros dois nao vem dela e nunca vieram
+ * — o aniversario sai de `aniversarios_do_periodo()` (0130) e o feriado de
+ * `feriados_do_periodo()` (0151), as duas `security definer`. A razao de cada
+ * um nao estar na view esta no cabecalho da migration dele.
+ */
+export type TipoNoCalendario = "evento" | "aniversario" | "feriado";
 
 export type SkillNivel =
   | "iniciante"
@@ -1854,10 +1862,44 @@ export interface Database {
         };
         Relationships: [];
       };
+      /**
+       * Os feriados que apagam o dia (migration 0011, com `origem` na 0151).
+       *
+       * A TABELA CONTINUA SENDO A VERDADE e a 0151 nao a trocou por uma view,
+       * porque DEZ migrations ja aplicadas a citam por nome em `not exists` --
+       * `dias_uteis()`, `disponibilidade_bruta()`, `datas_da_recorrencia()`.
+       * O que mudou e quem a POVOA: `garantir_feriados_nacionais()` semeia o
+       * ano que alguem esta olhando, e `origem` diz de onde cada linha veio.
+       *
+       * `origem` ESTA NO `Insert` E NO `Update` de proposito, ao contrario dos
+       * carimbos do cronometro (0021): quem escreve o feriado da agencia e a
+       * tela de cadastro, e e ela que precisa marcar a linha como `'agencia'`
+       * -- se ela nascesse `'nacional'` por default, a geracao a trataria como
+       * dela e o apagar deixaria de ser desfazer.
+       */
       holidays: {
-        Row: { id: string; data: string; nome: string };
-        Insert: { id?: string; data: string; nome: string };
-        Update: { data?: string; nome?: string };
+        Row: { id: string; data: string; nome: string; origem: string };
+        Insert: { id?: string; data: string; nome: string; origem?: string };
+        Update: { data?: string; nome?: string; origem?: string };
+        Relationships: [];
+      };
+      /**
+       * Que anos ja foram semeados pela geracao (migration 0151).
+       *
+       * SEM `Insert` NEM `Update`, e a ausencia e a trava: a tabela nao tem
+       * policy de escrita nenhuma -- quem escreve e
+       * `garantir_feriados_nacionais()`, que e `security definer`. E a forma de
+       * `notifications`, onde a unica porta e `notificar()`.
+       *
+       * Ela existe para APAGAR SER DESFAZER: sem a marca, a agencia que
+       * trabalha no Carnaval apaga os dois dias e a geracao seguinte os
+       * devolve -- *aceitar e desfazer calado e pior que recusar com
+       * explicacao* (0025).
+       */
+      holiday_years: {
+        Row: { ano: number; gerado_em: string };
+        Insert: never;
+        Update: never;
         Relationships: [];
       };
       /**
@@ -4823,6 +4865,50 @@ export interface Database {
 
       // --- Full Days e notificacoes (migration 0011) ----------------------
       dias_uteis: { Args: { inicio: string; fim: string }; Returns: number };
+      /**
+       * Os 13 feriados nacionais de um ano, CALCULADOS (migration 0151).
+       *
+       * `immutable`, e ela nao le nem escreve tabela nenhuma: os nove fixos
+       * mais os quatro moveis, que saem da Pascoa pelo algoritmo gregoriano.
+       * Medida contra as 78 linhas que a 0011 e a 0038 escreveram a mao -- as
+       * seis Pascoas batem.
+       *
+       * NENHUMA TELA A CHAMA, e a ausencia e o desenho: quem a chama e
+       * `garantir_feriados_nacionais()`. Ela esta declarada aqui porque a
+       * conferencia de uma migration a usa, e porque uma funcao que o tipo nao
+       * conhece e uma funcao que ninguem acha.
+       */
+      feriados_nacionais: {
+        Args: { p_ano: number };
+        Returns: { data: string; nome: string }[];
+      };
+      /**
+       * Semeia os feriados nacionais dos anos que ainda nao foram semeados, e
+       * devolve quantas linhas nasceram (migration 0151).
+       *
+       * A FAIXA RECUSA EM VEZ DE GRAMPEAR, e a primeira versao grampeava:
+       * `greatest(p_de, 2020)` leva o pedido absurdo para DENTRO da faixa
+       * valida e semeia onze anos que ninguem pediu -- medido, 1900 a 2100
+       * gerava 65 linhas. Fora de [2024, 2060], ou com mais de 10 anos de
+       * janela, ela devolve 0 e a leitura continua devolvendo o que a tabela
+       * TEM.
+       */
+      garantir_feriados_nacionais: {
+        Args: { p_de: number; p_ate: number };
+        Returns: number;
+      };
+      /**
+       * Os feriados de um periodo, garantindo antes que os anos dele ja tenham
+       * sido semeados (migration 0151). E a porta que `lib/dados/` usa.
+       *
+       * A GARANTIA ACONTECE NA LEITURA e nao numa rotina de madrugada: a
+       * rotina teria de adivinhar quantos anos a frente gerar, e e justamente
+       * adivinhar errado que deixou a tabela acabando em 2030.
+       */
+      feriados_do_periodo: {
+        Args: { p_inicio: string; p_fim: string };
+        Returns: { data: string; nome: string; origem: string }[];
+      };
       dias_do_pedido: {
         Args: { p_tipo: HrTipo; p_inicio: string; p_fim: string };
         Returns: number;

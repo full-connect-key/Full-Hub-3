@@ -218,6 +218,43 @@ export function ehAniversario(item: ItemDoCalendario): boolean {
   return item.tipo === "aniversario";
 }
 
+// ---------------------------------------------------------------------------
+// O FERIADO NACIONAL (0151)
+//
+// Ele também NÃO é um valor de `evento_tipo`, e pela razão do aniversário: os
+// treze nacionais são CALCULADOS — o que dá para calcular não se guarda, e não
+// se lança. Quem os produz é `feriados_nacionais()`, e quem os devolve a esta
+// tela é `feriados_do_periodo()`.
+//
+// **E A 0105 NÃO O ALCANÇA.** Aquela migration fechou o calendário com a frase
+// *"apenas para eventos que serao lançados nele, nada de outros abas"*, e o
+// argumento dela era sobre o calendário ter virado o SEGUNDO lugar onde se lê
+// o que já se lê no módulo de origem. Um feriado nacional não tem módulo de
+// origem: ele não é lançado, não é trabalho de ninguém, e não aparece em lugar
+// nenhum do produto além do aviso de um campo de data. Não há segundo lugar —
+// é a mesma leitura que admitiu o aniversário.
+// ---------------------------------------------------------------------------
+
+/**
+ * O par do feriado — e ele é o MESMO do feriado de cliente, de propósito.
+ *
+ * **A legenda AGRUPA quem divide a cor**, que é a regra desta tela desde a
+ * 0105 e a do calendário do portal desde o Sprint 12: dar um sétimo par a uma
+ * linha que significa quase a mesma coisa é o confete que a decisão das oito
+ * categorias em cinco cores recusa. E o que separa os dois na GRADE já está
+ * desenhado — o chip de cliente carrega a empresa na segunda linha, e um
+ * feriado nacional não tem nenhuma.
+ */
+export const COR_DO_FERIADO = "bg-warning-soft text-warning";
+
+/** O que a pessoa lê. O chip mostra o NOME do feriado; a palavra fica no `title`. */
+export const ROTULO_DO_FERIADO = "Feriado";
+
+/** Veio de `holidays`, e não de `events`. */
+export function ehFeriado(item: ItemDoCalendario): boolean {
+  return item.tipo === "feriado";
+}
+
 /**
  * O chip abre o painel de detalhe?
  *
@@ -237,12 +274,14 @@ export function abreDetalhe(item: ItemDoCalendario): boolean {
 /** A cor do chip. Par nomeado, nunca opacidade. */
 export function corDoEvento(item: ItemDoCalendario): string {
   if (ehAniversario(item)) return COR_DO_ANIVERSARIO;
+  if (ehFeriado(item)) return COR_DO_FERIADO;
   return COR_DO_TIPO_DE_EVENTO[tipoDoEvento(item)];
 }
 
 /** O que a pessoa lê: "Feira", "Convenção". Nunca a chave do enum. */
 export function rotuloDoEvento(item: ItemDoCalendario): string {
   if (ehAniversario(item)) return ROTULO_DO_ANIVERSARIO;
+  if (ehFeriado(item)) return ROTULO_DO_FERIADO;
   return ROTULOS_DE_TIPO_DE_EVENTO[tipoDoEvento(item)];
 }
 

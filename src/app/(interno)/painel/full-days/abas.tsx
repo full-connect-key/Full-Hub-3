@@ -6,6 +6,7 @@ import {
   ChartColumn,
   Grid3x3,
   History,
+  PartyPopper,
 } from "lucide-react";
 
 import { BarraDeContexto, type SecaoDoModulo } from "@/components/shared/barra-de-contexto";
@@ -16,7 +17,8 @@ export type Aba =
   | "relatorio"
   | "solicitar"
   | "aprovacoes"
-  | "lancamentos";
+  | "lancamentos"
+  | "feriados";
 
 /**
  * As CHAVES continuam `solicitar` e `aprovacoes` porque estão na URL, e link
@@ -35,6 +37,10 @@ const ROTULOS: Record<Aba, { rotulo: string; Icone: typeof Grid3x3 }> = {
   // e a mesma palavra em dois módulos para duas coisas diferentes é como se
   // aprende a ler errado as duas.
   lancamentos: { rotulo: "Registrar período", Icone: History },
+  // "FERIADOS" e não "Calendário": a palavra "calendário" neste produto é o
+  // Calendário Full, que é outro módulo na barra lateral — a mesma palavra
+  // para duas telas é como se aprende a procurar na errada.
+  feriados: { rotulo: "Feriados", Icone: PartyPopper },
 };
 
 /**

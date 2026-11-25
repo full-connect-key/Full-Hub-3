@@ -27,6 +27,7 @@ import type { HrStatus, UserRole } from "@/lib/supabase/database.types";
 
 import { AbasDoFullDays, type Aba } from "./abas";
 import { Aprovacoes } from "./aprovacoes";
+import { Feriados } from "./feriados";
 import { Lancamentos } from "./lancamentos";
 import { MatrizDaEquipe } from "./matriz";
 import { RelatorioGerencial } from "./relatorio";
@@ -53,6 +54,11 @@ const QUEM_VE: Record<Aba, (role: UserRole) => boolean> = {
   // estiver fora. É o mesmo `is_gestor()` que a policy de INSERT de
   // `hr_requests` exige para qualquer origem que não seja `solicitacao`.
   lancamentos: ehGestor,
+  // GESTÃO E NÃO SÓ O SÓCIO, pela razão da aba de cima: decidir que a casa
+  // fecha numa sexta é combinado de operação, e `holidays_write` é
+  // `is_gestor()` desde a 0011 — uma pergunta mais apertada aqui recusaria
+  // quem o banco aceita, que é a lição da 0059.
+  feriados: ehGestor,
 };
 
 const PADRAO: Aba = "solicitar";
@@ -60,7 +66,14 @@ const PADRAO: Aba = "solicitar";
 function lerAba(valor: string | string[] | undefined): Aba {
   const texto = typeof valor === "string" ? valor : PADRAO;
   return (
-    ["matriz", "relatorio", "solicitar", "aprovacoes", "lancamentos"] as Aba[]
+    [
+      "matriz",
+      "relatorio",
+      "solicitar",
+      "aprovacoes",
+      "lancamentos",
+      "feriados",
+    ] as Aba[]
   ).includes(
     texto as Aba,
   )
@@ -155,6 +168,8 @@ export default async function PaginaDoFullDays({
           />
         ) : aba === "lancamentos" ? (
           <ConteudoDosLancamentos hojeISO={hojeISO} />
+        ) : aba === "feriados" ? (
+          <ConteudoDosFeriados hojeISO={hojeISO} />
         ) : (
           <ConteudoDeSolicitar usuarioId={sessao.usuarioId} hojeISO={hojeISO} />
         )}
@@ -331,4 +346,27 @@ async function ConteudoDosLancamentos({ hojeISO }: { hojeISO: string }) {
       hojeISO={hojeISO}
     />
   );
+}
+
+/**
+ * Os feriados que esta tela lista.
+ *
+ * **A JANELA ANDA COM O ANO, e as outras abas usam a fixa — a diferença é
+ * deliberada.** `PRIMEIRO_MES_DO_CALENDARIO` e `ULTIMO_MES_DO_CALENDARIO` são
+ * as bordas do calendário rolável, e elas não se movem: 2025 a 2030. Aqui a
+ * janela é o ano corrente mais dois, porque é **esta leitura que semeia** —
+ * `feriados_do_periodo()` garante os anos do intervalo antes de responder
+ * (0151), então abrir a aba em 2029 cria 2031 em vez de encontrar a tabela
+ * acabada onde a última migration parou.
+ *
+ * **E ela começa no ano CORRENTE e não no primeiro do calendário**, porque o
+ * que esta tela decide é o futuro: a lista de 2025 ocuparia a tela com seis
+ * anos de passado, e o que a pessoa vem fazer é gravar uma emenda do mês que
+ * vem. O feriado antigo continua valendo na matriz e no relatório, que leem a
+ * janela deles.
+ */
+async function ConteudoDosFeriados({ hojeISO }: { hojeISO: string }) {
+  const ano = Number(hojeISO.slice(0, 4));
+  const feriados = await feriadosComNome(`${ano}-01-01`, `${ano + 2}-12-31`);
+  return <Feriados feriados={feriados} hojeISO={hojeISO} />;
 }

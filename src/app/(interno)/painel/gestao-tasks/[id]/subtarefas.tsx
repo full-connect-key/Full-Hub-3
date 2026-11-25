@@ -89,6 +89,7 @@ export function Subtarefas({
   usuarioId,
   agoraDoServidor,
   feriados,
+  feriadosDoCliente,
 }: {
   taskId: string;
   subtarefas: SubtarefaDetalhada[];
@@ -109,6 +110,12 @@ export function Subtarefas({
    * linha de uma demanda de dez etapas é a mesma frase dez vezes.
    */
   feriados: Record<string, string>;
+  /**
+   * Os feriados da CONTA desta demanda, quando ela tem uma. Ausente no
+   * rascunho antes de alguém escolher o cliente — e aí o aviso continua
+   * respondendo pela agência, que é o que a tela sabe.
+   */
+  feriadosDoCliente?: Record<string, string>;
 }) {
   const router = useRouter();
   const [salvando, iniciar] = useTransition();
@@ -548,6 +555,7 @@ export function Subtarefas({
           podeGerenciar={podeGerenciar}
           usuarioId={usuarioId}
           feriados={feriados}
+          feriadosDoCliente={feriadosDoCliente}
           aoFechar={() => setAberta(null)}
         />
       ) : null}

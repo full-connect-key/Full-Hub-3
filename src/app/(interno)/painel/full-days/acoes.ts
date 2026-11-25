@@ -449,3 +449,138 @@ export async function apagarLancamento(id: string): Promise<Resultado> {
     return sucesso("Lançamento apagado.");
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Os feriados                                                         */
+/* ------------------------------------------------------------------ */
+
+const esquemaDeFeriado = z.object({
+  data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Escolha o dia."),
+  nome: z.string().trim().min(2, "Dê um nome ao feriado.").max(120),
+});
+
+/**
+ * Gravar um feriado da agência — a emenda, o feriado municipal, o dia que a
+ * casa fecha por decisão própria.
+ *
+ * **A CHAVE É A DATA e não um id**, e isso não é economia: `data` é `unique`
+ * em `holidays` desde a 0011, e `feriados_do_periodo()` não devolve `id` de
+ * propósito — a tela nunca precisou dele, e devolvê-lo seria um campo que os
+ * quatro leitores carregam sem usar. Com a data por chave, o `upsert` também
+ * é o caminho de CORRIGIR o nome de um feriado que a agência mesma gravou, e
+ * não há um segundo botão para isso.
+ *
+ * **ELA RECUSA GRAVAR POR CIMA DE UM NACIONAL, nomeando o que está lá.** O
+ * `upsert` reescreveria o nome e a origem — e aí o dia 25/12 passaria a ser
+ * "da agência", o gerador deixaria de responder por ele, e `holiday_years` já
+ * tem 2026 semeado, então nada o devolveria. A recusa diz QUAL feriado é, que
+ * é a diferença entre uma recusa e uma instrução (0023): quem digitou
+ * 25/12 sem perceber conclui que errou o dia, e não que o campo está quebrado.
+ *
+ * **E `origem` vai EXPLÍCITA, nunca pelo default da coluna.** O default é
+ * `'nacional'` porque é o que as 78 linhas que já estavam lá são; uma linha da
+ * agência que herdasse o default seria tratada pelo gerador como dele, e
+ * apagá-la deixaria de ser desfazer — ela voltaria no primeiro ano que fosse
+ * semeado de novo.
+ */
+export async function salvarFeriado(dados: unknown): Promise<Resultado> {
+  return executarAcao("salvarFeriado", async () => {
+    await exigirGestorNaAcao();
+
+    const validacao = esquemaDeFeriado.safeParse(dados);
+    if (!validacao.success) {
+      return falha(
+        recusaDeValidacao(
+          "salvarFeriado",
+          validacao.error,
+          dados,
+          "Confira o dia e o nome do feriado.",
+        ),
+      );
+    }
+    const entrada = validacao.data;
+
+    const supabase = await criarClienteServidor();
+
+    const { data: existente } = await supabase
+      .from("holidays")
+      .select("nome, origem")
+      .eq("data", entrada.data)
+      .limit(1);
+
+    const atual = existente?.[0];
+    if (atual && atual.origem === "nacional") {
+      return falha(
+        `${entrada.data.split("-").reverse().join("/")} já é feriado nacional: ${atual.nome}.`,
+      );
+    }
+
+    const { error } = await supabase
+      .from("holidays")
+      .upsert(
+        { data: entrada.data, nome: entrada.nome, origem: "agencia" },
+        { onConflict: "data" },
+      )
+      .select();
+
+    if (error) return falha(error.message);
+
+    revalidatePath(ROTA);
+    // A GRADE DO DAY OFF NÃO É A ÚNICA TELA QUE MUDA: o campo de data da
+    // etapa, a abertura do mês de social e o calendário da agência leem a
+    // mesma tabela. Revalidar só esta rota deixaria o aviso de feriado
+    // apontando para a lista de ontem nas outras três.
+    revalidatePath("/painel/gestao-tasks");
+    revalidatePath("/painel/minhas-tasks");
+    revalidatePath("/painel/social-media");
+    revalidatePath("/painel/calendario");
+    return sucesso(atual ? "Feriado atualizado." : "Feriado gravado.");
+  });
+}
+
+/**
+ * Apagar um feriado.
+ *
+ * **ELE ALCANÇA O NACIONAL TAMBÉM, e é decisão.** A agência que trabalha no
+ * dia 20 de novembro precisa poder tirá-lo da conta de dias úteis, e recusar
+ * aqui deixaria a única saída sendo colar SQL — que é exatamente o estado que
+ * o item 3 desfaz. **E apagar É desfazer**, porque `holiday_years` guarda o
+ * ano que já foi semeado: o gerador não devolve a linha na próxima leitura, e
+ * foi para isso que aquela tabela nasceu (0151).
+ *
+ * *O custo está dito na tela, e não escondido:* o que se apaga não volta
+ * sozinho. Quem apagar o Natal por engano grava um feriado com o mesmo dia e
+ * o mesmo nome — e ele entra como `'agencia'`, que é honesto: a partir dali a
+ * linha é uma decisão da casa e não um fato do calendário.
+ */
+export async function apagarFeriado(data: string): Promise<Resultado> {
+  return executarAcao("apagarFeriado", async () => {
+    await exigirGestorNaAcao();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+      return falha("Dia inválido.");
+    }
+
+    const supabase = await criarClienteServidor();
+    const { data: apagadas, error } = await supabase
+      .from("holidays")
+      .delete()
+      .eq("data", data)
+      .select("data");
+
+    if (error) return falha(error.message);
+    // SEM LINHA DE VOLTA É RECUSA, e não sucesso: `holidays_write` é
+    // `is_gestor()`, e um `delete` barrado pela RLS volta sem erro e sem
+    // linha — a tela diria "apagado" sobre um feriado que continua lá.
+    if (!apagadas || apagadas.length === 0) {
+      return falha("Este dia não está na lista de feriados.");
+    }
+
+    revalidatePath(ROTA);
+    revalidatePath("/painel/gestao-tasks");
+    revalidatePath("/painel/minhas-tasks");
+    revalidatePath("/painel/social-media");
+    revalidatePath("/painel/calendario");
+    return sucesso("Feriado apagado.");
+  });
+}

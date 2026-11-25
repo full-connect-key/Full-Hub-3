@@ -114,6 +114,30 @@ const aniversario = (id: string, nome: string, quando: number | string): ItemDoC
   link: "",
 });
 
+/**
+ * O FERIADO NACIONAL (0151), que vem de `holidays` e nao de `events`.
+ *
+ * Ele e a TERCEIRA origem da tela, e a razao de ele nao estar na view esta no
+ * cabecalho da migration: esta leitura e a que GARANTE o ano, calculando o que
+ * falta antes de responder -- uma view e um `select`.
+ *
+ * `status` carrega a ORIGEM (`nacional` ou `agencia`) e nao `events.tipo`, que
+ * e o que o leitor de verdade faz; nenhuma tela a desenha hoje. Sem empresa,
+ * porque um feriado nacional nao e de conta nenhuma, e sem link, porque a tela
+ * de feriados mora em `/painel/full-days` e e `is_gestor()`.
+ */
+const feriado = (quando: number | string, nome: string): ItemDoCalendario => ({
+  id: `feriado-${emQue(quando)}`,
+  tipo: "feriado",
+  titulo: nome,
+  dataInicio: emQue(quando),
+  dataFim: emQue(quando),
+  clientId: null,
+  cliente: null,
+  status: "nacional",
+  link: "",
+});
+
 const MV = { id: VERDE, nome: "Mundo Verde" };
 const OV = { id: OPTICA, nome: "Óptica Visão" };
 
@@ -176,6 +200,16 @@ const ITENS: ItemDoCalendario[] = [
   // domingo do Cronograma pagaram cada um uma vez (item de flex se recusa a
   // ficar menor que o conteudo, e o texto estoura em vez de cortar).
   aniversario("ani-duda", "Maria Eduarda Nogueira", DIA_UM),
+
+  // O FERIADO NACIONAL (0151), e ele esta na celula VIZINHA a do feriado de
+  // cliente do dia 5 de proposito.
+  //
+  // Os dois DIVIDEM o ambar -- a legenda agrupa quem divide a cor --, e o que
+  // os separa na grade e o que o chip ja desenha: o do cliente carrega
+  // "Óptica Visão" na segunda linha, e este nao tem nenhuma. Lado a lado, a
+  // imagem prova as duas coisas de uma vez; num dia solto ela provaria so que
+  // o chip aparece, que e a razao do evento de cada par da legenda.
+  feriado(6, "Proclamação da República"),
 ];
 
 /**
@@ -201,6 +235,40 @@ export async function itensDoCalendario(filtros: {
   }
 
   return visiveis;
+}
+
+/**
+ * O FERIADO DE CADA CONTA, por `client_id`.
+ *
+ * **ELE LE OS MESMOS `ITENS` e nao uma segunda lista**, que e a licao da
+ * duplicata do Cronograma: com duas listas independentes, a imagem sairia com
+ * o chip ambar do dia 5 na grade e o aviso de feriado de conta falando de
+ * outro dia -- um estado que o produto nao alcanca, fotografado como se fosse
+ * ele.
+ *
+ * O PERIODO E EXPANDIDO AQUI, dia a dia, porque e o que a leitura de verdade
+ * faz: `events` guarda as duas pontas, e quem consome compara UMA data.
+ */
+export async function feriadosDeClientes(
+  inicio: string,
+  fim: string,
+): Promise<Record<string, { data: string; nome: string }[]>> {
+  const porConta: Record<string, { data: string; nome: string }[]> = {};
+
+  for (const item of ITENS) {
+    if (item.tipo !== "evento" || item.status !== "feriado_cliente" || !item.clientId) continue;
+    const lista = (porConta[item.clientId] ??= []);
+
+    let d = item.dataInicio;
+    for (let passo = 0; passo < 60 && d <= item.dataFim; passo += 1) {
+      if (d >= inicio && d <= fim) lista.push({ data: d, nome: item.titulo });
+      const proximo = new Date(`${d}T12:00:00`);
+      proximo.setDate(proximo.getDate() + 1);
+      d = proximo.toISOString().slice(0, 10);
+    }
+  }
+
+  return porConta;
 }
 
 export async function pessoasDaEquipeNoCalendario(): Promise<PessoaDoCalendario[]> {

@@ -1121,7 +1121,37 @@ from (
     ('0150', 'o rascunho nao chega ao cliente (PASSO 5, a RLS)', 'policy',
              'social_reports|social_reports_select|publicado_em'),
     ('0150', 'o relatorio do social (PASSO 6, o fim)', 'trigger',
-             'auditoria_social_report_metrics')
+             'auditoria_social_report_metrics'),
+
+    -- 0151 - OS FERIADOS SE CALCULAM
+    --
+    -- SAO DUAS LINHAS, pela regra da 0138: o marcador do fim responde se a
+    -- colagem chegou ao FIM e e cego para a que SALTA um passo.
+    --
+    -- O PASSO 1 TEM A LINHA DELE porque nenhum outro passo o cria e porque a
+    -- falta dele e SILENCIOSA NA CRIACAO: `garantir_feriados_nacionais()`
+    -- escreve `origem` no `insert`, e plpgsql nao valida o corpo -- as tres
+    -- funcoes nascem inteiras, e o estouro e a primeira vez que alguem abre
+    -- um calendario. E a armadilha do `$$` em comentario pelo outro lado: o
+    -- que falha nao e a colagem, e o clique de alguem.
+    --
+    -- O PASSO 5 E O MARCADOR DO FIM: `feriados_do_periodo()` e o ultimo
+    -- OBJETO que o arquivo cria, e e ela que as quatro telas chamam. Os
+    -- PASSOS 2, 3 e 4 sao pre-requisito um do outro -- a tabela, o calculo, a
+    -- semeadura -- e esta linha os cobre.
+    --
+    -- SEM LINHA: 0151, PASSO 6 - ele e DADO, e a primeira leitura o apaga como
+    -- evidencia. Ele carimba em `holiday_years` os anos que ja estao em
+    -- `holidays`, para um feriado apagado a mao nao voltar; sem ele, a
+    -- primeira leitura de qualquer janela semeia aqueles anos de novo -- e a
+    -- partir dai `holiday_years` tem as mesmas linhas que ele teria escrito.
+    -- Um marcador por presenca diria `ok` nos dois casos. O que separa os dois
+    -- e o feriado que voltou, e isso nao e uma pergunta que este script saiba
+    -- fazer: quem a responde e a CONFERENCIA no fim da propria migration.
+    ('0151', 'de onde veio cada feriado (PASSO 1)', 'coluna',
+             'holidays.origem'),
+    ('0151', 'os feriados se calculam (PASSO 5, o fim)', 'funcao',
+             'feriados_do_periodo')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

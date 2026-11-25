@@ -10,6 +10,7 @@ import { vertentesDoCliente } from "@/lib/dados/vertentes";
 import type { Vertente } from "@/lib/dominio/vertentes";
 import type { EtapaQueMultiplica } from "@/lib/dominio/workflows";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
+import { feriadosDeClientes } from "@/lib/dados/calendario";
 import { feriadosComNome } from "@/lib/dados/full-days";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { listarWorkflows } from "@/lib/dados/workflows";
@@ -46,6 +47,18 @@ export type DetalheParaOPainel = {
    * dois: quem datasse por aqui concluiria que o produto não avisa.
    */
   feriados: Record<string, string>;
+  /**
+   * O FERIADO DA CONTA DESTA DEMANDA, já recortado.
+   *
+   * Ele é outro fato que o de cima: o nacional fecha a agência, e este diz que
+   * a CONTA não responde — a agência trabalha. São dois mapas e não um porque
+   * a frase é diferente, e `AvisoDeFeriado` escreve a de cada um.
+   *
+   * O RECORTE ACONTECE AQUI e não no componente: esta action já sabe de que
+   * conta é a demanda, e `feriadosDeClientes()` devolve por conta justamente
+   * para a abertura do mês de social, que escolhe o cliente na tela.
+   */
+  feriadosDoCliente?: Record<string, string>;
   urls: Record<string, string>;
   usuarioId: string;
   /** Atendimento ou gestão: mexe na demanda e nas etapas. */
@@ -87,14 +100,22 @@ export async function carregarDetalheDaTask(
     // futuro fica calado justamente quando alguém erra o ano.
     const anoCorrente = Number(hojeNaAgencia().slice(0, 4));
 
-    const [clientes, equipe, tipos, ehDoAtendimento, vertentes, feriados] = await Promise.all([
-      listarClientes(),
-      listarEquipeAtiva(),
-      listarWorkflows(task.client_id),
-      souDoAtendimento(),
-      vertentesDoCliente(task.client_id),
-      feriadosComNome(`${anoCorrente - 1}-01-01`, `${anoCorrente + 3}-12-31`),
-    ]);
+    const inicioDaJanela = `${anoCorrente - 1}-01-01`;
+    const fimDaJanela = `${anoCorrente + 3}-12-31`;
+
+    const [clientes, equipe, tipos, ehDoAtendimento, vertentes, feriados, feriadosPorConta] =
+      await Promise.all([
+        listarClientes(),
+        listarEquipeAtiva(),
+        listarWorkflows(task.client_id),
+        souDoAtendimento(),
+        vertentesDoCliente(task.client_id),
+        feriadosComNome(inicioDaJanela, fimDaJanela),
+        // A MESMA JANELA dos nacionais, pela mesma razão: o campo aceita o que
+        // for digitado, e um aviso que só conhece o futuro fica calado
+        // justamente quando alguém erra o ano.
+        feriadosDeClientes(inicioDaJanela, fimDaJanela),
+      ]);
 
     const urls = await urlsDosArquivos(
       task.referencias.filter((r) => r.tipo === "arquivo").map((r) => r.url),
@@ -119,6 +140,9 @@ export async function carregarDetalheDaTask(
       })),
       vertentes,
       feriados: mapaDeFeriados(feriados),
+      feriadosDoCliente: task.client_id
+        ? mapaDeFeriados(feriadosPorConta[task.client_id] ?? [])
+        : undefined,
       urls,
       usuarioId: sessao.usuarioId,
       podeGerenciar: ehDoAtendimento || gestor,
