@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { ouFalha } from "@/lib/dados/consulta";
+import { MINIMO_PARA_BUSCAR } from "@/lib/dominio/busca";
 import { hojeNaAgencia, segundaDaSemana, somarDias } from "@/lib/dominio/datas";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
@@ -188,9 +189,6 @@ export type BuscaNaPauta = {
   total: number;
 };
 
-/** O piso de duas letras, o mesmo da paleta de busca (0073). */
-export const MINIMO_DA_BUSCA = 2;
-
 /**
  * ACHAR A ETAPA PELO TÍTULO — a segunda metade do pedido, *"poder pesquisar
  * por titulo, para achar a task caso não lembre quem fez"*.
@@ -224,7 +222,7 @@ export async function acharEtapaPeloTitulo(
   // O PISO É CONFERIDO DOS DOIS LADOS, e aqui ele poupa a ida ao banco: a
   // função também devolve vazio com menos de duas letras, então quem montar a
   // chamada à mão recebe a mesma resposta.
-  if (limpo.length < MINIMO_DA_BUSCA) {
+  if (limpo.length < MINIMO_PARA_BUSCAR) {
     return { termo: limpo, achadas: [], total: 0 };
   }
 

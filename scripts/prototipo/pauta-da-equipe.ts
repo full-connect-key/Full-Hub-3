@@ -22,7 +22,7 @@ export type {
   PessoaNaPauta,
 };
 
-export const MINIMO_DA_BUSCA = 2;
+const MINIMO_PARA_BUSCAR = 2;
 
 /**
  * A carga da equipe nesta semana, para o protótipo (0144, item 22).
@@ -109,7 +109,7 @@ export async function acharEtapaPeloTitulo(
   limite = 40,
 ): Promise<BuscaNaPauta> {
   const limpo = termo.trim();
-  if (limpo.length < MINIMO_DA_BUSCA) {
+  if (limpo.length < MINIMO_PARA_BUSCAR) {
     return { termo: limpo, achadas: [], total: 0 };
   }
 

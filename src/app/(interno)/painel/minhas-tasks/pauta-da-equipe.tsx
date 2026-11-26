@@ -13,12 +13,9 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Input } from "@/components/ui/input";
-import {
-  MINIMO_DA_BUSCA,
-  type BuscaNaPauta,
-  type CargaDaEquipe,
-} from "@/lib/dados/pauta-da-equipe";
+import type { BuscaNaPauta, CargaDaEquipe } from "@/lib/dados/pauta-da-equipe";
 import type { DiaDeDisponibilidade } from "@/lib/dominio/disponibilidade";
+import { MINIMO_PARA_BUSCAR } from "@/lib/dominio/busca";
 import {
   COR_DO_NIVEL,
   ROTULOS_DE_NIVEL,
@@ -481,9 +478,9 @@ export function PautaDaEquipe({
             Procura em toda a pauta da equipe, desde sempre — pelo nome da etapa
             ou da demanda. O resultado diz de quem ela é.
           </p>
-        ) : busca.termo.length < MINIMO_DA_BUSCA ? (
+        ) : busca.termo.length < MINIMO_PARA_BUSCAR ? (
           <p className="text-text-secondary text-xs">
-            Escreva ao menos {MINIMO_DA_BUSCA} letras.
+            Escreva ao menos {MINIMO_PARA_BUSCAR} letras.
           </p>
         ) : busca.achadas.length === 0 ? (
           /* AS DUAS FRASES DO VAZIO SÃO DUAS, como na trilha de auditoria: o
