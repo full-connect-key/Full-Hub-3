@@ -5,6 +5,7 @@ import { MenuDoUsuario } from "@/components/painel/menu-do-usuario";
 import { MenuGaveta } from "@/components/painel/menu-gaveta";
 import { MenuLateral } from "@/components/painel/menu-lateral";
 import { SinoDeNotificacoes } from "@/components/painel/sino-de-notificacoes";
+import { TopoDoPainel } from "@/components/painel/topo-do-painel";
 import { AtualizacaoAoVivo } from "@/components/shared/atualizacao-ao-vivo";
 import { BoasVindas } from "@/components/tour/boas-vindas";
 import { ConviteDeMicroTour } from "@/components/tour/convite-de-micro-tour";
@@ -134,10 +135,15 @@ export default async function LayoutDoPainel({
 
             E ela deixou de ter fundo e desfoque próprios: sobre a malha, uma
             faixa translúcida criava uma segunda borda horizontal onde o
-            desenho não tem nenhuma. O que gruda no topo agora é a barra de
-            seções, que é a que precisa.
+            desenho não tem nenhuma.
+
+            **Em REPOUSO. Ao rolar ela ganha chão**, e a razão está em
+            `TopoDoPainel`: transparente e `sticky`, ela deixava o conteúdo
+            subir por baixo e ficar visível nos 64px do topo, preso acima da
+            barra de seções, que é opaca. A malha não paga nada por isso —
+            quando o chão aparece, ela já saiu da tela.
           */}
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-2 px-3 sm:gap-3 lg:px-6">
+          <TopoDoPainel>
             <MenuGaveta role={profile.role} ehAtendimento={ehAtendimento} />
             <BuscaGlobal />
 
@@ -183,7 +189,7 @@ export default async function LayoutDoPainel({
                 hrefDoPerfil="/painel/perfil"
               />
             </div>
-          </header>
+          </TopoDoPainel>
 
           {/* A TERCEIRA ÂNCORA GENÉRICA dos micro-tours: a área de conteúdo
               do módulo. Ela é o passo "é aqui que o trabalho acontece" de
