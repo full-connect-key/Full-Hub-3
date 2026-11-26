@@ -16,15 +16,48 @@ import { ROTAS_RENOMEADAS } from "./src/lib/auth/permissions";
  * lugar sem clone (um tarball, uma imagem). Se nenhum dos dois responder,
  * o rodapé diz "versão local" — e quem vê isso sabe na hora que não está
  * olhando uma versão publicada.
+ *
+ * ---------------------------------------------------------------------------
+ * `safe.directory=*` É O QUE FAZ A LEITURA FUNCIONAR NUMA HOSPEDAGEM, e ela
+ * foi aprendida duas vezes.
+ *
+ * O git RECUSA ler um repositório cujo dono não é quem está chamando —
+ * *"detected dubious ownership"*, e ele sai com código de erro sem imprimir
+ * nada em `stdout`. Numa hospedagem compartilhada isso é o caso NORMAL: quem
+ * clona é o processo de deploy do painel e quem constrói é outro usuário.
+ *
+ * O deploy da VPS já tinha batido nisso e resolveu por fora, passando
+ * `NEXT_PUBLIC_COMMIT` explícito no comando — está escrito no CLAUDE.md desde
+ * então. O deploy pelo Git do hPanel não passa nada: ele depende desta
+ * leitura, e quando ela falha o rodapé diz "versão local" e **ninguém tem
+ * como saber por quê**.
+ *
+ * `-c safe.directory='*'` vale só para esta chamada, não escreve
+ * configuração em lugar nenhum, e é inofensivo quando o dono já está certo —
+ * esta leitura é de UM campo, num repositório que o próprio deploy acabou de
+ * clonar.
+ *
+ * **E A FALHA DEIXOU DE SER MUDA.** Antes o `stdio` jogava o `stderr` fora,
+ * então a única pista de um build sem commit era o rodapé — depois de
+ * publicado. Agora o motivo sai no LOG DO BUILD, que é o lugar onde alguém
+ * procura. É a mesma decisão do `/status` sobre a chave de serviço: a ausência
+ * é dita, não escondida.
+ * ---------------------------------------------------------------------------
  */
-function lerDoGit(...args: string[]): string {
+function lerDoGit(...args: string[]): { valor: string; erro: string } {
   try {
-    return execFileSync("git", args, {
+    const valor = execFileSync("git", ["-c", "safe.directory=*", ...args], {
       encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
     }).trim();
-  } catch {
-    return "";
+    return { valor, erro: "" };
+  } catch (erro) {
+    // `execFileSync` devolve o `stderr` do comando quando ele é capturado, e
+    // é nele que o git escreve o motivo. Sem isto, "não deu" e "não existe
+    // git nesta máquina" têm a mesma cara.
+    const comStderr = erro as { stderr?: Buffer | string; message?: string };
+    const texto = String(comStderr.stderr ?? "").trim() || comStderr.message || "motivo desconhecido";
+    return { valor: "", erro: texto.split("\n")[0] };
   }
 }
 
@@ -43,9 +76,21 @@ function hostDoSupabase(): string {
   }
 }
 
-const COMMIT = process.env.NEXT_PUBLIC_COMMIT || lerDoGit("rev-parse", "--short", "HEAD");
+const doGit = lerDoGit("rev-parse", "--short", "HEAD");
+const COMMIT = process.env.NEXT_PUBLIC_COMMIT || doGit.valor;
 const COMMIT_EM =
-  process.env.NEXT_PUBLIC_COMMIT_EM || lerDoGit("log", "-1", "--format=%cI");
+  process.env.NEXT_PUBLIC_COMMIT_EM || lerDoGit("log", "-1", "--format=%cI").valor;
+
+// O AVISO É UM SÓ, e sai só quando o rodapé vai mentir. Um por chamada de
+// `lerDoGit()` apareceria duas vezes dizendo a mesma coisa, e um aviso que se
+// repete é um aviso que se aprende a pular.
+if (!COMMIT) {
+  console.warn(
+    "[versao] Este build não sabe de que commit saiu, então o rodapé vai dizer " +
+      `"versão local". O git recusou: ${doGit.erro || "sem motivo"}. ` +
+      "Se o build não sai de um clone, defina NEXT_PUBLIC_COMMIT no ambiente.",
+  );
+}
 
 const nextConfig: NextConfig = {
   // `env` embute o valor no código que vai para o navegador, do mesmo jeito
