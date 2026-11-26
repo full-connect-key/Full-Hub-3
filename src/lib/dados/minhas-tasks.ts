@@ -417,6 +417,12 @@ export async function itensPessoaisDoCalendario(
         // chamadas "Layout" na mesma semana são dois trabalhos, e o nome da
         // demanda é o que diz de qual campanha é cada uma.
         demanda: task.titulo,
+        // A FAIXA DE INÍCIO A PRAZO VALE AQUI TAMBÉM, porque é o mesmo
+        // componente — e não custa consulta nenhuma: `sub` é uma
+        // `SubtarefaDetalhada`, que é a linha do banco inteira. O que esta
+        // tela não passa é o `aoMover`, pela razão escrita em
+        // `acoes-de-itens.ts`.
+        inicio: sub.data_inicio,
         prazo: sub.prazo,
         prioridade: sub.prioridade,
         status: task.status,

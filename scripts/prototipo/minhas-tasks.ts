@@ -141,6 +141,7 @@ export async function itensPessoaisDoCalendario(
         taskId: task.id,
         titulo: sub.titulo,
         demanda: task.titulo,
+        inicio: sub.data_inicio,
         prazo: sub.prazo,
         prioridade: sub.prioridade,
         status: task.status,

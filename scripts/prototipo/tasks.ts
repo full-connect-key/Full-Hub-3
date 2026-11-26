@@ -448,6 +448,9 @@ const SEMENTES: Semente[] = [
     task_id: "11111111-1111-1111-1111-111111111111",
     titulo: "Criar KV",
     ordem: 2,
+    // UMA FAIXA DE TRÊS DIAS, atravessando hoje: é ela que prova no calendário
+    // que o chip vai do INÍCIO ao prazo, e não só do prazo.
+    data_inicio: dia(-1),
     prazo: dia(1),
     responsavel: BRUNO,
     status: "enviada_aprovacao",
@@ -602,6 +605,12 @@ const SEMENTES: Semente[] = [
     task_id: "66666666-6666-6666-6666-666666666666",
     titulo: "Desenvolver landing",
     ordem: 1,
+    // ONZE DIAS, e o número é escolhido: uma faixa de oito dias ou mais
+    // atravessa a virada da semana QUALQUER que seja o dia de hoje — é a
+    // lição das datas calculadas e nunca literais, aplicada a uma largura.
+    // Sem ela, o pedaço que continua de uma semana para a outra, com o canto
+    // achatado e sem a barra de cor, não sairia em imagem nenhuma.
+    data_inicio: dia(-4),
     prazo: dia(6),
     responsavel: DIEGO,
     status: "enviada_aprovacao",
@@ -1483,6 +1492,7 @@ export async function itensDoCalendario(
       taskId: sub.task_id,
       titulo: sub.titulo,
       demanda: mae.titulo,
+      inicio: sub.data_inicio,
       prazo: sub.prazo,
       prioridade: sub.prioridade,
       status: mae.status,
@@ -1506,6 +1516,7 @@ export async function itensDoCalendario(
       taskId: "cmp1",
       titulo: "Wave Saúde do Homem",
       demanda: null,
+      inicio: null,
       prazo: fecha.toISOString().slice(0, 10),
       prioridade: "normal",
       status: "em_andamento",

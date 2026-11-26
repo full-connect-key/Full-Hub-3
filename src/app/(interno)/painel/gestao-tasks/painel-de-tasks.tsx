@@ -17,6 +17,8 @@ import { BoardDeTasks } from "./board";
 import { CalendarioDeTasks } from "./calendario";
 import { SeletorDeVisao } from "@/components/shared/seletor-de-visao";
 
+import { chamarAcao } from "@/lib/acoes/cliente";
+import { atualizarSubtarefa } from "./acoes-de-itens";
 import { BarraDeFiltrosDeTask, useFiltros } from "./filtros";
 import { ListaDeTasks } from "./lista";
 
@@ -129,7 +131,25 @@ export function PainelDeTasks({
         </div>
       ) : null}
       {filtros.visao === "calendario" ? (
-        <CalendarioDeTasks itens={itensDeCalendario} prazos={prazos} />
+        <CalendarioDeTasks
+          itens={itensDeCalendario}
+          prazos={prazos}
+          /* QUEM PASSA `aoMover` É SÓ ESTA TELA, e é ela que destrava o
+             arrasto. `atualizarSubtarefa` abre com
+             `exigirRotaNaAcao("/painel/gestao-tasks")`, que é `GESTAO`, e o
+             MESMO calendário desenha o de Minhas Tasks, que é `EQUIPE`:
+             passá-la lá faria o arrasto de um colaborador levar *"Seu perfil
+             não permite esta ação"* numa escrita que o banco aceita, porque
+             `subtasks_update` é `is_staff()` desde a 0144 — a guarda mais
+             apertada que o banco, que a 0059 e a faixa de disponibilidade já
+             pagaram duas vezes. Sem a prop não há arrasto, e os dois lados
+             nunca divergem. */
+          aoMover={(etapa, datas) =>
+            chamarAcao(() =>
+              atualizarSubtarefa(etapa.id, etapa.taskId, datas),
+            )
+          }
+        />
       ) : null}
 
     </div>

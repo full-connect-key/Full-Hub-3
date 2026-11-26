@@ -13701,6 +13701,182 @@ ramo da etapa, com o rosto certo.
 **Nenhuma migration, e nenhuma consulta nova.** As quatro mudanças são tipo,
 leitura e desenho.
 
+##### A FAIXA DO PERÍODO, E O ARRASTO QUE MUDA AS DATAS
+
+Decisão do usuário, em duas frases: *"não está aparecendo a data de inicio da
+tarefa, apenas o final. por exemplo essa tarefa de pauta era inicio dia 26 mas
+só aparece no dia 27 que é o prazo final"* e *"quero poder mexer nas datas
+apenas clicando e arrastando os cards (…) assim posso reorganizar em escala sem
+precisar entrar task por task"*.
+
+**AS DUAS METADES SÃO A MESMA MUDANÇA, e é por isso que elas saem juntas:** sem
+a faixa, o arrasto move um chip de um dia e ninguém vê a duração que ele
+carrega — e sem o arrasto, a faixa desenha um período que continua só sendo
+editável etapa por etapa, que é a queixa dele.
+
+**E NÃO HÁ MIGRATION, NEM AÇÃO NOVA, NEM CONSULTA NOVA.**
+`subtasks.data_inicio` existe desde a 0027, `esquemaDeSubtarefa` valida as duas
+datas desde o Sprint 3B, `atualizarSubtarefa` grava as duas desde então, e
+`itensDoCalendario` já fazia `select("*")`. **É a ponte construída e nunca
+atravessada pela vigésima quarta vez**, e desta vez ela estava inteira dos dois
+lados: o que faltava era o `inicio` entrar em `ItemDeCalendario` e a grade
+saber desenhar duas pontas.
+
+###### ISTO REVERTE METADE DA 0027, e a metade que fica é a primeira
+
+Aquela migration escreveu: *"Atraso continua sendo do `prazo`, e o calendário
+continua mostrando só ele. Começar tarde não é atrasar; entregar tarde é. E uma
+barra por data dobraria os itens do mês."*
+
+**A PRIMEIRA FRASE CONTINUA INTEIRA, e é ela que decide a cor:** o tom do chip
+sai de `situacaoDoPrazo(item.prazo, …)` e de mais nada — uma etapa que começou
+ontem e vence amanhã não é atrasada, e a faixa dela não fica vermelha porque
+ela é longa.
+
+**A SEGUNDA CAI, e ela caiu por uma premissa e não por uma decisão nova:** ela
+supõe DUAS barras, uma por data. Uma faixa é **um chip mais largo** — o mesmo
+item, atravessando as células que ele cobre —, então o mês não ganha um item
+sequer. O que se perde não é a contagem, é a altura: um dia coberto por quatro
+faixas gasta quatro trilhas, e é por isso que o "+N" passou a ser por DIA.
+
+**E A TERCEIRA REGRA DA 0027 É O QUE DECIDE O CASO SEM INÍCIO:** *"os dois são
+opcionais, e é caso normal — exigir as duas faria a pessoa inventar uma"*. Com
+`inicio` nulo a faixa é de UM dia, no prazo, exatamente como antes, e o arrasto
+move só o `prazo`. **A faixa não inventa data nenhuma**, e é por isso que a
+reversão não encosta naquela frase.
+
+###### A GRADE PASSOU A SER UMA LINHA POR SEMANA
+
+Eram 42 células num `grid-cols-7` só, cada uma com os itens dela dentro — e
+nesse arranjo **um chip não tem como atravessar a borda de uma célula**: o
+`overflow` dela o corta, e ele nasce preso a um dia.
+
+Hoje cada semana é uma linha própria, com **duas camadas empilhadas**: o chão
+(`absolute inset-0`, as sete células com a borda, o tom de fora do mês e o
+realce de solta) e o conteúdo (`relative`, em fluxo, onde o chip ocupa
+`gridColumnStart` → `gridColumnEnd`). **A ALTURA É DO CONTEÚDO**, que é a razão
+de o chão ser o `absolute` e não o contrário: com a altura vindo das células, a
+linha não cresceria com a quarta trilha.
+
+**E O `pointer-events-none` DO CHÃO NÃO TIRA O ALVO DE SOLTA**, que é a parte
+que parece bug e não é: o dnd-kit mede o RETÂNGULO de cada `droppable`
+(`getBoundingClientRect`) em vez de perguntar ao navegador quem está sob o
+cursor — então a camada continua sendo alvo sem interceptar o clique do chip
+que está acima dela.
+
+**`pedacosDaSemana()` É QUEM PARTE A FAIXA NA VIRADA**, e ele devolve três
+coisas: os pedaços (com `continua`/`segue` dizendo de que lado a faixa
+prossegue), quantas trilhas a semana usa, e **os escondidos POR DIA** — uma
+faixa que não cabe é escondida nos cinco dias que ela cobria, senão o "+2" de
+quinta contaria um item que está desenhado na segunda. O empacotamento é
+guloso e **a ordem é determinística** (começo, depois fim, depois a chave):
+sem isso a mesma semana sairia com as trilhas trocadas a cada render.
+
+**E A CHAVE DO PEDAÇO LEVA A SEMANA** (`${chave}-${semana[0]}`), porque a
+mesma faixa aparece em duas linhas quando ela atravessa a virada — com a chave
+do item, o React reaproveitaria o nó de uma linha na outra.
+
+**O `porDia` DEIXOU DE SER IGUALDADE E PASSOU A SER PERTINÊNCIA:** para cada um
+dos 42 dias visíveis, os itens cujo `[começo, prazo]` cobrem aquele dia. **É
+por DIA e não por item de propósito** — caminhar do `inicio` até o `prazo`
+estoura numa data com o ano digitado errado, e aqui a conta é limitada por
+construção: 42 dias, sempre.
+
+###### O ARRASTO: O COMEÇO CAI NO DIA DA SOLTA, e a duração se preserva
+
+É a única regra que dá o mesmo resultado qualquer que seja a faixa e qualquer
+que seja a distância: `prazo = dia + (prazo − começo)`. Soltando uma faixa de
+dez dias três semanas à frente, ela continua com dez dias; soltando um chip de
+um dia, ele troca de dia. **A alternativa — o prazo cair no dia da solta —
+inverteria o gesto numa faixa longa:** quem arrasta a barra pela ponta
+esquerda veria o começo saltar dez dias para trás.
+
+**COM `inicio` NULO SÓ O PRAZO ANDA**, que é a regra da 0027 lida de novo: a
+etapa não tem começo, e o arrasto não é lugar de inventar um.
+
+**A ORDEM NOVA VALE NA TELA ANTES DE O BANCO RESPONDER**, e volta sozinha
+quando ele recusa — com a frase do banco num toast. É a decisão do board da
+Gestão de Tasks e do arrasto das etapas: sem isso o chip saltaria de volta ao
+lugar antigo e só depois para o novo, que é o arrasto se desfazendo na frente
+de quem arrastou.
+
+**DUAS COISAS NÃO ARRASTAM, e cada uma por um motivo próprio:** a etapa
+**concluída**, porque ela já aconteceu e mover a data dela reescreveria QUANDO
+ela aconteceu; e a **campanha**, porque ela não tem responsável e o período
+dela é o combinado com o cliente — `campaigns_protege_colunas` (0078) recusa
+quem não é `is_atendimento()`, e um gesto de seis pixels não é onde se muda o
+que foi combinado com quem contratou.
+
+**E ISTO NÃO CONTRADIZ A REMOÇÃO DO ARRASTO DO CALENDÁRIO FULL**, que é a
+pergunta que a decisão levanta. O argumento escrito lá é que o arrasto *"valia
+para uma camada só — porque o prazo dela é escrito por quem a faz —, e nas
+outras prometia uma mudança que o banco desfaz ou recusa"*. **Aqui a tela é
+daquela camada:** este calendário lista ETAPAS, cujo prazo é escrito por quem
+as faz, e as duas origens em que a promessa não se cumpriria são justamente as
+duas que não arrastam.
+
+**`collisionDetection={pointerWithin}` É O ÚNICO ESCRITO NO PRODUTO**, e o
+board usa o padrão do dnd-kit (`rectIntersection`) de propósito: lá o card tem
+a largura da coluna e a maior sobreposição é a resposta certa. Aqui uma faixa
+de cinco dias sobrepõe cinco células ao mesmo tempo, e "a maior" não quer dizer
+nada — **o dia da solta é o dia sob o PONTEIRO**, que é `pointerWithin` em
+quantas palavras.
+
+**E O CLIQUE NÃO ABRE DEPOIS DO ARRASTO**, pela guarda do `board.tsx`: o
+`click` nativo dispara depois do `pointerup` e ANTES de o React esvaziar o
+estado do dnd-kit, então quem responde é o `isDragging` do próprio gancho e
+nunca um estado do pai.
+
+###### `aoMover` É PROP, e a ausência dela em Minhas Tasks é a decisão
+
+`atualizarSubtarefa` abre com `exigirRotaNaAcao("/painel/gestao-tasks")`, que é
+`GESTAO` — e **o mesmo calendário é desenhado em Minhas Tasks**, que é
+`EQUIPE`, com `subtasks_update` em `is_staff()` desde a 0144. Ligando o arrasto
+direto na ação, o colaborador arrastaria um card e leria *"Seu perfil não
+permite esta ação"* **numa escrita que o banco aceita** — a guarda mais
+apertada que o banco, que a 0059 e a faixa de disponibilidade já pagaram duas
+vezes.
+
+Então quem passa `aoMover` é `painel-de-tasks.tsx` e mais ninguém: sem a prop
+não há arrasto, e os dois lados não têm como divergir. **E é o pedido literal**
+— *"na visualização de calendário da gestão de tasks"*.
+
+###### Quatro coisas de desenho, e três delas são lições pagas
+
+**O CHIP DEIXOU DE EMBRULHAR O `<li>`.** Ele era `<li><button>…`, e na grade
+por semana ele é um item de GRADE posicionado por coluna; no painel do dia ele
+continua sendo o conteúdo de um `<li>` — que agora o chamador escreve. Um
+`<li>` solto dentro de um `div` de grade é marcação inválida, e o painel do dia
+perderia a lista.
+
+**AS PONTAS SÃO UM PAR `rounded-l`/`rounded-r`**, nunca um `rounded` seguido de
+`rounded-l-none`: o tailwind-merge descarta a classe **ANTERIOR** em conflito,
+então o atalho perderia também os cantos da direita — e o sintoma é uma faixa
+com o canto certo de um lado e quadrado do outro, que lê como defeito.
+
+**`min-w-0` EM TODO INVÓLUCRO DE GRADE**, pela quarta vez neste arquivo: um
+item de grade nasce com `min-width: auto` e se recusa a ficar menor que o
+conteúdo, então um título longo estoura a coluna em vez de truncar. Foi a
+coluna de domingo do Cronograma, o selo de prazo do board de etapas e o chip do
+aniversário; é o mesmo.
+
+**E O PERÍODO ENTRA NO RÓTULO ACESSÍVEL, não numa linha do chip.** A faixa já o
+DESENHA — ela começa no dia de início e termina no prazo —, e uma linha
+*"de 26/11 a 27/11"* dentro do chip seria o mesmo fato dito duas vezes a dois
+centímetros. Quem não tem a faixa é quem usa leitor de tela, e é lá que a frase
+precisa estar.
+
+***E o `role`/`tabIndex` do dnd-kit são descartados antes de espalhar os
+`attributes`***, como no cartão do board: o chip JÁ É um `<button>`, e os dois
+dariam `nested-interactive` no axe mais duas paradas de Tab para a mesma coisa.
+
+***O que NÃO foi feito, e é dito em vez de escondido:*** **não há arrasto por
+ponta** — esticar a faixa para mudar só o prazo, ou só o começo. O gesto move o
+período inteiro, e quem quer mudar uma ponta abre a etapa, que é onde as duas
+datas se escrevem com o calendário de carga ao lado. E **o protótipo não foi
+rodado**: a faixa, o "+N" por dia e o realce de solta não foram conferidos em
+imagem, e nenhuma das verificações alcança posição de elemento numa grade.
+
 ### Gestão de Pessoas: Equipe e Clientes numa aba só
 
 `/painel/pessoas`, com a aba na URL. Eram dois itens de menu e viraram um, por

@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ComponentPropsWithoutRef,
+  type Ref,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   addDays,
   addMonths,
   addWeeks,
+  differenceInCalendarDays,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
@@ -17,6 +25,18 @@ import {
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +58,141 @@ import type { ItemDeCalendario } from "@/lib/dados/tasks";
 import { cn } from "@/lib/utils";
 
 const DIAS_DA_SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
+
+
+/**
+ * O prefixo que `lib/dados/tasks.ts` põe na chave de uma etapa.
+ *
+ * A chave é `subtarefa-<uuid>` desde o Sprint 4, e é dela que sai o id que a
+ * ação de mover recebe. Tirar o prefixo aqui, num lugar só e nomeado, é o que
+ * impede a mesma fatia de string de aparecer no meio de um `aoSoltar`.
+ */
+const PREFIXO_DA_ETAPA = "subtarefa-";
+
+/**
+ * O DIA EM QUE A FAIXA COMEÇA na grade — o início quando há, o prazo quando não.
+ *
+ * O `<=` é defensivo e não decoração: o `check subtasks_periodo` recusa período
+ * invertido no banco desde a 0027, e este componente desenha também os dados de
+ * exemplo do protótipo e as linhas de Minhas Tasks. Uma data torta vira um chip
+ * de UM dia, que é visível, em vez de uma faixa de largura negativa, que não é.
+ */
+function comecoDoItem(item: ItemDeCalendario) {
+  return item.inicio && item.inicio <= item.prazo ? item.inicio : item.prazo;
+}
+
+/**
+ * A data de uma chave `yyyy-MM-dd`, ao MEIO-DIA e nunca à meia-noite.
+ *
+ * É a mesma razão do painel do dia logo abaixo: à zero hora qualquer
+ * deslocamento de fuso ou de horário de verão troca o DIA, e aqui trocar o dia
+ * troca o prazo que a pessoa acabou de arrastar.
+ */
+function dataDaChave(chave: string) {
+  return new Date(`${chave}T12:00:00`);
+}
+
+/** Um trecho de faixa dentro de UMA semana da grade. */
+type PedacoDaSemana = {
+  item: ItemDeCalendario;
+  /** 1 a 7, como `gridColumnStart`. */
+  col: number;
+  /** Exclusivo, como `gridColumnEnd`: 8 é "até o fim da semana". */
+  colFim: number;
+  /** A faixa começa ANTES desta semana — o canto achatado e sem a barra. */
+  continua: boolean;
+  /** A faixa termina DEPOIS desta semana. */
+  segue: boolean;
+  /** A linha da grade onde o pedaço cabe, contada do zero. */
+  trilha: number;
+};
+
+/**
+ * OS PEDAÇOS DE UMA SEMANA, empacotados em trilhas.
+ *
+ * ---------------------------------------------------------------------------
+ * **Uma faixa que atravessa a virada da semana não é um elemento, são dois.**
+ * Numa grade de sete colunas um item de grade não dobra de linha, então a
+ * campanha de 28/09 a 03/10 é um pedaço que vai de segunda ao domingo com o
+ * canto direito achatado, e outro que vai de segunda ao fim com o canto
+ * esquerdo achatado — e é o SEGUNDO que perde a barra de cor, porque ela marca
+ * o início e o início não está ali.
+ *
+ * **O empacotamento é guloso e a ordem é determinada**: começo, depois a faixa
+ * mais LONGA, depois o prazo, depois a chave. Sem o último critério duas etapas
+ * do mesmo dia trocariam de trilha entre dois `render`, e o chip saltaria de
+ * linha sem ninguém ter mexido em nada.
+ *
+ * **A trilha é a primeira LIVRE e não a primeira vazia**: `fimDaTrilha` guarda
+ * até que coluna cada uma está ocupada, e uma faixa de quinta a domingo deixa
+ * segunda, terça e quarta daquela trilha livres para quem couber lá.
+ *
+ * **E o `+N` conta por DIA e não por semana.** Um dia pode ter três faixas
+ * passando por cima dele e nenhuma delas começar ali — então o que transborda
+ * é contado célula por célula, que é o número que a pessoa reconcilia com o
+ * que está desenhado.
+ *
+ * **`trilhas` devolve quantas CABEM**, nunca o teto: com duas faixas no mês, o
+ * `+N` num `gridRow` fixo deixaria duas linhas de `gap-y` vazias embaixo de
+ * toda semana.
+ * ---------------------------------------------------------------------------
+ */
+function pedacosDaSemana(
+  semana: string[],
+  itens: ItemDeCalendario[],
+  teto: number,
+) {
+  const primeiro = semana[0];
+  const ultimo = semana[semana.length - 1];
+
+  const crus = itens
+    .map((item) => {
+      const de = comecoDoItem(item);
+      if (de > ultimo || item.prazo < primeiro) return null;
+      const col = semana.indexOf(de > primeiro ? de : primeiro) + 1;
+      const colFim =
+        item.prazo < ultimo ? semana.indexOf(item.prazo) + 2 : semana.length + 1;
+      return {
+        item,
+        col,
+        colFim,
+        continua: de < primeiro,
+        segue: item.prazo > ultimo,
+      };
+    })
+    .filter((pedaco): pedaco is NonNullable<typeof pedaco> => pedaco !== null)
+    .sort(
+      (a, b) =>
+        a.col - b.col ||
+        (b.colFim - b.col) - (a.colFim - a.col) ||
+        a.item.prazo.localeCompare(b.item.prazo) ||
+        a.item.chave.localeCompare(b.item.chave),
+    );
+
+  const fimDaTrilha: number[] = [];
+  const pedacos: PedacoDaSemana[] = [];
+  const escondidos = new Map<string, number>();
+
+  for (const cru of crus) {
+    let trilha = fimDaTrilha.findIndex((fim) => fim < cru.col);
+    if (trilha === -1) {
+      trilha = fimDaTrilha.length;
+      fimDaTrilha.push(0);
+    }
+    fimDaTrilha[trilha] = cru.colFim - 1;
+
+    if (trilha < teto) {
+      pedacos.push({ ...cru, trilha });
+      continue;
+    }
+    for (let coluna = cru.col; coluna < cru.colFim; coluna += 1) {
+      const chave = semana[coluna - 1];
+      escondidos.set(chave, (escondidos.get(chave) ?? 0) + 1);
+    }
+  }
+
+  return { pedacos, escondidos, trilhas: Math.min(fimDaTrilha.length, teto) };
+}
 
 /**
  * Calendário de prazos.
@@ -96,12 +251,35 @@ export function CalendarioDeTasks({
   itens,
   prazos,
   aoAbrir,
+  aoMover,
 }: {
   itens: ItemDeCalendario[];
   /** Régua de datas calculada no servidor, para não classificar por fuso. */
   prazos: { hoje: string; fimDaSemana: string };
   /** Quando existe, o item abre isto em vez de navegar para a página. */
   aoAbrir?: (taskId: string) => void;
+  /**
+   * ARRASTAR E SOLTAR PARA MUDAR A DATA — decisão do usuário: *"quero poder
+   * mexer nas datas apenas clicando e arrastando os cards (…) assim posso
+   * reorganizar em escala sem precisar entrar task por task"*.
+   *
+   * **É PROP E NÃO UMA CHAMADA DIRETA À ACTION, e a razão é uma guarda.**
+   * `atualizarSubtarefa` abre com `exigirRotaNaAcao("/painel/gestao-tasks")`,
+   * que é `GESTAO` — e este MESMO componente desenha o calendário de Minhas
+   * Tasks, que é `EQUIPE`. Com a chamada escrita aqui dentro, o arrasto de um
+   * colaborador levaria *"Seu perfil não permite esta ação"* numa escrita que
+   * o banco aceita, porque `subtasks_update` é `is_staff()` desde a 0144 —
+   * **a guarda mais apertada que o banco**, que é a classe de bug que a 0059 e
+   * a faixa de disponibilidade já pagaram duas vezes.
+   *
+   * Então quem passa `aoMover` é a Gestão de Tasks e mais ninguém, que é o
+   * pedido em quantas palavras (*"na visualização de calendário da gestão de
+   * tasks"*): **sem a prop não há arrasto**, e os dois lados nunca divergem.
+   */
+  aoMover?: (
+    etapa: { id: string; taskId: string },
+    datas: { data_inicio: string | null; prazo: string },
+  ) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const router = useRouter();
   const [referencia, setReferencia] = useState(new Date());
@@ -123,13 +301,65 @@ export function CalendarioDeTasks({
     });
   }, [modo, referencia]);
 
+  /**
+   * A GRADE EM SEMANAS, porque uma faixa não dobra de linha.
+   *
+   * A grade era UMA de sete colunas sobre os 42 dias, uma `<div>` por dia — e
+   * naquela forma um chip não tem como atravessar a borda de uma célula. Com
+   * uma linha por semana, o pedaço vira item de grade e toma
+   * `gridColumnStart`/`gridColumnEnd`.
+   */
+  const semanas = useMemo(() => {
+    const chaves = dias.map((dia) => format(dia, "yyyy-MM-dd"));
+    const fatias: string[][] = [];
+    for (let i = 0; i < chaves.length; i += 7) fatias.push(chaves.slice(i, i + 7));
+    return fatias;
+  }, [dias]);
+
+  /**
+   * AS DATAS NOVAS VALEM NA TELA ANTES DE O BANCO RESPONDER, e voltam sozinhas
+   * quando ele recusa — a mesma decisão do board da Gestão de Tasks. Sem isto
+   * a faixa saltaria de volta ao lugar antigo e só depois para o novo, que é o
+   * arrasto se desfazendo na frente de quem arrastou.
+   */
+  const [movidos, setMovidos] = useState<
+    Record<string, { inicio: string | null; prazo: string }>
+  >({});
+
+  const itensNaTela = useMemo(
+    () =>
+      itens.map((item) =>
+        movidos[item.chave] ? { ...item, ...movidos[item.chave] } : item,
+      ),
+    [itens, movidos],
+  );
+
+  /**
+   * QUEM PASSA POR CADA DIA, e não mais quem VENCE nele.
+   *
+   * O mapa era `item.prazo` → itens, então cada item caía em exatamente uma
+   * célula. Com a faixa, um dia tem o que começa, o que vence e o que só passa
+   * por cima — e é esse conjunto que o `+N` conta e o painel do dia desenha,
+   * senão os três números da tela discordariam entre si.
+   *
+   * **É uma varredura dos 42 dias da grade e não um laço de `inicio` a
+   * `prazo`**, que é o que a torna barata e segura: ela é limitada por
+   * construção, e uma data de ano torto não vira um laço de mil voltas.
+   */
   const porDia = useMemo(() => {
     const mapa = new Map<string, ItemDeCalendario[]>();
-    for (const item of itens) {
-      mapa.set(item.prazo, [...(mapa.get(item.prazo) ?? []), item]);
+    for (const semana of semanas) {
+      for (const chave of semana) {
+        mapa.set(
+          chave,
+          itensNaTela.filter(
+            (item) => comecoDoItem(item) <= chave && chave <= item.prazo,
+          ),
+        );
+      }
     }
     return mapa;
-  }, [itens]);
+  }, [semanas, itensNaTela]);
 
   // QUANTOS CABEM NA CÉLULA É POR VISÃO, porque a altura da célula é por
   // visão: `min-h-32` no mês e `min-h-64` na semana. O chip tem três linhas e
@@ -160,6 +390,88 @@ export function CalendarioDeTasks({
     if (item.href) return router.push(item.href);
     if (aoAbrir) return aoAbrir(item.taskId);
     router.push(`/painel/gestao-tasks/${item.taskId}`);
+  }
+
+  /**
+   * QUEM ARRASTA É A ETAPA, e só ela.
+   *
+   * **A campanha não arrasta**, e é a razão escrita do Calendário Full virada
+   * do avesso: lá o arrasto saiu porque *"valia para uma camada só — porque o
+   * prazo dela é escrito por quem a faz —, e nas outras prometia uma mudança
+   * que o banco desfaz ou recusa"*. Aqui a lista é de ETAPAS, cujo prazo é
+   * escrito por quem as faz; a campanha entra pelo ENCERRAMENTO, que é o
+   * combinado com o cliente e que `campaigns_protege_colunas` guarda em
+   * `is_atendimento()` desde a 0078.
+   *
+   * **E a etapa CONCLUÍDA também não**, que é dito em vez de escondido: o
+   * prazo dela é a data de uma coisa que já aconteceu, e um gesto de seis
+   * pixels reescrevendo isso é o arrasto mudando o passado. Quem precisa
+   * corrigir uma data antiga abre a etapa.
+   */
+  const podeMover = (item: ItemDeCalendario) =>
+    Boolean(aoMover) && item.tipo === "subtarefa" && !item.concluida;
+
+  const [arrastando, setArrastando] = useState<string | null>(null);
+  const itemArrastado = arrastando
+    ? (itensNaTela.find((item) => item.chave === arrastando) ?? null)
+    : null;
+
+  const sensores = useSensors(
+    // Só começa a arrastar depois de 6px, como o board: sem isso um clique
+    // para abrir a etapa viraria um arrasto acidental.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
+
+  /**
+   * O INÍCIO CAI NO DIA DA SOLTA, E A DURAÇÃO SE PRESERVA.
+   *
+   * É a única regra que dá o mesmo resultado quer a faixa tenha um dia ou
+   * dez, e quer a solta seja na mesma semana ou três semanas adiante. A
+   * alternativa — preservar o ponto em que o ponteiro desceu dentro da faixa —
+   * depende de ONDE a pessoa pegou o chip, e numa faixa de um dia, que é a
+   * maioria, as duas são idênticas de qualquer forma.
+   *
+   * **Sem início, só o prazo anda**, que é a 0027 palavra por palavra: os dois
+   * são opcionais de propósito, e *"exigir as duas faria a pessoa inventar
+   * uma"* — inventar um início aqui seria gravar uma data que ninguém escolheu.
+   */
+  async function aoSoltar(evento: DragEndEvent) {
+    setArrastando(null);
+    if (!aoMover) return;
+
+    const chave = String(evento.active.id);
+    const destino = evento.over ? String(evento.over.id) : null;
+    if (!destino) return;
+
+    const item = itensNaTela.find((atual) => atual.chave === chave);
+    if (!item || !podeMover(item)) return;
+
+    const de = comecoDoItem(item);
+    if (de === destino) return;
+
+    const duracao = differenceInCalendarDays(
+      dataDaChave(item.prazo),
+      dataDaChave(de),
+    );
+    const prazo = format(addDays(dataDaChave(destino), duracao), "yyyy-MM-dd");
+    const datas = { data_inicio: item.inicio ? destino : null, prazo };
+
+    const antes = { inicio: item.inicio, prazo: item.prazo };
+    setMovidos((atual) => ({
+      ...atual,
+      [chave]: { inicio: datas.data_inicio, prazo },
+    }));
+
+    const resultado = await aoMover(
+      { id: chave.slice(PREFIXO_DA_ETAPA.length), taskId: item.taskId },
+      datas,
+    );
+    if (!resultado.ok) {
+      setMovidos((atual) => ({ ...atual, [chave]: antes }));
+      toast.error(resultado.error ?? "Não foi possível mover a etapa.");
+      return;
+    }
+    router.refresh();
   }
 
   // O PAINEL ROLA PARA A VISTA, e isto não é enfeite: a grade do mês tem seis
@@ -293,77 +605,200 @@ export function CalendarioDeTasks({
           ))}
         </div>
 
-        <div className="grid grid-cols-7">
-          {dias.map((dia) => {
-            const chave = format(dia, "yyyy-MM-dd");
-            const doDia = porDia.get(chave) ?? [];
-            const foraDoMes = modo === "mes" && !isSameMonth(dia, referencia);
+        {/* ------------------------------------------------------------------
+            A FAIXA DE UMA ETAPA, E O ARRASTO — decisão do usuário: *"não está
+            aparecendo a data de inicio da tarefa, apenas o final (…) quero
+            poder mexer nas datas apenas clicando e arrastando os cards"*.
+
+            **ISTO DESFAZ METADE DE UMA DECISÃO DA 0027, e fica registrado
+            como reversão declarada.** Aquela migration deu período à etapa e
+            escreveu: *"atraso continua sendo do `prazo`, e o calendário
+            continua mostrando só ele. Começar tarde não é atrasar; entregar
+            tarde é. E uma barra por data dobraria os itens do mês."* **A
+            primeira frase fica inteira** — a cor do chip continua saindo da
+            situação do PRAZO, por `situacaoDoPrazo(item.prazo, …)`. A segunda
+            cai, e ela supunha DOIS chips: a faixa é UM chip mais largo, então
+            o mês não ganha item nenhum.
+
+            **A GRADE PASSOU A SER UMA LINHA POR SEMANA.** Era uma de sete
+            colunas sobre os 42 dias, uma `<div>` por dia, e naquela forma um
+            chip não tem como atravessar a borda de uma célula. Agora cada
+            semana é uma linha com duas camadas: o CHÃO (as bordas, o dia de
+            outro mês e os alvos de solta) por baixo, em `absolute`, e o
+            CONTEÚDO por cima, em fluxo normal — é ele que decide a altura,
+            porque é ele que cresce com as trilhas.
+            ------------------------------------------------------------------ */}
+        <DndContext
+          sensors={sensores}
+          /* O DIA DA SOLTA É O DIA SOB O PONTEIRO, e este é o único
+             `collisionDetection` escrito no produto. O padrão do dnd-kit é a
+             maior sobreposição de retângulos, e uma faixa de cinco dias
+             arrastada por cima de células de um sétimo da largura deixa "a
+             maior" ambígua — o board de demandas não tem esse problema porque
+             lá o card é mais estreito que a coluna. */
+          collisionDetection={pointerWithin}
+          onDragStart={(evento) => setArrastando(String(evento.active.id))}
+          onDragCancel={() => setArrastando(null)}
+          onDragEnd={aoSoltar}
+        >
+          {semanas.map((semana) => {
+            const { pedacos, escondidos, trilhas } = pedacosDaSemana(
+              semana,
+              itensNaTela,
+              cabemNaCelula,
+            );
 
             return (
               <div
-                key={chave}
+                key={semana[0]}
                 className={cn(
-                  "min-h-32 border-r border-b p-1.5 last:border-r-0",
+                  "relative min-h-32",
                   modo === "semana" && "min-h-64",
-                  foraDoMes && "bg-surface-page",
                 )}
               >
-                <div className="mb-1 flex items-center justify-between">
-                  <span
-                    className={cn(
-                      "inline-flex size-5 items-center justify-center rounded-full text-xs tabular-nums",
-                      // `text-muted-foreground` inteiro, sem o `/60`: a 60%
-                      // sobre `bg-muted/30` o número do dia dava 2,68:1. O dia
-                      // de outro mês já se distingue pelo fundo da célula.
-                      foraDoMes && "text-muted-foreground",
-                      isToday(dia) &&
-                        "bg-brand text-brand-foreground font-medium",
-                    )}
-                  >
-                    {format(dia, "d")}
-                  </span>
-                </div>
-
-                <ul className="space-y-1">
-                  {doDia.slice(0, cabemNaCelula).map((item) => (
-                    <ChipDoItem
-                      key={item.chave}
-                      item={item}
-                      prazos={prazos}
-                      abrir={abrir}
+                {/* O CHÃO É `absolute` porque a ALTURA é do conteúdo: uma
+                    célula com `min-h` própria aqui brigaria com a linha que a
+                    semana cheia precisa. E o `pointer-events-none` não tira o
+                    alvo de solta — o dnd-kit mede o RETÂNGULO do nó, não faz
+                    teste de acerto no DOM —, ele tira o clique de cima dos
+                    chips. */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 grid grid-cols-7"
+                >
+                  {semana.map((chave) => (
+                    <CelulaDoDia
+                      key={chave}
+                      dia={chave}
+                      foraDoMes={
+                        modo === "mes" &&
+                        !isSameMonth(dataDaChave(chave), referencia)
+                      }
+                      alvo={Boolean(arrastando)}
                     />
                   ))}
-                </ul>
+                </div>
 
-                {/* O "+N" É BOTÃO E NÃO LINK, ao contrário do Cronograma do
-                    portal, e a razão é de onde mora o estado: lá o MÊS está na
-                    URL, então `?dia=` aponta para um dia que a grade com
-                    certeza mostra; aqui o mês, a visão e o filtro são estado
-                    local, e um endereço com o dia abriria num mês que não é o
-                    dele. */}
-                {doDia.length > cabemNaCelula ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDiaAberto(aberto === chave ? null : chave)
-                    }
-                    // O RÓTULO ACESSÍVEL DIZ O DIA, e o visível não: quem
-                    // lê a tela vê o "+2" dentro da célula de 12 de março e
-                    // não precisa que ele se repita; quem OUVE chega no
-                    // botão sem o contexto da célula.
-                    aria-label={`Ver os ${doDia.length} itens de ${format(dia, "d 'de' MMMM", { locale: ptBR })}`}
-                    aria-expanded={aberto === chave}
-                    className="text-text-secondary hover:text-text-primary mt-1 w-full rounded px-1 py-0.5 text-left text-[11px] font-medium underline-offset-2 hover:underline"
-                  >
-                    {aberto === chave
-                      ? "fechar"
-                      : `+${doDia.length - cabemNaCelula} ${doDia.length - cabemNaCelula === 1 ? "item" : "itens"}`}
-                  </button>
-                ) : null}
+                <div className="relative grid grid-cols-7 gap-y-1 py-1.5">
+                  {semana.map((chave, coluna) => (
+                    <div
+                      key={`numero-${chave}`}
+                      className="px-1.5"
+                      style={{ gridColumnStart: coluna + 1, gridRow: 1 }}
+                    >
+                      <span
+                        className={cn(
+                          "inline-flex size-5 items-center justify-center rounded-full text-xs tabular-nums",
+                          // `text-muted-foreground` inteiro, sem o `/60`: a
+                          // 60% o número do dia dava 2,68:1. O dia de outro
+                          // mês já se distingue pelo fundo da célula.
+                          modo === "mes" &&
+                            !isSameMonth(dataDaChave(chave), referencia) &&
+                            "text-muted-foreground",
+                          isToday(dataDaChave(chave)) &&
+                            "bg-brand text-brand-foreground font-medium",
+                        )}
+                      >
+                        {format(dataDaChave(chave), "d")}
+                      </span>
+                    </div>
+                  ))}
+
+                  {pedacos.map((pedaco) => (
+                    <div
+                      // A CHAVE LEVA A SEMANA, porque a mesma faixa aparece
+                      // em duas linhas quando ela atravessa a virada — dois
+                      // elementos para um item só, e com a chave do item
+                      // sozinha o React veria duplicata.
+                      key={`${pedaco.item.chave}-${semana[0]}`}
+                      // `min-w-0` é o que faz o `truncate` do título valer:
+                      // sem ele o item de grade se recusa a ficar menor que o
+                      // conteúdo e a faixa estoura a coluna — é a coluna de
+                      // domingo do Cronograma pela quarta vez.
+                      className={cn(
+                        "min-w-0 px-1.5",
+                        pedaco.continua && "pl-0",
+                        pedaco.segue && "pr-0",
+                      )}
+                      style={{
+                        gridColumnStart: pedaco.col,
+                        gridColumnEnd: pedaco.colFim,
+                        gridRow: pedaco.trilha + 2,
+                      }}
+                    >
+                      <PedacoArrastavel
+                        pedaco={pedaco}
+                        prazos={prazos}
+                        abrir={abrir}
+                        arrastavel={podeMover(pedaco.item)}
+                        arrastando={arrastando === pedaco.item.chave}
+                      />
+                    </div>
+                  ))}
+
+                  {semana.map((chave, coluna) => {
+                    const sobraram = escondidos.get(chave) ?? 0;
+                    if (sobraram === 0) return null;
+                    const doDia = porDia.get(chave) ?? [];
+
+                    return (
+                      <div
+                        key={`mais-${chave}`}
+                        className="px-1.5"
+                        style={{
+                          gridColumnStart: coluna + 1,
+                          gridRow: trilhas + 2,
+                        }}
+                      >
+                        {/* O "+N" É BOTÃO E NÃO LINK, ao contrário do
+                            Cronograma do portal, e a razão é de onde mora o
+                            estado: lá o MÊS está na URL, então `?dia=` aponta
+                            para um dia que a grade com certeza mostra; aqui o
+                            mês, a visão e o filtro são estado local, e um
+                            endereço com o dia abriria num mês que não é o
+                            dele.
+
+                            E ELE CONTA POR DIA e não por semana: um dia pode
+                            ter três faixas passando por cima dele e nenhuma
+                            delas começar ali. */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDiaAberto(aberto === chave ? null : chave)
+                          }
+                          // O RÓTULO ACESSÍVEL DIZ O DIA, e o visível não:
+                          // quem lê a tela vê o "+2" dentro da célula de 12
+                          // de março e não precisa que ele se repita; quem
+                          // OUVE chega no botão sem o contexto da célula.
+                          aria-label={`Ver os ${doDia.length} itens de ${format(dataDaChave(chave), "d 'de' MMMM", { locale: ptBR })}`}
+                          aria-expanded={aberto === chave}
+                          className="text-text-secondary hover:text-text-primary w-full rounded px-1 py-0.5 text-left text-[11px] font-medium underline-offset-2 hover:underline"
+                        >
+                          {aberto === chave
+                            ? "fechar"
+                            : `+${sobraram} ${sobraram === 1 ? "item" : "itens"}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
-        </div>
+
+          {/* O QUE SE ARRASTA É UMA CÓPIA, como no board de demandas: o
+              original fica no lugar com `opacity-60`, e é esta cópia que
+              segue o ponteiro. Ela é de UM dia de propósito — a faixa inteira
+              acompanhando o cursor cobriria metade da semana e esconderia o
+              dia em que a pessoa está mirando. */}
+          <DragOverlay dropAnimation={null}>
+            {itemArrastado ? (
+              <div className="w-36">
+                <ChipDoItem item={itemArrastado} prazos={prazos} />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
 
       {/* O DIA CHEIO, EMBAIXO DA GRADE e não num diálogo. Um modal por cima do
@@ -406,12 +841,13 @@ export function CalendarioDeTasks({
               linha vazios. */}
           <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
             {itensDoDiaAberto.map((item) => (
-              <ChipDoItem
-                key={item.chave}
-                item={item}
-                prazos={prazos}
-                abrir={abrir}
-              />
+              <li key={item.chave}>
+                <ChipDoItem
+                  item={item}
+                  prazos={prazos}
+                  onClick={() => abrir(item)}
+                />
+              </li>
             ))}
           </ul>
         </section>
@@ -461,21 +897,129 @@ export function CalendarioDeTasks({
 }
 
 /**
+ * O CHÃO DE UM DIA, e o alvo de solta dele.
+ *
+ * Ele não desenha conteúdo nenhum — é `aria-hidden` dentro de uma camada
+ * `aria-hidden` —, e é por isso que o `ref` do dnd-kit pode morar aqui sem
+ * custo de acessibilidade: não há nada focável dentro de um alvo que o leitor
+ * de tela anunciaria sem saber do quê.
+ *
+ * **`disabled` enquanto nada está sendo arrastado** porque medir 42 retângulos
+ * a cada render é trabalho que ninguém pediu: o dnd-kit só precisa deles
+ * durante o gesto.
+ */
+function CelulaDoDia({
+  dia,
+  foraDoMes,
+  alvo,
+}: {
+  dia: string;
+  foraDoMes: boolean;
+  alvo: boolean;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: dia, disabled: !alvo });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "border-r border-b last:border-r-0",
+        foraDoMes && "bg-surface-page",
+        // O MESMO PAR DO BOARD DE DEMANDAS (`bg-accent`), porque é o mesmo
+        // gesto: duas telas pintando o alvo de duas cores fariam a pessoa
+        // reaprender o que o realce quer dizer.
+        isOver && "bg-accent",
+      )}
+    />
+  );
+}
+
+/**
+ * A ALÇA. Ela existe porque o `ref` e os `listeners` do dnd-kit precisam de um
+ * componente — gancho não se chama de dentro de um `.map`, que é a razão pela
+ * qual a linha de Minhas Tasks e a da `DataTable` também viraram componente.
+ */
+function PedacoArrastavel({
+  pedaco,
+  prazos,
+  abrir,
+  arrastavel,
+  arrastando,
+}: {
+  pedaco: PedacoDaSemana;
+  prazos: { hoje: string; fimDaSemana: string };
+  abrir: (item: ItemDeCalendario) => void;
+  arrastavel: boolean;
+  arrastando: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: pedaco.item.chave,
+    disabled: !arrastavel,
+  });
+
+  // O dnd-kit devolve `role="button"` e `tabIndex` em `attributes`, e o chip
+  // JÁ É um `<button>`: espalhá-los daria o papel repetido e duas paradas de
+  // Tab para a mesma coisa — `nested-interactive`, crítico no axe, que o
+  // cartão do board de demandas já pagou uma vez.
+  const { role: _papel, tabIndex: _parada, ...aria } = attributes;
+
+  return (
+    <ChipDoItem
+      ref={setNodeRef}
+      item={pedaco.item}
+      prazos={prazos}
+      continua={pedaco.continua}
+      segue={pedaco.segue}
+      arrastavel={arrastavel}
+      arrastando={arrastando || isDragging}
+      // O NATIVO `click` SAI DEPOIS DO `pointerup`, então soltar a faixa
+      // abriria a demanda por cima do calendário que a pessoa acabou de
+      // reorganizar. A guarda é a do board, palavra por palavra.
+      onClick={(evento) => {
+        if (isDragging) {
+          evento.preventDefault();
+          return;
+        }
+        abrir(pedaco.item);
+      }}
+      {...aria}
+      {...listeners}
+    />
+  );
+}
+
+/**
  * O chip de um item, desenhado na célula do dia E no painel do dia cheio.
  *
  * **Ele virou componente por causa do painel**, e não por tamanho: as duas
  * telas desenham o MESMO chip, e uma segunda cópia divergiria na primeira
  * mudança — a que divergiria é a do painel, que se abre menos. É a história
  * das sete cópias de `abas.tsx` em miniatura.
+ *
+ * **ELE NÃO EMBRULHA MAIS O `<li>`**, e a mudança é o que permite a faixa: na
+ * grade por semana ele é um item de GRADE posicionado por coluna, e no painel
+ * do dia ele é o conteúdo de um `<li>` que o chamador escreve. Um `<li>` aqui
+ * dentro seria um item de lista solto no meio de uma grade.
  */
 function ChipDoItem({
   item,
   prazos,
-  abrir,
-}: {
+  continua = false,
+  segue = false,
+  arrastavel = false,
+  arrastando = false,
+  ref,
+  ...resto
+}: ComponentPropsWithoutRef<"button"> & {
   item: ItemDeCalendario;
   prazos: { hoje: string; fimDaSemana: string };
-  abrir: (item: ItemDeCalendario) => void;
+  /** A faixa começou numa semana anterior: a ponta da esquerda fica reta. */
+  continua?: boolean;
+  /** Ela segue na semana seguinte: a ponta da direita fica reta. */
+  segue?: boolean;
+  arrastavel?: boolean;
+  arrastando?: boolean;
+  ref?: Ref<HTMLButtonElement>;
 }) {
   const situacao = situacaoDoPrazo(
     item.prazo,
@@ -498,6 +1042,13 @@ function ChipDoItem({
     item.cliente,
     item.demanda,
     rotulo ? `${rotulo}: ${item.titulo}` : item.titulo,
+    // O PERÍODO ENTRA AQUI e não numa linha do chip: a faixa já o DESENHA —
+    // ela vai do início ao prazo —, e quem usa leitor de tela não tem a
+    // largura. Com uma data só ele não aparece: repetir o dia que o chip já
+    // está ocupando seria a mesma informação duas vezes.
+    item.inicio && item.inicio !== item.prazo
+      ? `de ${format(dataDaChave(item.inicio), "dd/MM")} a ${format(dataDaChave(item.prazo), "dd/MM")}`
+      : null,
     item.responsavel ? `com ${item.responsavel.nome}` : null,
     `prioridade ${ROTULOS_DE_PRIORIDADE[item.prioridade].toLowerCase()}`,
   ]
@@ -505,14 +1056,27 @@ function ChipDoItem({
     .join(" · ");
 
   return (
-    <li>
-      <button
+    <button
+        ref={ref}
         type="button"
-        onClick={() => abrir(item)}
         title={descricao}
         aria-label={descricao}
         className={cn(
-          "relative w-full overflow-hidden rounded border border-transparent py-1 pr-1.5 pl-2.5 text-left text-xs transition-opacity hover:opacity-85",
+          "relative w-full overflow-hidden border border-transparent py-1 text-left text-xs transition-opacity hover:opacity-85",
+          // AS PONTAS SÃO UM PAR `rounded-l`/`rounded-r`, e nunca um
+          // `rounded` com um `rounded-l-none` atrás: o tailwind-merge
+          // descarta a classe ANTERIOR em conflito, então o atalho perderia
+          // também os cantos da direita.
+          continua ? "rounded-l-none" : "rounded-l",
+          segue ? "rounded-r-none" : "rounded-r",
+          // A barra da esquerda só existe onde a faixa COMEÇA, e o respiro
+          // acompanha: no pedaço que continua, ela seria um segundo começo no
+          // meio da mesma etapa.
+          continua ? "pr-1.5 pl-1.5" : "pr-1.5 pl-2.5",
+          arrastavel && "cursor-grab active:cursor-grabbing",
+          // O ORIGINAL FICA NO LUGAR, apagado, e quem segue o ponteiro é a
+          // cópia do `DragOverlay` — a decisão do board de demandas.
+          arrastando && "opacity-60",
           // A COR É O CHIP. Era um cartão branco com um fio
           // de quatro pixels, e quatro fios numa célula não
           // se leem à distância de que a grade do mês é
@@ -523,15 +1087,18 @@ function ChipDoItem({
           // isso sem ocupar espaço.
           rotulo && "border-border border-dotted",
         )}
+        {...resto}
       >
         {/* A barra é a cor cheia, e ela fica: sobre o chip
           tingido ela é a borda de leitura que separa uma
           linha da de baixo quando as duas são do mesmo
           tom. */}
-        <span
-          aria-hidden
-          className={cn("absolute inset-y-0 left-0 w-1", tinta.barra)}
-        />
+        {continua ? null : (
+          <span
+            aria-hidden
+            className={cn("absolute inset-y-0 left-0 w-1", tinta.barra)}
+          />
+        )}
 
         {/* TRÊS LINHAS: cliente, demanda, etapa.
           Decisão do usuário, a proposta C — e a ordem é a
@@ -588,6 +1155,5 @@ function ChipDoItem({
           ) : null}
         </span>
       </button>
-    </li>
   );
 }

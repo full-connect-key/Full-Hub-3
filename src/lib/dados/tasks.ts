@@ -865,6 +865,32 @@ export type ItemDeCalendario = {
    * seria a linha se explicando com ela mesma.
    */
   demanda: string | null;
+  /**
+   * O DIA EM QUE A ETAPA COMEÇA, e `prazo` é o dia em que ela vence.
+   *
+   * Decisão do usuário: *"não está aparecendo a data de inicio da tarefa,
+   * apenas o final. por exemplo essa tarefa de pauta era inicio dia 26 mas só
+   * aparece no dia 27 que é o prazo final"*.
+   *
+   * **ISTO REVERTE METADE DE UMA DECISÃO DA 0027**, e fica registrado como
+   * reversão e não como troca silenciosa. Aquela migration deu período à
+   * etapa e escreveu: *"Atraso continua sendo do `prazo`, e o calendário
+   * continua mostrando só ele. Começar tarde não é atrasar; entregar tarde é.
+   * E uma barra por data dobraria os itens do mês"*.
+   *
+   * **A PRIMEIRA FRASE CONTINUA INTEIRA — a cor do chip é a situação do
+   * PRAZO, e nada mais.** O que cai é só a segunda: ela supõe DUAS linhas, uma
+   * por data, e o que entrou é UMA faixa que vai de um dia ao outro. Não há
+   * item a mais no mês; há um item mais largo.
+   *
+   * **Fica nulo onde não há período**, e é o caso comum: a 0027 deixou as duas
+   * datas opcionais de propósito — *"quem abre a demanda costuma saber a data
+   * de entrega e ainda não saber quando cada etapa começa; exigir as duas
+   * faria a pessoa inventar uma"*. Nulo, a faixa é de um dia, que é o que a
+   * tela desenhava antes. E é nulo na CAMPANHA, que entra pela data de
+   * ENCERRAMENTO desde a 0055 e não como faixa de trinta células.
+   */
+  inicio: string | null;
   prazo: string;
   prioridade: TaskPrioridade;
   status: TaskStatus;
@@ -961,6 +987,7 @@ export async function itensDoCalendario(
       taskId: sub.task_id,
       titulo: sub.titulo,
       demanda: mae.titulo,
+      inicio: sub.data_inicio,
       prazo: sub.prazo,
       prioridade: sub.prioridade,
       status: mae.status,
@@ -1069,6 +1096,7 @@ async function campanhasNoCalendario(
     taskId: campanha.id,
     titulo: campanha.nome,
     demanda: null,
+    inicio: null,
     prazo: campanha.data_fim,
     prioridade: "normal" as TaskPrioridade,
     status: "em_andamento" as TaskStatus,
