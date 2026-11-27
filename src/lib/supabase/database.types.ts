@@ -2779,6 +2779,21 @@ export interface Database {
            * demanda, que ninguém pediu e que nenhuma tela saberia explicar.
            */
           conta_no_resumo: boolean;
+          /**
+           * A INTENÇÃO DE CAMPANHA, marcada na abertura da demanda (0153).
+           *
+           * Ela é a INTENÇÃO e não o fato: quem responde *"esta demanda é uma
+           * campanha?"* é `campanha_da_task()`, pela linha de `campaigns` que
+           * aponta para ela. Desmarcar depois de a campanha existir **não a
+           * apaga** — o campo vira um link, não um interruptor.
+           *
+           * **E ela está nos três, ao contrário de `conta_no_resumo` logo
+           * acima:** aquela é escrita por `gerar_ocorrencia()` em SQL e não
+           * tem tela; esta é a caixa que a pessoa marca ao abrir a demanda, e
+           * deixá-la fora do `Insert` seria a coluna que a tela não tem como
+           * escrever.
+           */
+          campanha_pedida: boolean;
           arquivada_em: string | null;
           created_at: string;
           updated_at: string;
@@ -2803,6 +2818,7 @@ export interface Database {
           workflow_snapshot?: Json | null;
           link_entrega?: string | null;
           request_id?: string | null;
+          campanha_pedida?: boolean;
           criado_por: string;
         };
         Update: {
@@ -2840,6 +2856,15 @@ export interface Database {
            * "em produção".
            */
           request_id?: string | null;
+          /**
+           * NO `Update` PORQUE A MARCA É DE DEPOIS TAMBÉM (0153).
+           *
+           * A demanda nasce rascunho e tudo salva sozinho campo a campo desde
+           * a 0028, então marcá-la como campanha é um `update` como qualquer
+           * outro campo da tela — e quem pede uma campanha quase sempre
+           * descobre isso depois de escrever o título.
+           */
+          campanha_pedida?: boolean;
         };
         Relationships: [];
       };

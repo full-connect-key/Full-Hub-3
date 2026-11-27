@@ -79,18 +79,23 @@ export type SecaoDoModulo<C extends string = string> = {
  * mesma linha estava no Full Days desde o Sprint 6. **Centralizada aqui, ela
  * deixa de poder voltar em uma das nove cópias.**
  *
- * **ELA CARREGA O `<h1>` DA PÁGINA, E ELE É `sr-only`.** Nas telas em que o
- * `PageHeader` só repetia o nome do módulo, ele saiu: a faixa de contexto
- * fica grudada embaixo da topbar, que já diz o nome — ler "Gestão de Tasks"
- * duas vezes, uma embaixo da outra, é a redundância que a interface "Leve"
- * existe para tirar. Mas a página não pode ficar sem título: quem usa leitor
- * de tela navega por cabeçalho, e uma tela sem `h1` é uma tela sem nome. É a
- * decisão do `<h1>` `sr-only` da porta, pela mesma razão — **um título por
- * tela, e estável**.
+ * **ELA CARREGA O CABEÇALHO DO MÓDULO, E ELE É VISÍVEL.** Dado `titulo`, ela
+ * desenha o `PageHeader` — o `<h1>` na escala grande do desenho — FORA da
+ * faixa grudada, e a razão de ele ser visível está no comentário ao lado do
+ * `PageHeader`, logo abaixo: a topbar da interface aprovada não carrega nome
+ * nenhum, então o nome do módulo precisa aparecer em algum lugar, e o lugar é
+ * o cabeçalho da página. *(Este parágrafo já dizia o contrário — que o `h1`
+ * era `sr-only` porque a topbar repetia o nome. Ficou para trás no dia em que
+ * o título desceu para cá.)*
  *
- * `titulo` só vem de quem tirou o `PageHeader`. Onde ele ficou (porque diz
- * outra coisa, como "Bom dia, Ana", ou porque carrega ações), o `h1` continua
- * sendo dele e a barra não escreve um segundo.
+ * **E ELE É DO MÓDULO E NÃO DE UMA SEÇÃO.** O título e as `acoes` são
+ * desenhados uma vez para o módulo inteiro, acima do seletor de abas: a aba
+ * não tem cabeçalho próprio, e um `PageHeader` dentro do conteúdo de uma
+ * delas diria o nome do módulo duas vezes numa seção e nenhuma nas outras.
+ *
+ * `titulo` fica de fora onde a página já tem cabeçalho próprio, porque ele
+ * diz outra coisa — "Bom dia, Ana" em Minhas Tasks: lá o `h1` continua sendo
+ * dele e a barra não escreve um segundo.
  *
  * **Link e não estado**, como toda listagem do produto: "olha a fila de aval"
  * precisa ser um link, e trocar de seção precisa sobreviver ao botão de
@@ -109,7 +114,7 @@ export function BarraDeContexto<C extends string>({
 }: {
   /** "Seções de Gestão de Tasks" — o que o leitor de tela anuncia. */
   rotuloAcessivel: string;
-  /** O `<h1>` da página, invisível. Só para quem tirou o `PageHeader`. */
+  /** O `<h1>` do MÓDULO, visível, acima do seletor de seções. */
   titulo?: string;
   /** A chave na URL. Quase sempre `aba`; Minhas Tasks usa `visao`. */
   parametro?: string;

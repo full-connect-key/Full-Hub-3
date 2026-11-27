@@ -1000,6 +1000,12 @@ const BASE = {
   recurrence_id: null,
   social_do_mes: null,
   request_id: null,
+  // NENHUMA DEMANDA DO EXEMPLO PEDE CAMPANHA (0153), e é o default do banco.
+  // Quem mostra a marca ligada é a tela da campanha no portal, e no dia em que
+  // ela sair em imagem a semente sobrescreve este `false` — como `status_manual`
+  // faz logo acima: com toda demanda marcada, a imagem provaria que a caixa
+  // existe e não que ela sabe ficar desmarcada.
+  campanha_pedida: false,
   criado_por: CARLA.id,
   created_at: "2026-09-10T09:00:00.000Z",
   updated_at: "2026-09-19T15:30:00.000Z",

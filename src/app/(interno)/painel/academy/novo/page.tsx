@@ -4,6 +4,7 @@ import { exigirAcessoARota } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { forbidden } from "next/navigation";
 
+import { PageHeader } from "@/components/shared/page-header";
 import { FormularioDoItem } from "./formulario";
 import { Voltar } from "@/components/shared/voltar";
 
@@ -29,6 +30,21 @@ export default async function PaginaDeNovoItem() {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6">
       <Voltar para="/painel/academy" rotulo="Acervo" />
+
+      {/* O `PageHeader` É O CABEÇALHO DESTA TELA, e ele faltava.
+
+          A rota não tem barra de contexto — o Acervo tem a dele, e esta é uma
+          tela de dentro —, então não havia quem escrevesse o `h1`: o
+          formulário começava na primeira seção numerada, e a página não tinha
+          nome. É a regra escrita do `PageHeader` e da `BarraDeContexto`: quem
+          usa leitor de tela navega por cabeçalho, e **uma tela sem `h1` é uma
+          tela sem nome**.
+
+          O rótulo é "Novo item" e não "Novo item no Acervo", que é a decisão
+          de "Nova campanha" ao lado: a seta logo acima já diz de onde se veio,
+          e repetir o módulo gasta a linha para dizer duas vezes a mesma
+          coisa. */}
+      <PageHeader title="Novo item" />
 
       <FormularioDoItem />
     </div>

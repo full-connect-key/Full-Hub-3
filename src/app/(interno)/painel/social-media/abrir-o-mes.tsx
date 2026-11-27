@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { AvisoDeFeriado } from "@/components/shared/aviso-de-feriado";
 import { FaixaDeDisponibilidade } from "@/components/shared/faixa-de-disponibilidade";
+import { PageHeader } from "@/components/shared/page-header";
 import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { SeletorDeRedes } from "@/components/shared/seletor-de-redes";
 import { chamarAcao } from "@/lib/acoes/cliente";
@@ -533,16 +534,22 @@ export function AbrirOMes({
       {/* O CABEÇALHO GRANDE DA TELA, como em toda página do redesenho: o nome
           do módulo aparece uma vez só, e aqui essa vez é este título — a rota
           não tem barra de contexto, porque menos de duas seções não vira
-          barra. */}
-      <header className="space-y-1">
-        <h1 className="text-text-primary text-[2.125rem] leading-tight font-semibold tracking-tight">
-          Abrir o mês de social
-        </h1>
-        <p className="text-text-secondary text-sm">
-          Os posts nascem sem data e sem tema definitivo. Quem produz escolhe o
-          dia e escreve o resto.
-        </p>
-      </header>
+          barra.
+
+          E ELE É O `PageHeader`, que era escrito à mão aqui. O `<h1>` tinha
+          `text-[2.125rem] font-semibold tracking-tight` contra o
+          `clamp(24px,3.4vw,34px) font-bold tracking-[-0.045em]` do
+          componente — ou seja uma oitava cópia do cabeçalho, com **34px
+          FIXOS**: num celular de 375px o título não encolhia, que é
+          literalmente a razão de o `clamp` existir. É a história das sete
+          cópias de `abas.tsx` em miniatura, e a `BarraDeContexto` a desfez num
+          nível acima.
+
+          A linha de baixo é o `subtitulo` dele, que existe para isto. */}
+      <PageHeader
+        title="Abrir o mês de social"
+        subtitulo="Os posts nascem sem data e sem tema definitivo. Quem produz escolhe o dia e escreve o resto."
+      />
 
       <SecaoDoFormulario numero={1} titulo="A conta e o mês">
         <div className="grid gap-4 sm:grid-cols-2">

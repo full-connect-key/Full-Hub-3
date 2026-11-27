@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
+import { FileCheck2, Images } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { exigirAcessoARota } from "@/lib/auth/dal";
 import { filaDeAprovacoes, type FilaDeAprovacoes } from "@/lib/dados/aprovacoes";
@@ -298,11 +301,78 @@ export default async function PaginaDeGestaoDeTasks({
 
   return (
     <div className="space-y-6">
-      {/* SEM `PageHeader`: a topbar já diz "Gestão de Tasks", e repetir o
-          nome logo abaixo dele era a redundância que a interface "Leve" veio
-          tirar. O `<h1>` da página não sumiu — ele mora na barra de contexto,
-          invisível, como o da porta. */}
-      <AbasDeGestaoDeTasks atual={aba} aguardando={fila.esperando.length} />
+      {/* O CABEÇALHO DA PÁGINA É O DA BARRA DE CONTEXTO, e ele é VISÍVEL.
+
+          `AbasDeGestaoDeTasks` passa `titulo="Gestão de Tasks"`, e a
+          `BarraDeContexto` desenha o `PageHeader` com ele, fora da faixa
+          grudada. Não há `PageHeader` aqui porque ele seria o SEGUNDO: o
+          título é do MÓDULO, desenhado uma vez acima do seletor de abas.
+
+          *(Este comentário dizia que a topbar já diz o nome do módulo e que o
+          `h1` mora na barra "invisível, como o da porta". As duas coisas
+          deixaram de ser verdade: a topbar da interface aprovada é só a busca,
+          o sino e o avatar, e foi por isso que o título desceu para a barra —
+          visível, na escala grande do desenho.)* */}
+      {/* A PORTA PARA SOCIAL MEDIA E CAMPANHAS — decisão do usuário: *"quero
+          que o espaço para montar campanhas, e montar o social do cliente,
+          apareça em gestão de tasks"*.
+
+          **OS DOIS MÓDULOS NÃO VOLTARAM PARA A BARRA LATERAL**, e não é isso
+          que ele pediu: eles saíram dela no Sprint 3J (`hiddenFromMenu`) por
+          decisão dele, *"para diminuir a quantidade de itens na aba lateral"*,
+          e a porta que ficou foi a faixa de áreas de Minhas Tasks. O que
+          faltava era uma porta aqui, onde a gestão abre o trabalho da agência.
+
+          **E ELA É UMA PORTA E NÃO DUAS SEÇÕES, e a razão é medida:**
+          `social-media/page.tsx` lê `?aba=` — a MESMA chave que esta barra
+          usa —, então uma pílula "Social" aqui e as seções de lá colidiriam
+          na URL. Renomear a chave do Social está fora de questão: as
+          notificações que `notificar()` grava de dentro de trigger carregam
+          `/painel/social-media?post=` escrito no corpo da função, e essas
+          linhas já estão no banco de produção. E um `href` na
+          `SecaoDoModulo` daria uma pílula que sai do módulo e nunca aparece
+          ativa.
+
+          **ELAS APONTAM PARA OS ÍNDICES e não para as telas de montar**, que
+          seria a leitura literal: cada índice JÁ carrega o botão de montar
+          — "Abrir o mês" em `indice-do-social.tsx` e "Nova campanha" em
+          `aprovacoes/page.tsx` — e é também onde o mês e a campanha que já
+          existem são acompanhados. Apontando para `/abrir` e `/nova`, a porta
+          daria o montar e tiraria o acompanhar.
+
+          **NÃO HÁ `QUEM_VE` AQUI, que é a lição da 0060:** esta rota é
+          `GESTAO`, e as duas telas de montar exigem `is_atendimento()` — que
+          a gestão satisfaz. Uma segunda pergunta embaixo de uma primeira que
+          já barra todo mundo não barra ninguém.
+
+          *O que ela NÃO alcança, e é dito em vez de escondido:* o colaborador
+          do Atendimento não chega a esta tela — ela é `GESTAO` —, então a
+          porta dele continua sendo a faixa de áreas de Minhas Tasks.
+
+          **E os ícones são os do `MENU`** (`Images`, `FileCheck2`), para a
+          porta e a barra lateral não desenharem o mesmo módulo de dois jeitos
+          — a história de `ICONE_DA_AREA`, que tinha três cópias e duas já
+          divergidas. */}
+      <AbasDeGestaoDeTasks
+        atual={aba}
+        aguardando={fila.esperando.length}
+        acoes={
+          <>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/painel/social-media">
+                <Images aria-hidden className="size-4" />
+                Social Media
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/painel/aprovacoes">
+                <FileCheck2 aria-hidden className="size-4" />
+                Campanhas
+              </Link>
+            </Button>
+          </>
+        }
+      />
 
       <Suspense
         key={`${aba}:${regra ?? ""}:${deTask ?? ""}`}

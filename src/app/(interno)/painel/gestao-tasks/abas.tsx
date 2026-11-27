@@ -85,7 +85,23 @@ const SO_DO_BOARD = [
  * Days, que pinta só a exceção. Quem aplica a regra agora é a
  * `BarraDeContexto`, para as sete barras do produto não divergirem nela.
  */
-export function AbasDeGestaoDeTasks({ atual, aguardando }: { atual: Aba; aguardando: number }) {
+export function AbasDeGestaoDeTasks({
+  atual,
+  aguardando,
+  acoes,
+}: {
+  atual: Aba;
+  aguardando: number;
+  /**
+   * A PORTA PARA SOCIAL MEDIA E CAMPANHAS, montada pela página.
+   *
+   * Ela é prop e não uma lista aqui pela razão escrita na `BarraDeContexto`:
+   * *o que ela centraliza é o desenho e o mecanismo, nunca a lista*. É a forma
+   * dos Comodatos, da Gestão de Pessoas, do Day Off e do Financeiro — a página
+   * monta o nó, este componente o repassa.
+   */
+  acoes?: React.ReactNode;
+}) {
   const secoes: SecaoDoModulo<Aba>[] = ABAS.map((aba) => ({
     chave: aba,
     ...ROTULOS[aba],
@@ -101,6 +117,7 @@ export function AbasDeGestaoDeTasks({ atual, aguardando }: { atual: Aba; aguarda
       titulo="Gestão de Tasks"
       atual={atual}
       secoes={secoes}
+      acoes={acoes}
       limparAoSair={(destino) => [
         ...(destino === "recorrencias" ? SO_DO_BOARD : SO_DA_LISTA),
         ...(destino === "demandas" ? [] : SO_DO_BOARD),

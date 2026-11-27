@@ -1168,7 +1168,30 @@ from (
     ('0152', 'as duas recusas dos dias (PASSO 3)', 'no_corpo',
              'conferir_etapas_do_workflow|dias da semana marcados'),
     ('0152', 'os dias chegam a materializacao (PASSO 4, o fim)', 'no_corpo',
-             'etapas_resolvidas_do_workflow|e.dias_da_semana')
+             'etapas_resolvidas_do_workflow|e.dias_da_semana'),
+
+    -- A 0153 TEM TRES LINHAS, pela regra da 0138: passo de que nenhum outro
+    -- DEPENDE precisa da linha dele. E a dependencia aqui e a da HORA DE
+    -- COLAR, nao a do que a funcao faz quando roda -- plpgsql nao valida o
+    -- corpo na criacao, entao o PASSO 2 nasce inteiro num banco sem a coluna
+    -- do PASSO 1 e so estoura no clique de alguem.
+    --
+    -- O QUE COBRE O PASSO 1 E O GATILHO DO PASSO 3, e nao a coluna: ele e
+    -- `after update OF campanha_pedida`, e um `update of` de coluna que nao
+    -- existe e recusado na CRIACAO -- o unico lugar deste arquivo em que a
+    -- dependencia e de verdade. Uma linha para a coluna seria a mesma
+    -- pergunta duas vezes.
+    --
+    -- E O PASSO 4 E INDEPENDENTE DOS TRES: ele e a leitura que o cliente faz
+    -- da campanha, e um marcador no fim do arquivo diria `ok` sobre um banco
+    -- onde a demanda vira campanha e o portal nao mostra a etapa que ainda
+    -- nao foi enviada -- que e metade do pedido.
+    ('0153', 'a demanda vira campanha (PASSO 2)', 'funcao',
+             'criar_campanha_da_task'),
+    ('0153', 'a porta unica da intencao (PASSO 3, e o PASSO 1 com ele)',
+             'trigger', 'tasks_vira_campanha'),
+    ('0153', 'a etapa que o cliente ve sem envio (PASSO 4)', 'funcao',
+             'etapas_da_campanha_para_o_cliente')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

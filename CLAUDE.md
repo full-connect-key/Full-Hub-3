@@ -5276,7 +5276,7 @@ fio, porque sobre a malha uma faixa translúcida criava uma segunda borda
 horizontal onde o desenho não tem nenhuma.
 
 **O nome não sumiu, DESCEU.** Ele era um `<p>` (`trilha.tsx`, apagado), e o
-`<h1>` já morava em `BarraDeContexto`, `sr-only`. Agora esse mesmo título
+`<h1>` já morava em `BarraDeContexto`, `sr-only` até aquele dia. Agora esse mesmo título
 aparece na escala grande do desenho no cabeçalho da página — nas sete telas
 que tiraram o `PageHeader` no Sprint 9, e pelo próprio `PageHeader` no resto.
 A decisão daquele sprint continua inteira ("o nome do módulo aparece uma vez
@@ -6111,8 +6111,55 @@ Minhas Tasks, o nome da empresa numa ficha — o `PageHeader` ficou.
 
 **O `<h1>` NÃO SUMIU COM ELE, e isso é a parte que não se vê.** Quem usa leitor
 de tela navega por cabeçalho, e uma tela sem `h1` é uma tela sem nome. A barra
-carrega o título da página, **`sr-only`** — a decisão do `<h1>` da porta, pela
-mesma razão: um título por tela, e estável.
+carrega o título da página — **`sr-only` naquele dia**, porque a topbar o dizia
+três centímetros acima. Na interface "Leve" a topbar deixou de carregar nome
+nenhum, e o mesmo `<h1>` desceu para o cabeçalho da página, **visível**: a
+decisão de "uma vez só" continua inteira, e o que mudou foi ONDE essa vez
+acontece.
+
+##### E O CABEÇALHO É DO MÓDULO, NÃO DE UMA ABA
+
+Decisão do usuário, lida como correção e como auditoria: *"o page header não é
+só da aba de demandar, preciso que confira todas as páginas"*.
+
+**ELE ESTAVA SENDO ESCRITO DENTRO DE UMA SEÇÃO, e é o erro que a frase
+corrige.** Com a barra navegando entre abas, o cabeçalho montado no conteúdo de
+uma delas diria o nome do módulo **numa** seção e em nenhuma das outras — a
+tela perdendo o próprio nome a cada clique de pílula. Então quem o desenha é a
+`BarraDeContexto`, uma vez, acima do seletor: `titulo` é prop dela, e o
+`PageHeader` sai **FORA da faixa grudada** — a barra de seções continua
+`sticky` porque rolando quarenta demandas saber em que seção se está continua
+valendo, e um título dentro dela grudaria junto, gastando altura em toda
+rolagem.
+
+**CINCO MÓDULOS NÃO TINHAM CABEÇALHO NENHUM**, e é o que a auditoria achou de
+concreto: Gestão de Tasks, Financeiro, Day Off e Métricas abriam direto na
+fileira de pílulas — a decisão do Sprint 9 tinha tirado o `PageHeader` deles
+quando a topbar ainda dizia o nome, e ninguém o devolveu no dia em que ela
+parou. O quinto é a abertura do mês de social, que escrevia o título à mão.
+
+**E `titulo` É OPCIONAL de propósito.** Onde a página já tem cabeçalho próprio
+porque ele diz OUTRA coisa — "Bom dia, Ana" em Minhas Tasks, o nome da empresa
+numa ficha —, a barra não escreve um segundo: o `<h1>` continua sendo da página.
+
+***E são TRÊS EXCEÇÕES DECLARADAS no painel, cada uma com a razão:***
+
+| Onde | Por que o `<h1>` não é um `PageHeader` |
+| --- | --- |
+| `academy/[slug]` | ele mora DENTRO do cartão do material, e um cabeçalho acima diria o nome do item duas vezes a três centímetros — `text-2xl` é exatamente o piso do `clamp(24px,3.4vw,34px)` do componente |
+| `gestao-tasks/[id]` | ele é o TÍTULO EDITÁVEL da demanda, dentro do `NomeEditavel` com `autoFocus` no rascunho (0028): um `PageHeader` acima seria um segundo título para a mesma coisa, e aqui o título é um campo |
+| `minhas-tasks` | a página é dona de "Bom dia, Ana", que é a regra do parágrafo acima |
+
+***E a auditoria é de TELA e não de pasta, o que foi a lição dela.*** O portal
+tem 27 páginas e **dez componentes de tela** — as rotas de `(meu)` e de
+`[slug]` desenham o MESMO componente com outras props (`clienteId`,
+`comoEquipe`, `base`) —, e dois deles (`detalhe-do-post`,
+`detalhe-do-entregavel`) são adaptadores sobre um terceiro,
+`DetalheDoConteudo`, de onde o `<h1>` vem. Uma varredura por pasta **erra nos
+dois sentidos**: ela marcou como sem cabeçalho a abertura do mês de social,
+cujo `PageHeader` mora uma pasta acima, e as duas telas-índice do portal, que
+têm o deles. **63 páginas conferidas — 36 no painel, 27 no portal —, cada uma
+com exatamente UM `<h1>`.**
 
 **O SELETOR DE VISÃO NÃO É A BARRA DE CONTEXTO**, e a distinção é o que impede
 duas barras iguais na mesma tela. A barra navega entre SEÇÕES: cada uma carrega
@@ -16869,7 +16916,7 @@ página no servidor —, e eram dois desenhos para a mesma coisa: é o argumento
 das sete cópias de `abas.tsx` atravessando a fronteira entre as duas áreas.
 
 **O componente continua sendo OUTRO, e é de propósito.** A `BarraDeContexto`
-carrega o `<h1>` `sr-only`, o selo de contagem e as ações do módulo, e decide a
+carrega o `<h1>` do módulo, o selo de contagem e as ações, e decide a
 seção por `?aba=`; aqui cada seção é uma ROTA, o título mora no cabeçalho de
 cada tela, e o cliente não tem ação de módulo nenhuma. Reaproveitá-la seria
 carregar quatro parâmetros que este lado não usa para herdar oito classes. **O
@@ -21735,6 +21782,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 
 | Sprint | Entrega |
 | --- | --- |
+| O cabeçalho do módulo | **O `PageHeader` passou a ser do MÓDULO e não de uma aba** — decisão do usuário, lida como correção e como auditoria: *"o page header não é só da aba de demandar, preciso que confira todas as páginas"*. **Ele estava sendo escrito dentro de uma SEÇÃO**, e com a barra navegando entre abas isso diria o nome do módulo numa e em nenhuma das outras — a tela perdendo o próprio nome a cada clique de pílula. Quem o desenha é a `BarraDeContexto`, uma vez, acima do seletor e **fora da faixa grudada**: a barra de seções continua `sticky` porque rolando quarenta demandas saber em que seção se está continua valendo, e um título dentro dela grudaria junto. **CINCO MÓDULOS NÃO TINHAM CABEÇALHO NENHUM** — Gestão de Tasks, Financeiro, Day Off, Métricas e a abertura do mês de social: o Sprint 9 tirou o `PageHeader` deles quando a topbar ainda dizia o nome, e ninguém o devolveu no dia em que ela parou de dizer. **E três linhas deste arquivo afirmavam que o `<h1>` é `sr-only`**, o que deixou de ser verdade naquele mesmo dia — prosa mantida à mão lida como verdade por quem vier depois. ***A auditoria é de TELA e não de pasta, o que foi a lição dela:*** o portal tem 27 páginas e **dez componentes de tela** (as rotas de `(meu)` e de `[slug]` desenham o MESMO componente com outras props), e dois deles são adaptadores sobre um terceiro, de onde o `<h1>` vem — uma varredura por pasta **erra nos dois sentidos**, e marcou como sem cabeçalho a abertura do mês de social, cujo `PageHeader` mora uma pasta acima, e as duas telas-índice do portal, que têm o deles. **63 páginas conferidas — 36 no painel, 27 no portal —, cada uma com exatamente UM `<h1>`**, mais as três exceções declaradas (`academy/[slug]`, onde o título mora dentro do cartão; `gestao-tasks/[id]`, onde ele é o campo editável da demanda; e Minhas Tasks, dona de "Bom dia, Ana"). |
 | A fronteira nos dois sentidos | **Sete deploys seguidos falharam na Hostinger, e a causa era UMA.** O usuário mandou a imagem do histórico do Git do hPanel: sete linhas com *"Falha na construção"*, de 24/11 a 26/11, todas na branch de trabalho — **o site passou dois dias servindo uma versão velha**, e a única pista morava num log de Action que ninguém abre. A causa: `pauta-da-equipe.tsx` é `"use client"` e importava o **valor** `MINIMO_DA_BUSCA` de `lib/dados/pauta-da-equipe.ts`, que é `server-only` — o que arrasta o módulo para o bundle e o webpack recusa. **E a correção foi uma REMOÇÃO e não um módulo novo:** aquela constante era uma segunda cópia do piso de duas letras, e o comentário dela dizia isso em quantas palavras (*"o mesmo da paleta de busca (0073)"*) — o número já morava em `lib/dominio/busca.ts`, que não tem diretiva nenhuma e já era lido por uma tela cliente E por um módulo `server-only`. **O QUE TORNA ISSO CARO É O ENCADEAMENTO:** `npm run build` é o ÚLTIMO passo do `verificar.yml`, e os dois jobs de publicação têm `needs: verificar` — então um build vermelho não atrasa o deploy, ele **impede o webhook de sair**; e o auto-deploy do próprio hPanel, que constrói no host, falha pelo mesmo motivo. Quem trabalha numa tela roda os `check:` e o `tsc`, que passam os três. **`check:fronteira` PASSOU A OLHAR OS DOIS SENTIDOS, e o argumento é invertido:** a metade antiga existe porque build, lint e tipo NÃO pegam — o erro nasce quando alguém pede a página; a nova existe porque **só o build pega**, e ele é o passo que ninguém roda na máquina. **E o critério deste lado é mais simples: componente também não passa** — o que decide é o módulo entrar no bundle, não o que se faz com o que veio dele —, enquanto `import type` atravessa nos dois. Uma Server Action não é `server-only`, e a tela a importa normalmente. **Medida com mutação**, que é a régua da casa: devolvendo o import, a varredura falha nomeando o arquivo, o símbolo e o módulo do outro lado. **E o build foi conferido de verdade**, com `rm -rf .next`: ele passa, e nenhum segundo erro estava escondido atrás do primeiro. ***E as quatro migrations do lote foram aplicadas*** — 0149, 0150, 0151 e 0152, conferidas numa consulta só —, com três avisos deste arquivo corrigidos de tempo verbal: eles diziam *"a migration não foi aplicada"* sobre migrations que estão no ar, e **um aviso datado é lido como verdade por quem vier depois**. ***E fica dito em vez de escondido:*** a **0150 não tem seção neste arquivo** — ela subiu num commit de dezenove arquivos que não tocou o CLAUDE.md, e o raciocínio dela mora só na mensagem daquele commit. |
 | Os feriados se calculam | **O calendário passou a gerar os feriados nacionais sozinho, e a agência grava os dela** (migration 0151) — decisão do usuário, item 3: *"no calendário, quero que você puxe sozinho os feriados, e que permita que eu salve feriados pontuais, no caso de algum cliente tiver algum feriado especifico, ou emendas de feriado"*. **O PEDIDO ESTAVA ESCRITO AQUI HÁ DOIS SPRINTS:** *"um ano sem feriado na tabela não aparece vazio — aparece normal"* — a 0011 escreveu 2026 e 2027 à mão, a 0038 estendeu para 2025 e 2028–2030, **78 linhas digitadas uma por uma**, e a conclusão daquele sprint foi que *"a tabela de feriados foi atrás do calendário"*. Ela ia atrás de novo em 2031. **SÃO QUATRO METADES, e duas não precisavam de migration:** `holidays_write` é `is_gestor()` desde a 0011 e **tela nenhuma jamais a exerceu**; `events.tipo = 'feriado_cliente'` existe desde a 0055, e o que faltava era ele CHEGAR ao aviso do campo de data. **Os treze são calculados** — nove datas fixas mais quatro contadas da Páscoa por Meeus/Butcher, com Carnaval e Corpus entrando pela decisão escrita no `comment` da 0011 (*"na prática a agência não abre"*) e 20 de novembro na lista fixa pela Lei 14.759/2023 —, e **o algoritmo foi conferido contra o que a mão escreveu:** toda linha das 78 é reproduzida, data e nome, mismatches = 0. **A GARANTIA ACONTECE NA LEITURA e não numa rotina:** uma rotina teria de adivinhar quantos anos à frente gerar, e é adivinhar errado que deixou a tabela acabando em 2030. E ela semeia os DOIS anos de um período que atravessa a virada, com o cenário medindo a DATA e não a contagem — na janela de 28/12 a 03/01 o único feriado é o do ano de baixo. **`holiday_years` É O QUE FAZ APAGAR SER DESFAZER:** sem ela o feriado que a agência apagou volta na próxima leitura, sem erro em lugar nenhum — e **o PASSO 6 é a outra metade disso**, marcando como semeados os seis anos que as migrations escreveram, senão a migration não muda nada e faz estrago. Ela tem **SELECT e mais nada**, porque marcar um ano à mão não acrescenta nada: faz o produto **nunca** semear aquele ano. **O que a agência escreveu ganha** (`on conflict (data) do nothing`), e a versão errada óbvia — `do update` — deixa a CONTAGEM idêntica: só o nome e a origem separam as duas. **A janela torta RECUSA e não grampeia:** a primeira versão usava `greatest(p_de, 2020)` e **foi medida gerando 65 linhas de 2020 a 2024** — truncar é *aceitar e fazer outra coisa*, que a 0025 diz ser pior que recusar. Na tela é a **sexta seção do Day Off**, `is_gestor()`, com três seções na ordem da decisão, chave pela DATA e recusa de sobrescrever um nome nacional; **as emendas são DERIVADAS e nunca gravadas** (dois casos só: terça sugere a segunda, quinta sugere a sexta). **E o feriado do cliente NÃO entra em `holidays`**, porque aquela tabela é lida por `dias_uteis()` e responde *"a AGÊNCIA trabalha neste dia?"* — no feriado de um cliente a agência trabalha. O Calendário Full ganhou o nacional como **terceira origem**, dividindo o âmbar com o do cliente. **2555 cenários, seis mutações medidas** (6 / 3 / 2 / 7 / 4 / 2) — e a terceira deixa o cenário da contagem **passando**, que é exatamente o que o comentário dele afirma. ***Dito em vez de escondido:*** a migration está **aplicada** (com a 0149, a 0150 e a 0152, conferidas numa consulta só), e não há tela para o feriado de cliente — ele se lança no Calendário Full, pelo seletor que existe desde a 0055. |
 | O briefing do cliente | **O pedido do portal passou a ter o MESMO editor de briefing do lado de dentro** (migration 0148), e com ele quatro decisões vizinhas — *"com tabelas, grifando"*, *"pode tirar o onde isso entra"*, *"videos tbm são peças para rede"*, *"referencias devem vir só depois do briefing"*. **Quase tudo já existia:** o `EditorRico` desde o Sprint 3, o par jsonb + texto desde `tasks.briefing_rico`, o roteiro desde a 0068 — o banco são DUAS colunas, `client_requests.briefing_rico` e `request_types.frente`. **`descricao` FICA e é a metade de texto do par**, porque renomear coluna com quatro leitores é migration arriscada sem nada em troca, e **quem decide se há briefing é o TEXTO**: um doc do TipTap vazio ainda é um parágrafo. **A FRENTE PASSOU A SER DO TIPO**, e isso é o item 12 inteiro — os três cartões de frente da 0137 saem da tela, o tipo diz a frente, e ela é NULA em dois dos quatro, que é o *"Não sei dizer"* daquele sprint em outra forma. É COLUNA e não um de-para na tela porque o catálogo é **conteúdo da agência e não schema** (0137): com o mapa no código, acrescentar um tipo exigiria deploy. **O roteiro perde a pergunta que o briefing já faz** — três dos quatro tinham um `texto_longo` obrigatório que é o briefing com outro nome —, e ***a resposta que fica órfã aparece com a chave crua e um aviso***, que é a decisão da 0068: **medido contra produção, UM pedido** ficou assim. **E o VÍDEO sai por `ativo = false`** — desativar e nunca apagar, a regra da etiqueta do Acervo —, com **ZERO pedidos apontando para ele**, medido; onde ele passa a ser pedido é a pergunta `formato` de "Peça para redes", que já estava lá. ***E o REALCE é atributo de `textStyle` e nunca uma marca própria, o que só a imagem pegou:*** o exemplo escrevia `{ type: "backgroundColor" }`, e **um documento inválido não estoura no TipTap — ele cai para um parágrafo vazio**, então a tela saía com o título do briefing e nada embaixo; nenhuma das dez verificações alcança isso, porque um jsonb é um jsonb para o `tsc`. ***E o `check:cores` pegou os meus próprios comentários pela nona vez.*** **2498 cenários, três mutações medidas** (2 / 3 / 2), e o marcador do `onde-esta-o-banco.sql` são DUAS linhas, com o bloco do vídeo **movido para o fim do arquivo de propósito** — a régua da 0138: passo de que nenhum outro depende precisa da linha dele. |

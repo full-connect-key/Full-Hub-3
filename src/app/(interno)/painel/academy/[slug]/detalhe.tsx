@@ -94,9 +94,24 @@ export function DetalheDoItem({
               {ROTULOS_DE_TIPO[item.tipo]}
               {item.categoria ? ` · ${item.categoria}` : ""}
             </p>
-            <h2 className="text-text-primary mt-1 text-2xl font-semibold">
+            {/* O NOME DO ITEM É O `<h1>` DESTA TELA, e ele era um `<h2>`.
+
+                A rota não tem barra de contexto — o Acervo tem a dele, e esta é
+                uma tela de dentro —, então não havia quem escrevesse o `h1`: a
+                página tinha o nome do item num `h2` e nenhum cabeçalho de
+                primeiro nível. Quem usa leitor de tela navega por cabeçalho, e
+                **uma tela sem `h1` é uma tela sem nome** — a regra escrita do
+                `PageHeader` e da `BarraDeContexto`.
+
+                **E O CONSERTO É A TAG E NÃO UM `PageHeader` ACIMA DO CARTÃO.**
+                O título mora dentro deste cartão, com a linha de tipo ·
+                categoria acima dele e o resumo abaixo: um cabeçalho de página
+                em cima diria o nome do item duas vezes, a três centímetros de
+                distância. E a escala não muda — `text-2xl` é 24px, que é
+                exatamente o piso do `clamp(24px,3.4vw,34px)` do componente. */}
+            <h1 className="text-text-primary mt-1 text-2xl font-semibold">
               {item.titulo}
-            </h2>
+            </h1>
             <p className="text-text-secondary mt-1 text-sm">
               {item.resumo || EXPLICACAO_DO_TIPO[item.tipo]}
             </p>
