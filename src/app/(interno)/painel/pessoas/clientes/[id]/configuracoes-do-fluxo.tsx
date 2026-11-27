@@ -31,10 +31,18 @@ import { chamarEMostrar } from "@/lib/acoes/cliente";
 import { FUNCOES, ROTULOS_DE_FUNCAO } from "@/lib/dominio/equipe";
 import { PRAZO_DE_APROVACAO_PADRAO } from "@/lib/dominio/fluxo-do-cliente";
 import type { FluxoDeSocial } from "@/lib/dominio/social-flows";
-import type { FluxoDaConta, PadroesDaConta, RecorrenciaDaConta } from "@/lib/dados/fluxo-do-cliente";
+import type {
+  FluxoDaConta,
+  PadroesDaConta,
+  RecorrenciaDaConta,
+} from "@/lib/dados/fluxo-do-cliente";
 import type { TeamFuncao, UserRole } from "@/lib/supabase/database.types";
 
-import { definirFuncaoDaConta, duplicarFluxoParaAConta, salvarPadroesDaConta } from "./acoes-do-fluxo";
+import {
+  definirFuncaoDaConta,
+  duplicarFluxoParaAConta,
+  salvarPadroesDaConta,
+} from "./acoes-do-fluxo";
 
 /**
  * Configurações do fluxo de uma conta (migration 0064).
@@ -120,10 +128,14 @@ export function ConfiguracoesDoFluxo({
   const router = useRouter();
   const [salvando, salvar] = useTransition();
 
-  const [aprovador, setAprovador] = useState(padroes.linha?.aprovador_interno_id ?? SEM_NINGUEM);
+  const [aprovador, setAprovador] = useState(
+    padroes.linha?.aprovador_interno_id ?? SEM_NINGUEM,
+  );
   const [pasta, setPasta] = useState(padroes.linha?.pasta_entrega_url ?? "");
   const [prazo, setPrazo] = useState(
-    String(padroes.linha?.prazo_aprovacao_cliente_dias ?? PRAZO_DE_APROVACAO_PADRAO),
+    String(
+      padroes.linha?.prazo_aprovacao_cliente_dias ?? PRAZO_DE_APROVACAO_PADRAO,
+    ),
   );
   /**
    * O FLUXO DE SOCIAL DESTA CONTA (0087).
@@ -152,11 +164,15 @@ export function ConfiguracoesDoFluxo({
    */
   const fluxoForaDaLista = fluxoDeSocial !== SEM_NINGUEM && !fluxoEscolhido;
 
-  const porFuncao = new Map(padroes.porFuncao.map((p) => [p.funcao, p.pessoa.id]));
+  const porFuncao = new Map(
+    padroes.porFuncao.map((p) => [p.funcao, p.pessoa.id]),
+  );
 
   // A gestão é quem decide rodada interna desde a 0029. Oferecer colaborador
   // aqui seria oferecer um aprovador que o banco recusa depois.
-  const daGestao = equipe.filter((p) => p.role === "desenvolvedor" || p.role === "socio");
+  const daGestao = equipe.filter(
+    (p) => p.role === "desenvolvedor" || p.role === "socio",
+  );
 
   function salvarEntrega() {
     salvar(async () => {
@@ -165,7 +181,8 @@ export function ConfiguracoesDoFluxo({
           client_id: clienteId,
           aprovador_interno_id: aprovador === SEM_NINGUEM ? null : aprovador,
           pasta_entrega_url: pasta.trim() || null,
-          prazo_aprovacao_cliente_dias: Number(prazo) || PRAZO_DE_APROVACAO_PADRAO,
+          prazo_aprovacao_cliente_dias:
+            Number(prazo) || PRAZO_DE_APROVACAO_PADRAO,
           social_flow_id: fluxoDeSocial === SEM_NINGUEM ? null : fluxoDeSocial,
         }),
       );
@@ -188,7 +205,9 @@ export function ConfiguracoesDoFluxo({
 
   function duplicar(tipoId: string) {
     salvar(async () => {
-      const resultado = await chamarEMostrar(() => duplicarFluxoParaAConta(tipoId, clienteId));
+      const resultado = await chamarEMostrar(() =>
+        duplicarFluxoParaAConta(tipoId, clienteId),
+      );
       if (resultado?.ok) router.refresh();
     });
   }
@@ -210,15 +229,20 @@ export function ConfiguracoesDoFluxo({
                 quando o cliente comenta ou decide. Uma segunda coluna com o
                 mesmo papel divergiria em silêncio da que o aviso usa. */}
             <div>
-              <p className="text-muted-foreground text-xs">Atendimento desta conta</p>
+              <p className="text-muted-foreground text-xs">
+                Atendimento desta conta
+              </p>
               <p className="mt-0.5 text-sm">{atendimento ?? "—"}</p>
               <p className="text-muted-foreground mt-1 text-xs">
-                Trocado na aba Dados. É quem recebe os avisos do portal deste cliente.
+                Trocado na aba Dados. É quem recebe os avisos do portal deste
+                cliente.
               </p>
             </div>
 
             <div>
-              <Label htmlFor="aprovador-da-conta">Aprovador interno padrão</Label>
+              <Label htmlFor="aprovador-da-conta">
+                Aprovador interno padrão
+              </Label>
               <Select
                 value={aprovador}
                 onValueChange={(valor) => {
@@ -243,17 +267,19 @@ export function ConfiguracoesDoFluxo({
                 </SelectContent>
               </Select>
               <p className="text-muted-foreground mt-1 text-xs">
-                Só aparece quem pode decidir uma aprovação interna. Salvo junto com a
-                seção 3.
+                Só aparece quem pode decidir uma aprovação interna. Salvo junto
+                com a seção 3.
               </p>
             </div>
           </div>
 
           <div className="border-t pt-4">
-            <p className="text-sm font-medium">Quem faz cada coisa nesta conta</p>
+            <p className="text-sm font-medium">
+              Quem faz cada coisa nesta conta
+            </p>
             <p className="text-muted-foreground mt-0.5 text-xs">
-              A etapa que já tem uma pessoa escrita continua com ela. Isto preenche
-              o que ficaria em branco.
+              A etapa que já tem uma pessoa escrita continua com ela. Isto
+              preenche o que ficaria em branco.
             </p>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -298,7 +324,9 @@ export function ConfiguracoesDoFluxo({
                         <SelectValue placeholder="Ninguém definido" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={SEM_NINGUEM}>Ninguém definido</SelectItem>
+                        <SelectItem value={SEM_NINGUEM}>
+                          Ninguém definido
+                        </SelectItem>
                         {ordenada.map((pessoa) => (
                           <SelectItem key={pessoa.id} value={pessoa.id}>
                             {pessoa.nome}
@@ -333,11 +361,15 @@ export function ConfiguracoesDoFluxo({
           <EmptyState
             title="Nenhum fluxo disponível"
             description="Os fluxos são as cadeias de etapas que uma demanda percorre. Eles são cadastrados em Workflows."
+            className="bg-card rounded-card shadow-cartao border-solid"
           />
         ) : (
           <ul className="bg-card divide-y rounded-xl border">
             {fluxos.map((fluxo) => (
-              <li key={fluxo.id} className="flex flex-wrap items-start gap-3 p-4">
+              <li
+                key={fluxo.id}
+                className="flex flex-wrap items-start gap-3 p-4"
+              >
                 <div className="min-w-[12rem] flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-medium">{fluxo.nome}</p>
@@ -348,7 +380,8 @@ export function ConfiguracoesDoFluxo({
 
                   {fluxo.etapas.length === 0 ? (
                     <p className="text-muted-foreground mt-1 text-xs">
-                      Sem etapas cadastradas: uma demanda deste fluxo nasce vazia.
+                      Sem etapas cadastradas: uma demanda deste fluxo nasce
+                      vazia.
                     </p>
                   ) : (
                     <ol className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -366,9 +399,13 @@ export function ConfiguracoesDoFluxo({
                               : undefined
                           }
                         >
-                          {etapa.semDono ? <CircleAlert aria-hidden className="size-3" /> : null}
+                          {etapa.semDono ? (
+                            <CircleAlert aria-hidden className="size-3" />
+                          ) : null}
                           {etapa.nome}
-                          {etapa.requerAprovacao ? <Lock aria-hidden className="size-3" /> : null}
+                          {etapa.requerAprovacao ? (
+                            <Lock aria-hidden className="size-3" />
+                          ) : null}
                         </li>
                       ))}
                     </ol>
@@ -382,7 +419,9 @@ export function ConfiguracoesDoFluxo({
                     disabled={salvando}
                     onClick={() => duplicar(fluxo.id)}
                   >
-                    {salvando ? <Loader2 aria-hidden className="animate-spin" /> : null}
+                    {salvando ? (
+                      <Loader2 aria-hidden className="animate-spin" />
+                    ) : null}
                     Duplicar para esta conta
                   </Button>
                 ) : null}
@@ -392,7 +431,10 @@ export function ConfiguracoesDoFluxo({
         )}
       </SecaoDoFormulario>
 
-      <SecaoDoFormulario numero={3} titulo="Entrega, prazos e o que o cliente aprova">
+      <SecaoDoFormulario
+        numero={3}
+        titulo="Entrega, prazos e o que o cliente aprova"
+      >
         <div className="bg-card rounded-card shadow-cartao space-y-4 border p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -406,13 +448,15 @@ export function ConfiguracoesDoFluxo({
                 className="mt-1.5"
               />
               <p className="text-muted-foreground mt-1 text-xs">
-                Sugerida na abertura de toda demanda desta conta. A pasta de cada
-                demanda continua sendo obrigatória e editável.
+                Sugerida na abertura de toda demanda desta conta. A pasta de
+                cada demanda continua sendo obrigatória e editável.
               </p>
             </div>
 
             <div>
-              <Label htmlFor="prazo-da-conta">Prazo de resposta do cliente</Label>
+              <Label htmlFor="prazo-da-conta">
+                Prazo de resposta do cliente
+              </Label>
               <div className="mt-1.5 flex items-center gap-2">
                 <Input
                   id="prazo-da-conta"
@@ -427,8 +471,8 @@ export function ConfiguracoesDoFluxo({
                 <span className="text-muted-foreground text-sm">dias</span>
               </div>
               <p className="text-muted-foreground mt-1 text-xs">
-                Passado esse prazo, o material enviado a este cliente aparece como
-                atrasado na fila de aprovações.
+                Passado esse prazo, o material enviado a este cliente aparece
+                como atrasado na fila de aprovações.
               </p>
             </div>
           </div>
@@ -454,7 +498,9 @@ export function ConfiguracoesDoFluxo({
               concorrentes na mesma tela. */}
           <div className="space-y-3 border-t pt-4">
             <div>
-              <p className="text-sm font-medium">O fluxo de social desta conta</p>
+              <p className="text-sm font-medium">
+                O fluxo de social desta conta
+              </p>
               <p className="text-muted-foreground mt-0.5 text-xs">
                 A corrente que os posts de cada mês desta conta percorrem, e o
                 que dela espera o aval do cliente. Quem abre o mês pode escolher
@@ -462,8 +508,15 @@ export function ConfiguracoesDoFluxo({
               </p>
             </div>
 
-            <Select value={fluxoDeSocial} onValueChange={setFluxoDeSocial} disabled={salvando}>
-              <SelectTrigger aria-label="Fluxo de social desta conta" className="w-full">
+            <Select
+              value={fluxoDeSocial}
+              onValueChange={setFluxoDeSocial}
+              disabled={salvando}
+            >
+              <SelectTrigger
+                aria-label="Fluxo de social desta conta"
+                className="w-full"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -544,7 +597,11 @@ export function ConfiguracoesDoFluxo({
 
           <div className="flex justify-end border-t pt-4">
             <Button onClick={salvarEntrega} disabled={salvando}>
-              {salvando ? <Loader2 aria-hidden className="animate-spin" /> : <Save aria-hidden />}
+              {salvando ? (
+                <Loader2 aria-hidden className="animate-spin" />
+              ) : (
+                <Save aria-hidden />
+              )}
               Salvar
             </Button>
           </div>
@@ -568,14 +625,20 @@ export function ConfiguracoesDoFluxo({
             icon={Repeat}
             title="Esta conta não gera demanda sozinha"
             description="Uma recorrência é a regra que abre a mesma demanda todo mês, toda segunda ou todo dia 5."
+            className="bg-card rounded-card shadow-cartao border-solid"
           />
         ) : (
           <ul className="bg-card divide-y rounded-xl border">
             {recorrencias.map((regra) => (
-              <li key={regra.id} className="flex items-center justify-between gap-3 p-4">
+              <li
+                key={regra.id}
+                className="flex items-center justify-between gap-3 p-4"
+              >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{regra.nome}</p>
-                  <p className="text-muted-foreground text-xs">{regra.frequencia}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {regra.frequencia}
+                  </p>
                 </div>
                 <Badge variant={regra.ativo ? "success" : "secondary"}>
                   {regra.ativo ? "Ativa" : "Pausada"}

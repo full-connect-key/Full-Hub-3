@@ -28,7 +28,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { chamarAcao } from "@/lib/acoes/cliente";
 
-import { convidarUsuarioCliente, removerUsuarioCliente } from "../../../_actions/usuarios";
+import {
+  convidarUsuarioCliente,
+  removerUsuarioCliente,
+} from "../../../_actions/usuarios";
 
 export type UsuarioComAcesso = {
   vinculoId: string;
@@ -46,7 +49,13 @@ const esquema = z.object({
 
 type Dados = z.infer<typeof esquema>;
 
-function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeDaEmpresa: string }) {
+function DialogoDeConvite({
+  clientId,
+  nomeDaEmpresa,
+}: {
+  clientId: string;
+  nomeDaEmpresa: string;
+}) {
   const [aberto, setAberto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [senhaProvisoria, setSenhaProvisoria] = useState<string | null>(null);
@@ -57,7 +66,10 @@ function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeD
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<Dados>({ resolver: zodResolver(esquema), defaultValues: { nome: "", email: "" } });
+  } = useForm<Dados>({
+    resolver: zodResolver(esquema),
+    defaultValues: { nome: "", email: "" },
+  });
 
   const enviar = handleSubmit(async (dados) => {
     setEnviando(true);
@@ -107,8 +119,9 @@ function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeD
         <DialogHeader>
           <DialogTitle>Convidar para o portal</DialogTitle>
           <DialogDescription>
-            A pessoa recebe um e-mail para definir a senha e passa a enxergar {nomeDaEmpresa} no
-            portal. Todos os acessos de um cliente são iguais — não há níveis.
+            A pessoa recebe um e-mail para definir a senha e passa a enxergar{" "}
+            {nomeDaEmpresa} no portal. Todos os acessos de um cliente são iguais
+            — não há níveis.
           </DialogDescription>
         </DialogHeader>
 
@@ -119,8 +132,15 @@ function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeD
         <form onSubmit={enviar} noValidate className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="convite-nome">Nome</Label>
-            <Input id="convite-nome" aria-invalid={!!errors.nome} autoFocus {...register("nome")} />
-            {errors.nome ? <p className="text-destructive text-xs">{errors.nome.message}</p> : null}
+            <Input
+              id="convite-nome"
+              aria-invalid={!!errors.nome}
+              autoFocus
+              {...register("nome")}
+            />
+            {errors.nome ? (
+              <p className="text-destructive text-xs">{errors.nome.message}</p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="convite-email">E-mail</Label>
@@ -130,11 +150,18 @@ function DialogoDeConvite({ clientId, nomeDaEmpresa }: { clientId: string; nomeD
               aria-invalid={!!errors.email}
               {...register("email")}
             />
-            {errors.email ? <p className="text-destructive text-xs">{errors.email.message}</p> : null}
+            {errors.email ? (
+              <p className="text-destructive text-xs">{errors.email.message}</p>
+            ) : null}
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setAberto(false)} disabled={enviando}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAberto(false)}
+              disabled={enviando}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={enviando}>
@@ -163,7 +190,10 @@ export function UsuariosDoCliente({
   function remover(vinculoId: string) {
     iniciar(async () => {
       const resultado = await chamarAcao(() =>
-        removerUsuarioCliente({ client_user_id: vinculoId, client_id: clientId }),
+        removerUsuarioCliente({
+          client_user_id: vinculoId,
+          client_id: clientId,
+        }),
       );
       if (!resultado.ok) toast.error(resultado.error);
       else {
@@ -187,15 +217,21 @@ export function UsuariosDoCliente({
           icon={Users}
           title="Ninguém tem acesso ainda"
           description="Convide o contato da empresa para ele acompanhar os conteúdos e as campanhas pelo portal."
+          className="bg-card rounded-card shadow-cartao border-solid"
         />
       ) : (
         <ul className="bg-card divide-y rounded-xl border">
           {usuarios.map((usuario) => (
-            <li key={usuario.vinculoId} className="flex flex-wrap items-center gap-3 p-3">
+            <li
+              key={usuario.vinculoId}
+              className="flex flex-wrap items-center gap-3 p-3"
+            >
               <UserAvatar name={usuario.nome} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{usuario.nome}</p>
-                <p className="text-muted-foreground truncate text-xs">{usuario.email}</p>
+                <p className="text-muted-foreground truncate text-xs">
+                  {usuario.email}
+                </p>
               </div>
               <p className="text-muted-foreground text-xs">
                 {usuario.ultimoAcesso
@@ -204,7 +240,11 @@ export function UsuariosDoCliente({
               </p>
               <ConfirmDialog
                 trigger={
-                  <Button variant="ghost" size="icon" aria-label={`Remover acesso de ${usuario.nome}`}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remover acesso de ${usuario.nome}`}
+                  >
                     <Trash2 aria-hidden />
                   </Button>
                 }

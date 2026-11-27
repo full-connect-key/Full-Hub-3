@@ -152,7 +152,11 @@ export function VisaoGeral({
             ia ser a terceira cópia. */}
         <ControleSegmentado
           opcoes={[
-            { chave: "equipamento", rotulo: "Por equipamento", Icone: PackageOpen },
+            {
+              chave: "equipamento",
+              rotulo: "Por equipamento",
+              Icone: PackageOpen,
+            },
             { chave: "pessoa", rotulo: "Por pessoa", Icone: UserRound },
           ]}
           atual={visao}
@@ -478,7 +482,13 @@ function PorPessoa({ pessoas }: { pessoas: PessoaComEquipamento[] }) {
   }, [pessoas, termo]);
 
   if (pessoas.length === 0) {
-    return <EmptyState icon={UserRound} title="Ninguém na equipe ainda" />;
+    return (
+      <EmptyState
+        icon={UserRound}
+        title="Ninguém na equipe ainda"
+        className="bg-card rounded-card shadow-cartao border-solid"
+      />
+    );
   }
 
   return (
@@ -502,6 +512,7 @@ function PorPessoa({ pessoas }: { pessoas: PessoaComEquipamento[] }) {
           icon={UserRound}
           title="Nada com esse nome"
           description="Nenhuma pessoa e nenhum equipamento casam com o que você digitou."
+          className="bg-card rounded-card shadow-cartao border-solid"
         />
       ) : (
         <ul className="bg-card divide-border divide-y rounded-xl border">

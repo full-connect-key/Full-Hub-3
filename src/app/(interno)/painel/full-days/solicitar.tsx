@@ -128,7 +128,10 @@ export function Solicitar({
    * que já não está disponível"*. O banco recusa a sobreposição desde sempre
    * (`validar_solicitacao`); o que faltava era a tela dizer antes do envio.
    */
-  const jaCombinados = useMemo(() => diasJaCombinados(solicitacoes), [solicitacoes]);
+  const jaCombinados = useMemo(
+    () => diasJaCombinados(solicitacoes),
+    [solicitacoes],
+  );
 
   const rotulosDosMeusDias = useMemo(() => {
     const mapa: Record<string, string> = {};
@@ -366,7 +369,8 @@ export function Solicitar({
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-text-secondary text-sm">Já usado</span>
                 <span className="text-sm font-semibold tabular-nums">
-                  {concedidos > 0 ? Math.round((usados / concedidos) * 100) : 0}%
+                  {concedidos > 0 ? Math.round((usados / concedidos) * 100) : 0}
+                  %
                 </span>
               </div>
               <div className="bg-muted mt-2 h-1.5 w-full overflow-hidden rounded-full">
@@ -488,9 +492,9 @@ export function Solicitar({
             recorrência já tinha tomado, pelo mesmo motivo. */}
         <aside className="order-first lg:order-none flex flex-col gap-2.5">
           <section className="bg-surface-card rounded-card shadow-cartao space-y-4 border p-5">
-          <h2 className="text-base font-semibold">Configurar pedido</h2>
+            <h2 className="text-base font-semibold">Configurar pedido</h2>
 
-          {/* TRÊS BOTÕES À VISTA, e não uma lista suspensa. São três opções e
+            {/* TRÊS BOTÕES À VISTA, e não uma lista suspensa. São três opções e
               nunca mais, e cada uma carrega a informação que decide a escolha:
               se desconta do saldo ou não. Dentro de um `select` isso só
               aparecia depois de abrir — e a diferença entre day off e
@@ -506,114 +510,114 @@ export function Solicitar({
               `radiogroup` e não três botões soltos: o leitor de tela anuncia
               "1 de 3" e a seta move entre eles, que é o comportamento certo
               para escolha única. */}
-          <div className="space-y-2">
-            <span className="text-text-muted text-xs font-semibold tracking-wider uppercase">
-              Tipo de pedido
-            </span>
-            <div
-              role="radiogroup"
-              aria-label="Tipo de pedido"
-              className="flex flex-col gap-2"
-            >
-              {(
-                [
-                  // "desconta (0d livres)" é a frase certa para quem gastou
-                  // tudo e a errada para quem ainda não conquistou nada — e a
-                  // imagem do protótipo mostrou as duas com o mesmo texto. No
-                  // primeiro ciclo o cartão diz o que está acontecendo, que é
-                  // a razão inteira desta linha existir: ela está aqui para a
-                  // pessoa escolher entre os três tipos.
-                  //
-                  // **E SEM SALDO LIDO ELE PERDE O NÚMERO**, que é o terceiro
-                  // lugar onde o 15 do fallback aparecia — e este só a imagem
-                  // pegou: a faixa já dizia que não sabia, e o cartão dois
-                  // centímetros abaixo afirmava "desconta (15d livres)". O que
-                  // sobra é o fato, que continua verdadeiro: este tipo
-                  // desconta e os outros dois não, que é a única coisa que o
-                  // cartão existe para dizer.
+            <div className="space-y-2">
+              <span className="text-text-muted text-xs font-semibold tracking-wider uppercase">
+                Tipo de pedido
+              </span>
+              <div
+                role="radiogroup"
+                aria-label="Tipo de pedido"
+                className="flex flex-col gap-2"
+              >
+                {(
                   [
-                    "ferias",
-                    saldoNaoRespondeu
-                      ? "desconta do saldo"
-                      : `desconta (${saldo}d livres)`,
-                  ],
-                  ["licenca", "não desconta"],
-                  ["ausencia", "não desconta"],
-                ] as const
-              ).map(([valor, nota]) => (
-                <button
-                  key={valor}
-                  type="button"
-                  role="radio"
-                  aria-checked={tipo === valor}
-                  onClick={() => setTipo(valor)}
-                  className={cn(
-                    "rounded-xl border px-3 py-2.5 text-left transition-colors",
-                    tipo === valor
-                      ? "border-action bg-action-soft"
-                      : "hover:bg-accent",
-                  )}
-                >
-                  <span
+                    // "desconta (0d livres)" é a frase certa para quem gastou
+                    // tudo e a errada para quem ainda não conquistou nada — e a
+                    // imagem do protótipo mostrou as duas com o mesmo texto. No
+                    // primeiro ciclo o cartão diz o que está acontecendo, que é
+                    // a razão inteira desta linha existir: ela está aqui para a
+                    // pessoa escolher entre os três tipos.
+                    //
+                    // **E SEM SALDO LIDO ELE PERDE O NÚMERO**, que é o terceiro
+                    // lugar onde o 15 do fallback aparecia — e este só a imagem
+                    // pegou: a faixa já dizia que não sabia, e o cartão dois
+                    // centímetros abaixo afirmava "desconta (15d livres)". O que
+                    // sobra é o fato, que continua verdadeiro: este tipo
+                    // desconta e os outros dois não, que é a única coisa que o
+                    // cartão existe para dizer.
+                    [
+                      "ferias",
+                      saldoNaoRespondeu
+                        ? "desconta do saldo"
+                        : `desconta (${saldo}d livres)`,
+                    ],
+                    ["licenca", "não desconta"],
+                    ["ausencia", "não desconta"],
+                  ] as const
+                ).map(([valor, nota]) => (
+                  <button
+                    key={valor}
+                    type="button"
+                    role="radio"
+                    aria-checked={tipo === valor}
+                    onClick={() => setTipo(valor)}
                     className={cn(
-                      "block text-[13px]",
-                      tipo === valor ? "font-bold" : "font-semibold",
+                      "rounded-xl border px-3 py-2.5 text-left transition-colors",
+                      tipo === valor
+                        ? "border-action bg-action-soft"
+                        : "hover:bg-accent",
                     )}
                   >
-                    {ROTULOS_DE_TIPO[valor]}
-                  </span>
-                  <span
-                    className={cn(
-                      "mt-0.5 block text-[11px] font-semibold",
-                      tipo === valor ? "text-action-text" : "text-text-muted",
-                    )}
-                  >
-                    {nota}
-                  </span>
-                </button>
-              ))}
+                    <span
+                      className={cn(
+                        "block text-[13px]",
+                        tipo === valor ? "font-bold" : "font-semibold",
+                      )}
+                    >
+                      {ROTULOS_DE_TIPO[valor]}
+                    </span>
+                    <span
+                      className={cn(
+                        "mt-0.5 block text-[11px] font-semibold",
+                        tipo === valor ? "text-action-text" : "text-text-muted",
+                      )}
+                    >
+                      {nota}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <dl className="space-y-1.5 border-t pt-3 text-sm">
-            <Campo
-              rotulo="De"
-              valor={
-                inicioSel ? format(parseISO(inicioSel), "dd/MM/yyyy") : "—"
-              }
-            />
-            <Campo
-              rotulo="Até"
-              valor={fimSel ? format(parseISO(fimSel), "dd/MM/yyyy") : "—"}
-            />
-            <Campo
-              rotulo={tipo === "ferias" ? "Dias corridos" : "Dias úteis"}
-              valor={inicioSel ? String(diasSelecionados) : "—"}
-              destaque
-            />
-            {tipo === "ferias" && !saldoNaoRespondeu ? (
+            <dl className="space-y-1.5 border-t pt-3 text-sm">
               <Campo
-                rotulo="Saldo depois"
-                valor={`${saldoDepois} de ${concedidos}`}
-                destaque={saldoDepois < 0}
+                rotulo="De"
+                valor={
+                  inicioSel ? format(parseISO(inicioSel), "dd/MM/yyyy") : "—"
+                }
               />
+              <Campo
+                rotulo="Até"
+                valor={fimSel ? format(parseISO(fimSel), "dd/MM/yyyy") : "—"}
+              />
+              <Campo
+                rotulo={tipo === "ferias" ? "Dias corridos" : "Dias úteis"}
+                valor={inicioSel ? String(diasSelecionados) : "—"}
+                destaque
+              />
+              {tipo === "ferias" && !saldoNaoRespondeu ? (
+                <Campo
+                  rotulo="Saldo depois"
+                  valor={`${saldoDepois} de ${concedidos}`}
+                  destaque={saldoDepois < 0}
+                />
+              ) : null}
+            </dl>
+
+            {!inicioSel ? (
+              <p className="text-text-muted text-xs">
+                Nenhum período escolhido ainda. Use o calendário ao lado.
+              </p>
             ) : null}
-          </dl>
 
-          {!inicioSel ? (
-            <p className="text-text-muted text-xs">
-              Nenhum período escolhido ainda. Use o calendário ao lado.
-            </p>
-          ) : null}
+            {retroativo ? (
+              <Aviso tom="atencao">
+                Este período já começou. Registro do que passou é para ausência
+                pontual — o sócio vai ver a data ao responder.
+              </Aviso>
+            ) : null}
 
-          {retroativo ? (
-            <Aviso tom="atencao">
-              Este período já começou. Registro do que passou é para ausência
-              pontual — o sócio vai ver a data ao responder.
-            </Aviso>
-          ) : null}
-
-          {/* UM AVISO SÓ, e agora ele é o único que existe. Eram TRÊS até a
+            {/* UM AVISO SÓ, e agora ele é o único que existe. Eram TRÊS até a
               0116 (a parcela saiu com a trava dela) e DOIS até a 0145, quando
               o do primeiro ciclo saiu com o estado que o produzia — não há
               mais uma recusa por "os dias ainda não chegaram".
@@ -624,70 +628,73 @@ export function Solicitar({
               outra. E ela perdeu o "neste ciclo" junto com a migration: o que
               decide o número é o contrato, e o que a segunda metade diz é
               QUANDO ele volta inteiro, que é a dica do `insert`. */}
-          {excedeSaldo ? (
-            <Aviso tom="erro">
-              São {concedidos} dias de day off, contados corridos. Você já tem{" "}
-              {usados} comprometidos, então sobram {saldo}. Escolha um período
-              menor
-              {voltamEm ? ` ou espere ${voltamEm}` : ""}.
-            </Aviso>
-          ) : null}
+            {excedeSaldo ? (
+              <Aviso tom="erro">
+                São {concedidos} dias de day off, contados corridos. Você já tem{" "}
+                {usados} comprometidos, então sobram {saldo}. Escolha um período
+                menor
+                {voltamEm ? ` ou espere ${voltamEm}` : ""}.
+              </Aviso>
+            ) : null}
 
-          {/* O AVISO DE PARCELA SAIU DAQUI, e a trava do banco saiu no mesmo
+            {/* O AVISO DE PARCELA SAIU DAQUI, e a trava do banco saiu no mesmo
               commit (0116). Tirar só este deixaria a tela aceitando o clique e
               o `insert` recusando com a frase de um esquema que o usuário
               acabou de dizer que não existe — a 0029 e a 0060 pela enésima
               vez. O que restringe um pedido agora é um número só: o saldo de
               dias do ciclo, que o aviso logo acima já diz. */}
 
-          <div className="space-y-2 border-t pt-3">
-            <Label htmlFor="fd-motivo" className="text-text-secondary text-xs">
-              Observação (opcional)
-            </Label>
-            <Textarea
-              id="fd-motivo"
-              rows={3}
-              value={motivo}
-              onChange={(evento) => setMotivo(evento.target.value)}
-              placeholder="Algo que o sócio deva saber sobre este período?"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            {inicioSel ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={limpar}
-                disabled={enviando}
+            <div className="space-y-2 border-t pt-3">
+              <Label
+                htmlFor="fd-motivo"
+                className="text-text-secondary text-xs"
               >
-                <X aria-hidden />
-                Limpar
-              </Button>
-            ) : null}
-            {/* A PÍLULA COM DEGRADÊ, porque aqui ela é a ação principal de
+                Observação (opcional)
+              </Label>
+              <Textarea
+                id="fd-motivo"
+                rows={3}
+                value={motivo}
+                onChange={(evento) => setMotivo(evento.target.value)}
+                placeholder="Algo que o sócio deva saber sobre este período?"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              {inicioSel ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={limpar}
+                  disabled={enviando}
+                >
+                  <X aria-hidden />
+                  Limpar
+                </Button>
+              ) : null}
+              {/* A PÍLULA COM DEGRADÊ, porque aqui ela é a ação principal de
                 uma coluna e não mais um botão numa linha de controles — a
                 mesma decisão do "Nova task" de Minhas Tasks e do Início. As
                 três paradas do degradê são medidas pelo `check:cores` contra o
                 branco do rótulo. Desabilitada ela volta ao cinza: um degradê
                 apagado continua parecendo clicável. */}
-            <Button
-              className={cn(
-                "h-11 flex-1 rounded-full text-sm font-bold",
-                podeEnviar
-                  ? "pilula-de-acao text-action-foreground hover:brightness-105"
-                  : "bg-muted text-text-muted opacity-100 shadow-none",
-              )}
-              disabled={!podeEnviar}
-              onClick={enviar}
-            >
-              {enviando ? <Loader2 className="animate-spin" /> : null}
-              Enviar pedido
-            </Button>
-          </div>
+              <Button
+                className={cn(
+                  "h-11 flex-1 rounded-full text-sm font-bold",
+                  podeEnviar
+                    ? "pilula-de-acao text-action-foreground hover:brightness-105"
+                    : "bg-muted text-text-muted opacity-100 shadow-none",
+                )}
+                disabled={!podeEnviar}
+                onClick={enviar}
+              >
+                {enviando ? <Loader2 className="animate-spin" /> : null}
+                Enviar pedido
+              </Button>
+            </div>
           </section>
 
-        {/* QUEM JÁ ESTÁ FORA DA MINHA ÁREA, e ele não custa consulta
+          {/* QUEM JÁ ESTÁ FORA DA MINHA ÁREA, e ele não custa consulta
             nenhuma: `bloqueados` é o mapa dia → nomes que o calendário já
             recebe para pintar de âmbar, e este cartão é o mesmo dado lido de
             outro jeito — por pessoa, com o intervalo dela.
@@ -697,42 +704,43 @@ export function Solicitar({
             identifica ninguém; o dia fica só em âmbar e o nome mora aqui. No
             desktop ele continua servindo: quem vai propor uma semana lê a
             lista antes de clicar, em vez de descobrir a recusa no arrasto. */}
-        {foraDaMinhaArea.length > 0 ? (
-          <section className="bg-surface-card rounded-card shadow-cartao border p-4">
-            <h2 className="text-text-secondary flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
-              <TriangleAlert aria-hidden className="size-4" />
-              Quem está fora
-            </h2>
-            <ul className="mt-3 space-y-2">
-              {/* A CHAVE É PESSOA + INÍCIO, e não o nome: desde que a lista
+          {foraDaMinhaArea.length > 0 ? (
+            <section className="bg-surface-card rounded-card shadow-cartao border p-4">
+              <h2 className="text-text-secondary flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
+                <TriangleAlert aria-hidden className="size-4" />
+                Quem está fora
+              </h2>
+              <ul className="mt-3 space-y-2">
+                {/* A CHAVE É PESSOA + INÍCIO, e não o nome: desde que a lista
                   passou a separar por bloco, a mesma pessoa pode ter dois
                   períodos à frente — dois day offs combinados, ou um
                   afastamento e uma ausência pontual. */}
-              {foraDaMinhaArea.map((bloco) => (
-                <li
-                  key={`${bloco.nome}-${bloco.inicio}`}
-                  className="flex items-center gap-2"
-                >
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                    {bloco.nome}
-                  </span>
-                  <span className="bg-warning-soft text-warning shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums">
-                    {faixaDoBloco(bloco, hojeISO)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {/* O TÍTULO PERDEU O "JÁ", e é consequência do recorte: a lista
+                {foraDaMinhaArea.map((bloco) => (
+                  <li
+                    key={`${bloco.nome}-${bloco.inicio}`}
+                    className="flex items-center gap-2"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                      {bloco.nome}
+                    </span>
+                    <span className="bg-warning-soft text-warning shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums">
+                      {faixaDoBloco(bloco, hojeISO)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {/* O TÍTULO PERDEU O "JÁ", e é consequência do recorte: a lista
                 carrega quem está fora agora E quem já tem período combinado
                 para a frente — um day off de dezembro lido em outubro sob
                 "quem JÁ está fora" é a tela afirmando o que não é. O que ela
                 não carrega mais é quem voltou, que era o relato. */}
-            <p className="text-text-muted mt-3 text-xs">
-              Da sua área, {minhaArea}, de hoje em diante. Os dias deles ficam em
-              âmbar no calendário, e o pedido que passar por cima é recusado.
-            </p>
-          </section>
-        ) : null}
+              <p className="text-text-muted mt-3 text-xs">
+                Da sua área, {minhaArea}, de hoje em diante. Os dias deles ficam
+                em âmbar no calendário, e o pedido que passar por cima é
+                recusado.
+              </p>
+            </section>
+          ) : null}
         </aside>
       </div>
 
@@ -759,6 +767,7 @@ export function Solicitar({
             icon={CalendarRange}
             title="Você ainda não pediu nada"
             description="Escolha um período no calendário acima e envie. Os sócios são avisados na hora."
+            className="bg-card rounded-card shadow-cartao border-solid"
           />
         ) : (
           <ul className="flex flex-col gap-2">

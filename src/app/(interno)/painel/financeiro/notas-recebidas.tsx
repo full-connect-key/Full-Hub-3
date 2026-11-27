@@ -156,7 +156,9 @@ export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
 
   function aprovar(nota: NotaDaEquipe) {
     decidir(async () => {
-      const r = await chamarEMostrar(() => decidirNota({ id: nota.id, decisao: "aprovada" }));
+      const r = await chamarEMostrar(() =>
+        decidirNota({ id: nota.id, decisao: "aprovada" }),
+      );
       if (r?.ok) router.refresh();
     });
   }
@@ -179,7 +181,11 @@ export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
     if (!pagando) return;
     decidir(async () => {
       const r = await chamarEMostrar(() =>
-        decidirNota({ id: pagando.id, decisao: "paga", pagamento: dataDoPagamento }),
+        decidirNota({
+          id: pagando.id,
+          decisao: "paga",
+          pagamento: dataDoPagamento,
+        }),
       );
       if (r?.ok) {
         setPagando(null);
@@ -197,14 +203,26 @@ export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
    * Lista. Fora da coluna (na busca, num resumo) o selo volta; aqui ele seria
    * quatro palavras iguais empilhadas.
    */
-  function Card({ nota, acoes }: { nota: NotaDaEquipe; acoes?: React.ReactNode }) {
+  function Card({
+    nota,
+    acoes,
+  }: {
+    nota: NotaDaEquipe;
+    acoes?: React.ReactNode;
+  }) {
     return (
       <li className="bg-card rounded-card shadow-cartao space-y-2 border p-3">
         <div className="flex flex-wrap items-center gap-2">
           {nota.pessoa ? (
             <span className="inline-flex min-w-0 items-center gap-1.5">
-              <UserAvatar name={nota.pessoa.nome} src={nota.pessoa.avatar_url} size="sm" />
-              <span className="truncate text-sm font-medium">{nota.pessoa.nome}</span>
+              <UserAvatar
+                name={nota.pessoa.nome}
+                src={nota.pessoa.avatar_url}
+                size="sm"
+              />
+              <span className="truncate text-sm font-medium">
+                {nota.pessoa.nome}
+              </span>
             </span>
           ) : (
             <span className="text-text-muted text-sm">sem nome</span>
@@ -212,9 +230,15 @@ export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
         </div>
 
         <div className="flex flex-wrap items-baseline gap-2">
-          <p className="text-sm font-semibold tabular-nums">{emReais(nota.valor)}</p>
-          <p className="text-text-secondary text-xs">{mesPorExtenso(nota.competencia)}</p>
-          {nota.numero ? <p className="text-text-muted text-xs">NF {nota.numero}</p> : null}
+          <p className="text-sm font-semibold tabular-nums">
+            {emReais(nota.valor)}
+          </p>
+          <p className="text-text-secondary text-xs">
+            {mesPorExtenso(nota.competencia)}
+          </p>
+          {nota.numero ? (
+            <p className="text-text-muted text-xs">NF {nota.numero}</p>
+          ) : null}
         </div>
 
         {nota.observacoes ? (
@@ -303,7 +327,10 @@ export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
             label: "Mês",
             value: mes,
             allLabel: "Todos os meses",
-            options: meses.map((m) => ({ value: m, label: mesPorExtenso(`${m}-01`) })),
+            options: meses.map((m) => ({
+              value: m,
+              label: mesPorExtenso(`${m}-01`),
+            })),
             onChange: (valor) => navegar({ mes: valor }),
           },
           {
@@ -323,6 +350,7 @@ export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
           icon={Inbox}
           title="Nenhuma nota esperando"
           description="Quando alguém enviar a nota do mês, ela aparece aqui e você recebe um aviso."
+          className="bg-card rounded-card shadow-cartao border-solid"
         />
       ) : filtradas.length === 0 ? (
         /* O VAZIO DO FILTRO É OUTRO VAZIO, e por isso a frase é outra: as quatro
@@ -408,13 +436,16 @@ export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
         </div>
       )}
 
-      <Dialog open={recusando !== null} onOpenChange={(a) => !a && setRecusando(null)}>
+      <Dialog
+        open={recusando !== null}
+        onOpenChange={(a) => !a && setRecusando(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Recusar a nota</DialogTitle>
             <DialogDescription>
-              {recusando?.pessoa?.nome} recebe o motivo e envia outra para o mesmo mês.
-              Esta nota fica no histórico com o que você escrever.
+              {recusando?.pessoa?.nome} recebe o motivo e envia outra para o
+              mesmo mês. Esta nota fica no histórico com o que você escrever.
             </DialogDescription>
           </DialogHeader>
 
@@ -452,12 +483,17 @@ export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={pagando !== null} onOpenChange={(a) => !a && setPagando(null)}>
+      <Dialog
+        open={pagando !== null}
+        onOpenChange={(a) => !a && setPagando(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Marcar como paga</DialogTitle>
             <DialogDescription>
-              {pagando ? `${emReais(pagando.valor)} para ${pagando.pessoa?.nome ?? "a pessoa"}.` : null}{" "}
+              {pagando
+                ? `${emReais(pagando.valor)} para ${pagando.pessoa?.nome ?? "a pessoa"}.`
+                : null}{" "}
               Isto lança a despesa na aba Softwares, na competência da nota.
             </DialogDescription>
           </DialogHeader>
@@ -484,8 +520,13 @@ export function NotasRecebidas({ notas }: { notas: NotaDaEquipe[] }) {
             <Button variant="outline" onClick={() => setPagando(null)}>
               Cancelar
             </Button>
-            <Button onClick={confirmarPagamento} disabled={decidindo || !dataDoPagamento}>
-              {decidindo ? <Loader2 aria-hidden className="animate-spin" /> : null}
+            <Button
+              onClick={confirmarPagamento}
+              disabled={decidindo || !dataDoPagamento}
+            >
+              {decidindo ? (
+                <Loader2 aria-hidden className="animate-spin" />
+              ) : null}
               Confirmar pagamento
             </Button>
           </DialogFooter>

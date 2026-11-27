@@ -2,7 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Loader2, Paperclip, Plus, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
+import {
+  FileText,
+  Loader2,
+  Paperclip,
+  Plus,
+  RotateCcw,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -87,10 +95,15 @@ export function MinhasNotas({
   const [valor, setValor] = useState("");
   const [numero, setNumero] = useState("");
   const [observacoes, setObservacoes] = useState("");
-  const [arquivo, setArquivo] = useState<{ caminho: string; nome: string } | null>(null);
+  const [arquivo, setArquivo] = useState<{
+    caminho: string;
+    nome: string;
+  } | null>(null);
 
   const mesesVivos = new Set(
-    notas.filter((n) => n.status !== "recusada").map((n) => mesDaCompetencia(n.competencia)),
+    notas
+      .filter((n) => n.status !== "recusada")
+      .map((n) => mesDaCompetencia(n.competencia)),
   );
   const oferecidos = mesesDisponiveis.filter((m) => !mesesVivos.has(m.valor));
 
@@ -224,8 +237,14 @@ export function MinhasNotas({
           informação que interessa em alguns meses — a mesma regra dos blocos
           de exceção da Home. */}
       {recusadas.length > 0 ? (
-        <section className="bg-danger-soft rounded-xl p-4" aria-labelledby="notas-recusadas">
-          <h2 id="notas-recusadas" className="text-danger flex items-center gap-2 text-sm font-semibold">
+        <section
+          className="bg-danger-soft rounded-xl p-4"
+          aria-labelledby="notas-recusadas"
+        >
+          <h2
+            id="notas-recusadas"
+            className="text-danger flex items-center gap-2 text-sm font-semibold"
+          >
             <TriangleAlert aria-hidden className="size-4" />
             {recusadas.length === 1
               ? "Uma nota precisa ser reenviada"
@@ -234,9 +253,13 @@ export function MinhasNotas({
           <ul className="mt-2 space-y-2">
             {recusadas.map((nota) => (
               <li key={nota.id} className="text-sm">
-                <span className="font-medium">{mesPorExtenso(nota.competencia)}</span>
+                <span className="font-medium">
+                  {mesPorExtenso(nota.competencia)}
+                </span>
                 {" — "}
-                <span className="text-text-secondary">{nota.motivo_recusa}</span>
+                <span className="text-text-secondary">
+                  {nota.motivo_recusa}
+                </span>
               </li>
             ))}
           </ul>
@@ -245,9 +268,9 @@ export function MinhasNotas({
               onde — é a diferença entre uma instrução e uma descrição, a mesma
               lição da recusa que nomeia cada etapa sem aprovação. */}
           <p className="text-text-secondary mt-2 text-xs">
-            Cada uma tem um botão <strong>Substituir</strong> na lista abaixo. Até a
-            nova ser aprovada, a recusada fica aqui com o motivo — é ele que diz o
-            que corrigir.
+            Cada uma tem um botão <strong>Substituir</strong> na lista abaixo.
+            Até a nova ser aprovada, a recusada fica aqui com o motivo — é ele
+            que diz o que corrigir.
           </p>
         </section>
       ) : null}
@@ -258,7 +281,10 @@ export function MinhasNotas({
             ? "Nenhuma nota enviada ainda."
             : `${visiveis.length} nota${visiveis.length === 1 ? "" : "s"} no histórico.`}
         </p>
-        <Button onClick={() => setAberto(true)} disabled={oferecidos.length === 0}>
+        <Button
+          onClick={() => setAberto(true)}
+          disabled={oferecidos.length === 0}
+        >
           <Plus aria-hidden />
           Enviar nota
         </Button>
@@ -284,6 +310,7 @@ export function MinhasNotas({
           icon={FileText}
           title="Você ainda não enviou nenhuma nota"
           description="Todo mês, anexe o PDF da sua nota fiscal aqui. O sócio confere, e você acompanha o pagamento por esta tela."
+          className="bg-card rounded-card shadow-cartao border-solid"
         />
       ) : (
         <ul className="bg-card divide-y rounded-xl border">
@@ -291,7 +318,9 @@ export function MinhasNotas({
             <li key={nota.id} className="flex flex-wrap items-start gap-3 p-4">
               <div className="min-w-[10rem] flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium">{mesPorExtenso(nota.competencia)}</p>
+                  <p className="font-medium">
+                    {mesPorExtenso(nota.competencia)}
+                  </p>
                   <span
                     title={EXPLICACAO_DE_NF[nota.status]}
                     className={cn(
@@ -311,7 +340,9 @@ export function MinhasNotas({
                 </p>
 
                 {nota.status === "recusada" && nota.motivo_recusa ? (
-                  <p className="text-danger mt-1 text-xs">{nota.motivo_recusa}</p>
+                  <p className="text-danger mt-1 text-xs">
+                    {nota.motivo_recusa}
+                  </p>
                 ) : null}
                 {nota.status === "paga" && nota.pagamento ? (
                   <p className="text-text-muted mt-1 text-xs">
@@ -323,7 +354,11 @@ export function MinhasNotas({
               <div className="flex shrink-0 items-center gap-2">
                 {nota.arquivoAssinado ? (
                   <Button asChild variant="outline" size="sm">
-                    <a href={nota.arquivoAssinado} target="_blank" rel="noreferrer">
+                    <a
+                      href={nota.arquivoAssinado}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       <Paperclip aria-hidden />
                       Ver PDF
                     </a>
@@ -350,7 +385,9 @@ export function MinhasNotas({
                 reenviaveis.has(mesDaCompetencia(nota.competencia)) ? (
                   <Button
                     size="sm"
-                    onClick={() => abrirPara(mesDaCompetencia(nota.competencia))}
+                    onClick={() =>
+                      abrirPara(mesDaCompetencia(nota.competencia))
+                    }
                   >
                     <RotateCcw aria-hidden />
                     Substituir
@@ -388,7 +425,11 @@ export function MinhasNotas({
                       if (r?.ok) router.refresh();
                     }}
                     trigger={
-                      <Button variant="ghost" size="icon" aria-label={`Apagar a nota de ${mesPorExtenso(nota.competencia)}`}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Apagar a nota de ${mesPorExtenso(nota.competencia)}`}
+                      >
                         <Trash2 aria-hidden />
                       </Button>
                     }
@@ -405,15 +446,18 @@ export function MinhasNotas({
           <DialogHeader>
             <DialogTitle>Enviar nota fiscal</DialogTitle>
             <DialogDescription>
-              O sócio é avisado assim que ela chega, e você acompanha o pagamento por aqui.
+              O sócio é avisado assim que ela chega, e você acompanha o
+              pagamento por aqui.
               {/* QUANDO O MÊS ESCOLHIDO TEM UMA RECUSADA, o diálogo diz o que
                   vai acontecer com ela. Derivado do mês escolhido, nunca um
                   segundo estado: trocar o mês no seletor troca a frase. */}
               {recusadaDoMesEscolhido ? (
                 <>
                   {" "}
-                  A recusada de {mesPorExtenso(recusadaDoMesEscolhido.competencia)} continua
-                  visível com o motivo até esta ser aprovada — aí ela sai da lista.
+                  A recusada de{" "}
+                  {mesPorExtenso(recusadaDoMesEscolhido.competencia)} continua
+                  visível com o motivo até esta ser aprovada — aí ela sai da
+                  lista.
                 </>
               ) : null}
             </DialogDescription>
@@ -479,10 +523,14 @@ export function MinhasNotas({
                   disabled={subindo || !mes}
                   onChange={(e) => subir(e.target.files?.[0])}
                 />
-                {subindo ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
+                {subindo ? (
+                  <Loader2 aria-hidden className="size-4 animate-spin" />
+                ) : null}
               </div>
               {arquivo ? (
-                <p className="text-success mt-1 text-xs">Anexado: {arquivo.nome}</p>
+                <p className="text-success mt-1 text-xs">
+                  Anexado: {arquivo.nome}
+                </p>
               ) : (
                 <p className="text-muted-foreground mt-1 text-xs">
                   PDF ou imagem. Só você e o sócio conseguem abrir.
@@ -508,7 +556,9 @@ export function MinhasNotas({
               Cancelar
             </Button>
             <Button onClick={enviar} disabled={salvando || subindo || !mes}>
-              {salvando ? <Loader2 aria-hidden className="animate-spin" /> : null}
+              {salvando ? (
+                <Loader2 aria-hidden className="animate-spin" />
+              ) : null}
               Enviar
             </Button>
           </DialogFooter>

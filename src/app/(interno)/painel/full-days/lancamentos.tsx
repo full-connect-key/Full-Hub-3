@@ -194,7 +194,8 @@ export function Lancamentos({
     });
   }
 
-  const podeGravar = Boolean(pessoa) && Boolean(de) && Boolean(ate) && !salvando;
+  const podeGravar =
+    Boolean(pessoa) && Boolean(de) && Boolean(ate) && !salvando;
 
   return (
     <div className="space-y-5">
@@ -261,7 +262,11 @@ export function Lancamentos({
                 onValueChange={setPessoa}
                 disabled={Boolean(editando)}
               >
-                <SelectTrigger aria-label="De quem é o período" id="lanc-pessoa" className="w-full">
+                <SelectTrigger
+                  aria-label="De quem é o período"
+                  id="lanc-pessoa"
+                  className="w-full"
+                >
                   <SelectValue placeholder="Escolha alguém da equipe" />
                 </SelectTrigger>
                 <SelectContent>
@@ -393,7 +398,6 @@ export function Lancamentos({
             </Button>
           </div>
         </aside>
-
       </div>
 
       <section>
@@ -406,6 +410,7 @@ export function Lancamentos({
             icon={TriangleAlert}
             title="Nenhum período registrado ainda"
             description="O que aparece aqui é só o que a gestão lançou. Pedido que a pessoa propôs fica na aba Pedidos da equipe."
+            className="bg-card rounded-card shadow-cartao border-solid"
           />
         ) : (
           <ul className="flex flex-col gap-2">
@@ -483,7 +488,6 @@ export function Lancamentos({
           </ul>
         )}
       </section>
-
     </div>
   );
 }
