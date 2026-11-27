@@ -1,4 +1,15 @@
-import { Check } from "lucide-react";
+import {
+  CalendarClock,
+  Check,
+  Clock,
+  FileText,
+  History,
+  Layers,
+  Megaphone,
+  Paperclip,
+  Share2,
+  type LucideIcon,
+} from "lucide-react";
 
 import {
   andamentoDoMaterial,
@@ -6,6 +17,42 @@ import {
   type PassoDoAndamento,
 } from "@/lib/dominio/portal";
 import type { ContentStatus } from "@/lib/supabase/database.types";
+
+/**
+ * O ÍCONE DE CADA PROPRIEDADE, e o rótulo que não tem um.
+ *
+ * As nove linhas que os dois adaptadores montam hoje: do post, Plataforma,
+ * Formato, Horário, Versão e "Prazo para decidir"; do entregável, Campanha,
+ * Frente, Arquivo, Versão e Prazo. O ícone é o que faz a lista se ler de
+ * relance — a coluna é estreita, e numa pilha de cinco pares rótulo/valor o
+ * olho desce lendo todos os rótulos para achar um.
+ *
+ * **E O QUE NÃO ESTÁ NO MAPA SAI SEM ÍCONE, de propósito.** `propriedades` é
+ * montado por DOIS adaptadores, e um terceiro — a peça da campanha-da-task, a
+ * fase do mês — acrescenta rótulo novo sem passar por aqui. Um `??` com um
+ * ícone genérico afirmaria que aquele rótulo significa alguma coisa; a ausência
+ * diz o que a tela sabe, e o vão fica para a coluna do texto não andar de linha
+ * para linha. É o `StatusBadge` com o status desconhecido e o `?? evento.acao`
+ * do histórico: **rótulo sem entrada aparece cru, que é como um rótulo novo é
+ * notado em vez de passar batido.**
+ *
+ * **O prazo tem DUAS entradas e não uma**, porque os dois adaptadores o chamam
+ * de coisas diferentes — *"Prazo"* na campanha e *"Prazo para decidir"* no
+ * post, que é o prazo da DECISÃO e não o da entrega. Normalizar o rótulo aqui
+ * seria decidir pela tela o que o adaptador diz; duas linhas no mapa custam
+ * menos que uma função que apara texto.
+ */
+const ICONE_DA_PROPRIEDADE: Record<string, LucideIcon> = {
+  Plataforma: Share2,
+  Formato: FileText,
+  Horário: Clock,
+  Versão: History,
+  "Prazo para decidir": CalendarClock,
+  Prazo: CalendarClock,
+  Campanha: Megaphone,
+  Frente: Layers,
+  Arquivo: Paperclip,
+};
 
 /**
  * ONDE O MATERIAL ESTÁ, e quando cada coisa aconteceu.
@@ -82,15 +129,36 @@ export function AndamentoDoMaterial({
 
       {propriedades.length > 0 ? (
         <dl className="mt-1 grid gap-y-2.5 border-t pt-4">
-          {propriedades.map((linha) => (
-            <div
-              key={linha.rotulo}
-              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
-            >
-              <dt className="text-text-muted text-sm">{linha.rotulo}</dt>
-              <dd className="min-w-0 text-sm font-medium">{linha.valor}</dd>
-            </div>
-          ))}
+          {propriedades.map((linha) => {
+            const Icone = ICONE_DA_PROPRIEDADE[linha.rotulo];
+
+            return (
+              <div
+                key={linha.rotulo}
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
+              >
+                {/* O ÍCONE É IRMÃO DO RÓTULO, dentro do `<dt>`, e some da
+                    árvore de acessibilidade: ele é o MESMO fato que a palavra
+                    ao lado, e um nome acessível ali faria o leitor de tela
+                    dizer "plataforma plataforma". A largura é reservada em
+                    toda linha (`w-4` no lugar do ícone que falta) para a
+                    coluna do texto não andar de linha para linha — é o vão do
+                    passo sem rosto, uma metade acima. */}
+                <dt className="text-text-muted flex items-baseline gap-1.5 text-sm">
+                  {Icone ? (
+                    <Icone
+                      aria-hidden
+                      className="size-4 shrink-0 self-center"
+                    />
+                  ) : (
+                    <span aria-hidden className="w-4 shrink-0" />
+                  )}
+                  {linha.rotulo}
+                </dt>
+                <dd className="min-w-0 text-sm font-medium">{linha.valor}</dd>
+              </div>
+            );
+          })}
         </dl>
       ) : null}
     </section>

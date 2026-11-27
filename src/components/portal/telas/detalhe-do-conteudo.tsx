@@ -36,6 +36,16 @@ import type { ContentStatus } from "@/lib/supabase/database.types";
  * A ordem é a ordem da decisão: arte grande, propriedades, texto, e só então
  * os botões. Botão antes da arte convida a aprovar sem olhar — e o material
  * que volta "aprovado sem ninguém ter visto" é o retrabalho mais caro.
+ *
+ * **E OS BOTÕES PASSARAM A SER A BARRA DO PÉ DO CARTÃO DA PRÉVIA.** Estava
+ * escrito aqui e no corpo do componente que eles ficavam FORA dele, *"porque um
+ * cartão dentro de outro faz quem lê encontrar a caixa antes da ação"* — e essa
+ * frase é sobre CARTÃO DENTRO DE CARTÃO: uma barra separada por um fio, sem
+ * borda, sem raio, sem sombra e sem chão próprio, não é um segundo cartão. A
+ * ORDEM, que é o que aquela regra protege, não muda: a barra continua vindo
+ * depois da arte. O que se ganha é a peça e a decisão no mesmo objeto — soltos,
+ * nada dizia que aquele "Aprovar" é daquela arte, numa tela que navega entre
+ * irmãos. A razão inteira mora ao lado da barra, onde ela é desenhada.
  */
 export type ModeloDoConteudo = {
   conteudo: Conteudo;
@@ -124,7 +134,11 @@ export type ModeloDoConteudo = {
    *
    * Nulo em tudo que não é vídeo — e aí nada muda nesta tela.
    */
-  video?: { src: string | null; poster: string | null; link: string | null } | null;
+  video?: {
+    src: string | null;
+    poster: string | null;
+    link: string | null;
+  } | null;
   versaoAtual: number;
   rodadaPendenteId: string | null;
   decididoPor: string | null;
@@ -249,6 +263,23 @@ export function DetalheDoConteudo({
    */
   const textoNaColunaEstreita = modelo.textoAoLado === true && temPreview;
 
+  // AS DECISÕES SÃO UM ELEMENTO SÓ, DESENHADO EM DOIS LUGARES.
+  //
+  // Com preview elas são a barra do PÉ do cartão da prévia; sem preview a peça
+  // é o `Texto`, que é um componente compartilhado usado em três posições desta
+  // mesma tela — pôr a barra dentro dele mexeria nas outras duas. Então o
+  // elemento é um, e quem muda é onde ele cai.
+  //
+  // Escrevê-lo duas vezes seria a segunda cópia dos dois props, e a que
+  // divergiria é a do ramo sem preview, que é o portão do meio da corrente
+  // (0076) e quase não se abre.
+  const decisoes = (
+    <DecisoesDoConteudo
+      rodadaPendenteId={modelo.rodadaPendenteId}
+      somenteLeitura={comoEquipe}
+    />
+  );
+
   return (
     // O PROVEDOR DO CARD EM FOCO ENVOLVE A TELA INTEIRA (0126).
     //
@@ -260,33 +291,44 @@ export function DetalheDoConteudo({
     // histórico de versões — então não havia como levantar o estado sem
     // transformar esta página de SERVIDOR em componente de cliente.
     <CardSelecionado>
-    <div className="space-y-8">
-      {/* ------------------------------------------------------- cabeçalho -- */}
-      <div className="space-y-4">
-        <Link
-          href={modelo.voltar.href}
-          className="text-text-muted hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
-        >
-          <ArrowLeft aria-hidden className="size-4" />
-          {modelo.voltar.rotulo}
-        </Link>
+      <div className="space-y-8">
+        {/* ------------------------------------------------------- cabeçalho -- */}
+        <div className="space-y-4">
+          <Link
+            href={modelo.voltar.href}
+            className="text-text-muted hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+          >
+            <ArrowLeft aria-hidden className="size-4" />
+            {modelo.voltar.rotulo}
+          </Link>
 
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              {modelo.selo}
-              <StatusBadge status={modelo.status} />
-              {modelo.confirmacao}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-2">
+              <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">
+                {modelo.titulo}
+              </h1>
+              {modelo.linhaDeContexto ? (
+                <p className="text-text-muted text-sm">
+                  {modelo.linhaDeContexto}
+                </p>
+              ) : null}
             </div>
-            <h1 className="text-[clamp(24px,3.4vw,34px)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">{modelo.titulo}</h1>
-            {modelo.linhaDeContexto ? (
-              <p className="text-text-muted text-sm">
-                {modelo.linhaDeContexto}
-              </p>
-            ) : null}
-          </div>
 
-          {/* NAVEGAÇÃO ENTRE IRMÃOS: quem entra para aprovar raramente aprova
+            {/* A PÍLULA DE ESTADO FICA À DIREITA DO TÍTULO, e não acima dele.
+              Ela morava na pilha do título, numa linha própria em cima — e ali
+              ela era a PRIMEIRA coisa que se lia, antes do nome da peça: a tela
+              dizendo em que pé está uma coisa que ela ainda não nomeou. O
+              título identifica o material, o estado é o que se consulta DEPOIS
+              de reconhecê-lo, e na linha dele os dois se leem de uma vez.
+
+              **O CUSTO ESTÁ DITO:** num celular o `flex-wrap` desce esta coluna
+              para baixo do título, então a pílula sai de cima e vai para
+              baixo. É a troca certa — o nome da peça é o que a pessoa procura
+              primeiro —, e nenhum respiro mágico é acrescentado para disfarçar
+              a quebra: `items-baseline` não tem como alinhar duas pilhas de
+              bloco, e `items-start` é o que sobra de honesto.
+
+              NAVEGAÇÃO ENTRE IRMÃOS: quem entra para aprovar raramente aprova
               um só. Voltar à lista a cada peça é o atrito que faz a pessoa
               deixar os outros para depois.
 
@@ -299,17 +341,24 @@ export function DetalheDoConteudo({
 
               O CONTADOR FICA NO MEIO, entre as duas, porque é o que elas
               percorrem: "Anterior | 3 de 8 | Próxima" se lê como uma frase. */}
-          <NavegacaoEntrePecas
-            anterior={modelo.vizinhos.anterior}
-            proximo={modelo.vizinhos.proximo}
-            posicao={modelo.vizinhos.posicao}
-            total={modelo.vizinhos.total}
-            rotulo={modelo.rotuloDosVizinhos}
-          />
+            <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+              <div className="flex flex-wrap items-center gap-2">
+                {modelo.selo}
+                <StatusBadge status={modelo.status} />
+                {modelo.confirmacao}
+              </div>
+              <NavegacaoEntrePecas
+                anterior={modelo.vizinhos.anterior}
+                proximo={modelo.vizinhos.proximo}
+                posicao={modelo.vizinhos.posicao}
+                total={modelo.vizinhos.total}
+                rotulo={modelo.rotuloDosVizinhos}
+              />
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* ---------------------------------------------- a peça e o andamento --
+        {/* ---------------------------------------------- a peça e o andamento --
           DUAS COLUNAS, e a estreita fica à DIREITA — que é a regra escrita do
           produto: a coluna de 340px vai à direita quando ela é um RESUMO, e à
           esquerda quando ela é um ÍNDICE. Aqui ela acompanha o que a pessoa
@@ -332,31 +381,31 @@ export function DetalheDoConteudo({
           acima do andamento — a conferência que a pessoa veio fazer é o texto
           contra a arte, e o andamento é consulta. A explicação inteira está em
           `textoAoLado`, lá em cima. */}
-      {/* O AVISO VEM ANTES DO MATERIAL, e não entre ele e os botões: é a
+        {/* O AVISO VEM ANTES DO MATERIAL, e não entre ele e os botões: é a
           frase que diz o que está sendo decidido, e ela só serve se for lida
           ANTES. `--warning` e nunca `--danger` — não há erro nenhum aqui, há
           um passo do caminho. */}
-      {modelo.aviso ? (
-        <p className="bg-warning-soft text-warning rounded-lg px-3.5 py-2.5 text-sm font-semibold">
-          {modelo.aviso}
-        </p>
-      ) : null}
+        {modelo.aviso ? (
+          <p className="bg-warning-soft text-warning rounded-lg px-3.5 py-2.5 text-sm font-semibold">
+            {modelo.aviso}
+          </p>
+        ) : null}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="min-w-0 space-y-4">
-          {temPreview ? (
-            <section
-              aria-labelledby="previa-do-material"
-              className="bg-surface-card rounded-card shadow-cartao space-y-3.5 border p-4"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <h2
-                  id="previa-do-material"
-                  className="text-text-secondary text-[11px] font-semibold tracking-wide uppercase"
-                >
-                  Prévia
-                </h2>
-                {/* "DE N" SÓ QUANDO O TOTAL FECHA COM O NÚMERO DA VERSÃO.
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="min-w-0 space-y-4">
+            {temPreview ? (
+              <section
+                aria-labelledby="previa-do-material"
+                className="bg-surface-card rounded-card shadow-cartao space-y-3.5 border p-4"
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <h2
+                    id="previa-do-material"
+                    className="text-text-secondary text-[11px] font-semibold tracking-wide uppercase"
+                  >
+                    Prévia
+                  </h2>
+                  {/* "DE N" SÓ QUANDO O TOTAL FECHA COM O NÚMERO DA VERSÃO.
                     `versaoAtual` é um contador da linha e `versoes` é o que o
                     cliente consegue LER — e os dois divergem: a peça pode ter
                     sido reenviada sem versão nova, e a imagem do protótipo
@@ -365,101 +414,137 @@ export function DetalheDoConteudo({
                     verdadeiro e não promete um histórico que a tela não tem —
                     e quem quer o histórico tem o botão logo abaixo, com a
                     contagem dele. */}
-                {versoes.length >= modelo.versaoAtual ? (
-                  <p className="text-text-muted text-xs tabular-nums">
-                    versão {modelo.versaoAtual} de {versoes.length}
-                  </p>
-                ) : versoes.length > 0 ? (
-                  <p className="text-text-muted text-xs tabular-nums">
-                    versão {modelo.versaoAtual}
-                  </p>
-                ) : null}
-              </div>
+                  {versoes.length >= modelo.versaoAtual ? (
+                    <p className="text-text-muted text-xs tabular-nums">
+                      versão {modelo.versaoAtual} de {versoes.length}
+                    </p>
+                  ) : versoes.length > 0 ? (
+                    <p className="text-text-muted text-xs tabular-nums">
+                      versão {modelo.versaoAtual}
+                    </p>
+                  ) : null}
+                </div>
 
-              {modelo.video ? (
-                <QuadroDeVideo
-                  src={modelo.video.src}
-                  poster={modelo.video.poster}
-                  link={modelo.video.link}
-                  titulo={modelo.titulo}
-                />
-              ) : (
-                <VisualizadorDeArte
-                  marcadores={marcadoresDosCards}
-                  imagens={modelo.artes}
-                  alt={`Arte de ${modelo.titulo}`}
-                />
-              )}
-            </section>
-          ) : (
-            /* SEM PREVIEW, O TEXTO É A PEÇA. É o portão do meio da corrente
+                {modelo.video ? (
+                  <QuadroDeVideo
+                    src={modelo.video.src}
+                    poster={modelo.video.poster}
+                    link={modelo.video.link}
+                    titulo={modelo.titulo}
+                  />
+                ) : (
+                  <VisualizadorDeArte
+                    marcadores={marcadoresDosCards}
+                    imagens={modelo.artes}
+                    alt={`Arte de ${modelo.titulo}`}
+                  />
+                )}
+
+                {/* OS BOTÕES VÊM DEPOIS DA PEÇA, sempre — botão antes da arte
+                  convida a aprovar sem olhar, e o material que volta "aprovado
+                  sem ninguém ter visto" é o retrabalho mais caro. **Isso
+                  continua inteiro**, e é o que permite a reversão abaixo.
+
+                  **ELES PASSARAM A FICAR DENTRO DO CARTÃO DA PRÉVIA, e isto é
+                  uma reversão declarada.** Estava escrito aqui, neste lugar:
+                  *"Eles ficam FORA do cartão da prévia: um cartão dentro de
+                  outro faz quem lê encontrar a caixa antes da ação."* A frase é
+                  sobre CARTÃO DENTRO DE CARTÃO, e uma barra separada por um fio
+                  no pé do mesmo cartão não é um segundo cartão: não tem borda,
+                  não tem raio, não tem sombra e não tem chão próprio. O que a
+                  regra protegia era a ORDEM — e a ordem não muda, porque a
+                  barra continua vindo depois da arte.
+
+                  **O QUE SE GANHA É A PEÇA E A DECISÃO NO MESMO OBJETO.**
+                  Soltos, o cartão da prévia terminava e os botões começavam
+                  quatro pixels abaixo, sem nada dizendo que aquele "Aprovar" é
+                  daquela arte — numa tela que navega entre irmãos, a dúvida
+                  "aprovar o quê?" é exatamente a que não pode existir.
+
+                  **A BARRA NÃO TEM FUNDO, e isso é mecânico antes de ser de
+                  desenho:** um chão próprio no pé de uma caixa `rounded-card`
+                  esquadraria os dois cantos de baixo contra o raio, e obrigaria
+                  um `overflow-hidden` na seção — que cortaria a rolagem
+                  horizontal da faixa da composição e o quadro de zoom. O que
+                  separa a barra é o FIO, e as margens negativas são o que o
+                  fazem atravessar o cartão de ponta a ponta. *Isto não é a
+                  margem negativa que a regra da casa recusa:* aquela é sobre
+                  faixa de largura inteira contra o `mx-auto max-w-6xl` do
+                  `main`; aqui ela é interna a um cartão cujo respiro é meu.
+
+                  **E ELA É CONDICIONADA À RODADA PENDENTE** porque
+                  `DecisoesDoConteudo` devolve `null` ANTES de olhar
+                  `somenteLeitura`: sem a pergunta aqui, uma peça já decidida
+                  sairia com um fio e um respiro soltos no pé do cartão. */}
+                {modelo.rodadaPendenteId ? (
+                  <div className="-mx-4 -mb-4 border-t px-4 pt-3.5 pb-4">
+                    {decisoes}
+                  </div>
+                ) : null}
+              </section>
+            ) : (
+              /* SEM PREVIEW, O TEXTO É A PEÇA. É o portão do meio da corrente
                (0076): numa conta que aprova a pauta, o que chegou ao cliente é
                um parágrafo, e ele ocupa a coluna da decisão porque ele É o que
                está sendo decidido. */
-            <Texto texto={modelo.texto} />
-          )}
+              <Texto texto={modelo.texto} />
+            )}
 
-          {/* OS BOTÕES VÊM DEPOIS DA PEÇA, sempre — botão antes da arte
-              convida a aprovar sem olhar, e o material que volta "aprovado sem
-              ninguém ter visto" é o retrabalho mais caro. Eles ficam FORA do
-              cartão da prévia: um cartão dentro de outro faz quem lê encontrar
-              a caixa antes da ação. */}
-          <DecisoesDoConteudo
-            rodadaPendenteId={modelo.rodadaPendenteId}
-            somenteLeitura={comoEquipe}
-          />
+            {/* AQUI ELAS CONTINUAM FORA, e a assimetria é a decisão acima: sem
+              preview a peça é o `Texto`, que é compartilhado. */}
+            {temPreview ? null : decisoes}
 
-          {modelo.download ? (
-            <a
-              href={modelo.download.href}
-              download={modelo.download.nome}
-              className="hover:bg-accent border-input bg-card inline-flex min-h-9 items-center gap-2 rounded-md border px-3.5 text-sm font-medium transition-colors"
-            >
-              <Download aria-hidden className="size-4" />
-              Baixar arquivo
-            </a>
-          ) : null}
+            {modelo.download ? (
+              <a
+                href={modelo.download.href}
+                download={modelo.download.nome}
+                className="hover:bg-accent border-input bg-card inline-flex min-h-9 items-center gap-2 rounded-md border px-3.5 text-sm font-medium transition-colors"
+              >
+                <Download aria-hidden className="size-4" />
+                Baixar arquivo
+              </a>
+            ) : null}
+          </div>
+
+          <div className="space-y-4">
+            {textoNaColunaEstreita ? <Texto texto={modelo.texto} /> : null}
+
+            <AndamentoDoMaterial
+              status={modelo.status}
+              recebidoEm={modelo.recebidoEm}
+              decisaoPedidaEm={modelo.decisaoPedidaEm}
+              decididoEm={modelo.decididoEm}
+              decididoPor={modelo.decididoPor}
+              propriedades={modelo.propriedades}
+              agora={agora}
+            />
+          </div>
         </div>
 
-        <div className="space-y-4">
-          {textoNaColunaEstreita ? <Texto texto={modelo.texto} /> : null}
-
-          <AndamentoDoMaterial
-            status={modelo.status}
-            recebidoEm={modelo.recebidoEm}
-            decisaoPedidaEm={modelo.decisaoPedidaEm}
-            decididoEm={modelo.decididoEm}
-            decididoPor={modelo.decididoPor}
-            propriedades={modelo.propriedades}
-            agora={agora}
-          />
-        </div>
-      </div>
-
-      {/* A DESCRIÇÃO DO ENTREGÁVEL FICA EM LARGURA INTEIRA, e não na coluna de
+        {/* A DESCRIÇÃO DO ENTREGÁVEL FICA EM LARGURA INTEIRA, e não na coluna de
           340px: ela é uma instrução de produção — a medida da lâmina, o papel,
           o que vai no verso —, e não uma legenda que se lê em paralelo com a
           arte. Espremê-la numa coluna estreita a quebra a cada três palavras. */}
-      {!textoNaColunaEstreita && temPreview ? (
-        <Texto texto={modelo.texto} />
-      ) : null}
+        {!textoNaColunaEstreita && temPreview ? (
+          <Texto texto={modelo.texto} />
+        ) : null}
 
-      <HistoricoDeVersoes
-        versoes={versoes}
-        artes={artes}
-        versaoAtual={modelo.versaoAtual}
-        rotuloDoTexto={modelo.texto.titulo}
-      />
+        <HistoricoDeVersoes
+          versoes={versoes}
+          artes={artes}
+          versaoAtual={modelo.versaoAtual}
+          rotuloDoTexto={modelo.texto.titulo}
+        />
 
-      <ThreadDeComentarios
-        conteudo={modelo.conteudo}
-        comentarios={comentarios}
-        agora={agora}
-        nomeDaEmpresa={nomeDaEmpresa}
-        somenteLeitura={comoEquipe}
-        composicao={composicao}
-      />
-    </div>
+        <ThreadDeComentarios
+          conteudo={modelo.conteudo}
+          comentarios={comentarios}
+          agora={agora}
+          nomeDaEmpresa={nomeDaEmpresa}
+          somenteLeitura={comoEquipe}
+          composicao={composicao}
+        />
+      </div>
     </CardSelecionado>
   );
 }
