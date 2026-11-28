@@ -297,7 +297,7 @@ export function FormularioDeCampanha({
     if (
       temTrabalho &&
       !window.confirm(
-        "Trocar de modelo refaz a lista de entregáveis. O que você já ajustou aqui se perde. Trocar mesmo assim?",
+        "Trocar de workflow refaz a lista de entregáveis. O que você já ajustou aqui se perde. Trocar mesmo assim?",
       )
     ) {
       return;
@@ -694,10 +694,10 @@ export function FormularioDeCampanha({
         }
       >
         <div className="space-y-1.5">
-          <Label htmlFor="modelo">Partir de um modelo</Label>
+          <Label htmlFor="modelo">Partir de um workflow</Label>
           <Select value={templateId} onValueChange={escolherModelo}>
-            <SelectTrigger aria-label="Partir de um modelo" id="modelo" className="w-full sm:max-w-sm">
-              <SelectValue placeholder="Escolha um modelo" />
+            <SelectTrigger aria-label="Partir de um workflow" id="modelo" className="w-full sm:max-w-sm">
+              <SelectValue placeholder="Escolha um workflow" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={SEM_MODELO}>Montar do zero</SelectItem>
@@ -753,7 +753,7 @@ export function FormularioDeCampanha({
 
         {arvore.length === 0 ? (
           <p className="text-text-muted rounded-xl border border-dashed p-4 text-sm">
-            Escolha um modelo acima para carregar a lista pronta, ou acrescente
+            Escolha um workflow acima para carregar a lista pronta, ou acrescente
             os entregáveis um a um. Dá para fazer isso depois também — a
             campanha existe sem eles.
           </p>

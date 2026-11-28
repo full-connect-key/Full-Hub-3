@@ -1201,6 +1201,9 @@ from (
              'avisos_saem_com_o_item'),
     ('0156', 'a peca sai de aguardando quando o trabalho comeca', 'funcao',
              'peca_entra_em_producao')
+    -- SEM LINHA: 0157 - ela so apaga linhas de `campaign_templates`, e nao
+    -- cria objeto nenhum; uma tabela vazia nao distingue aplicada de nunca
+    -- usada.
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

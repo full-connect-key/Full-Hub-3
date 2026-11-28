@@ -6,7 +6,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { forbidden } from "next/navigation";
 
 import { exigirAcessoARota } from "@/lib/auth/dal";
-import { templatesDeCampanha } from "@/lib/dados/campanhas";
 import { listarClientes } from "@/lib/dados/clientes";
 import { listarEquipeAtiva } from "@/lib/dados/equipe";
 import { listarWorkflows } from "@/lib/dados/workflows";
@@ -49,9 +48,12 @@ export default async function PaginaDeNovaCampanha({
   // direto.
   if (!(await souDoAtendimento())) forbidden();
 
-  const [clientes, templates, workflows, pessoas] = await Promise.all([
+  // OS MODELOS DE CAMPANHA SAÍRAM (0157), por decisão do usuário: *"pode
+  // excluir os modelos de campanha e deixe só o workflow"*. A tela de montar
+  // modelo não existe mais, então eles não tinham como ser editados nem
+  // apagados — e o seletor oferecia uma lista que ninguém mantinha.
+  const [clientes, workflows, pessoas] = await Promise.all([
     listarClientes(),
-    templatesDeCampanha(),
     // OS WORKFLOWS ENTRAM NO SELETOR (migration 0108), e o que vem daqui é a
     // LISTA e não a árvore: a árvore depende da conta escolhida nesta tela, e
     // quem a monta é `arvoreDoWorkflowParaCampanha` no clique.
@@ -154,7 +156,7 @@ export default async function PaginaDeNovaCampanha({
         clientes={clientes
           .filter((c) => c.ativo)
           .map((c) => ({ id: c.id, nome: c.nome_empresa }))}
-        templates={templates}
+        templates={[]}
         workflows={workflows
           .filter((w) => w.ativo && w.workflow !== null)
           .map((w) => ({
