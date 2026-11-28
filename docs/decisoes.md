@@ -21861,3 +21861,5 @@ scripts/                      Verificação de conexão e geradores de protótip
 - **KV** — `ehKV(nome)`: a peça que é KV ganha o campo "Defesa do KV" (`deliverables.descricao`), lido pelo cliente no portal.
 - **Lista de etapas** — tópicos (agrupadoras) se recolhem; "Arquivos da entrega" ganhou miniatura.
 - **CLAUDE.md** virou um resumo de regras; este arquivo é o histórico.
+
+- **0159 — Relatório em blocos.** Substitui a grade de métricas da 0150: `relatorios.blocos` (jsonb) com destaques, crescimento contra o período anterior (obrigatório, destaca só o que cresceu), conteúdos, texto e referências. Item próprio no menu (`/painel/relatorios`) e seção no portal (`/portal/relatorios`); o cliente só lê o publicado (policy). Sem PDF por decisão do usuário.

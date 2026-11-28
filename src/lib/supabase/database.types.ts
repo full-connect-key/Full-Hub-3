@@ -4233,6 +4233,41 @@ export interface Database {
        * campo aqui só serviria para alguém tentar.
        */
       // O que a equipe sugere para o Full Hub (0158).
+      relatorios: {
+        Row: {
+          id: string;
+          client_id: string;
+          titulo: string;
+          subtitulo: string | null;
+          periodo_inicio: string;
+          periodo_fim: string;
+          blocos: Json;
+          publicado_em: string | null;
+          criado_por: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          titulo: string;
+          subtitulo?: string | null;
+          periodo_inicio: string;
+          periodo_fim: string;
+          blocos?: Json;
+          publicado_em?: string | null;
+          criado_por?: string | null;
+        };
+        Update: {
+          titulo?: string;
+          subtitulo?: string | null;
+          periodo_inicio?: string;
+          periodo_fim?: string;
+          blocos?: Json;
+          publicado_em?: string | null;
+        };
+        Relationships: [];
+      };
       sugestoes: {
         Row: {
           id: string;

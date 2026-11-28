@@ -1,6 +1,7 @@
 import {
   BadgeCheck,
   CalendarRange,
+  ChartColumn,
   FolderOpen,
   Home,
   Megaphone,
@@ -87,6 +88,12 @@ export const NAVEGACAO_DO_PORTAL: ItemDoPortal[] = [
     href: "/portal/cronograma",
     icon: CalendarRange,
     description: "O que acontece em cada dia do mês, nas três frentes.",
+  },
+  {
+    label: "Relatórios",
+    href: "/portal/relatorios",
+    icon: ChartColumn,
+    description: "Os resultados de cada período, com a leitura da agência.",
   },
   {
     // A BIBLIOTECA É A ÚLTIMA DAS SEÇÕES DE MATERIAL, e a posição é a da

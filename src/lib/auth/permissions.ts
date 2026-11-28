@@ -130,6 +130,17 @@ export const MENU: MenuItem[] = [
     description: "As tarefas atribuídas a você, com prazo e prioridade.",
   },
   {
+    // O RELATÓRIO É UM ITEM PRÓPRIO (0159): ele morava numa aba do Social
+    // Media, que saiu da barra — e sem porta ninguém o achava.
+    label: "Relatórios",
+    href: "/painel/relatorios",
+    icon: ChartColumn,
+    roles: EQUIPE,
+    section: "principal",
+    description:
+      "Os relatórios de resultado de cada conta, do rascunho à publicação no portal.",
+  },
+  {
     // SOCIAL MEDIA É UMA LINHA SÓ DO MENU, e fica na PRINCIPAL. Decisão do
     // usuário, depois de ela ter passado por Gestão e por duas entradas ao
     // mesmo tempo no mesmo dia — o histórico fica registrado porque a ideia
