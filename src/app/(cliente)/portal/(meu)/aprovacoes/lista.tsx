@@ -100,7 +100,7 @@ export function ListaDeAprovacoes({
             Nada pendente no momento.
           </p>
         ) : (
-          <ul className="space-y-[9px]">
+          <ul className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
             {esperando.map((item) => (
               <CartaoPendente
                 key={item.rodadaId}
@@ -116,7 +116,7 @@ export function ListaDeAprovacoes({
       {decididas.length > 0 ? (
         <section className="space-y-3">
           <h2 className="text-xl font-bold tracking-[-0.02em]">Já decididas</h2>
-          <ul className="space-y-[9px]">
+          <ul className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
             {decididas.map((item) => (
               <Decidida key={item.rodadaId} item={item} />
             ))}
@@ -343,17 +343,17 @@ function PreviaDosArquivos({ entregas }: { entregas: Entrega[] }) {
           <ImagemAssinada
             src={atual.assinado}
             alt={nomeDaEntrega(atual)}
-            className="mx-auto max-h-[70vh] w-auto object-contain"
+            className="mx-auto h-56 w-auto object-contain"
           />
         ) : familia === "pdf" ? (
           <iframe
             key={atual.id}
             src={`${atual.assinado}#view=FitH`}
             title={nomeDaEntrega(atual)}
-            className="bg-card h-[70vh] w-full"
+            className="bg-card h-56 w-full"
           />
         ) : (
-          <div className="flex flex-col items-center gap-3 p-10 text-center">
+          <div className="flex h-56 flex-col items-center justify-center gap-3 p-6 text-center">
             <FileText aria-hidden className="text-text-muted size-10" />
             <p className="text-sm font-medium">{nomeDaEntrega(atual)}</p>
           </div>
@@ -369,7 +369,7 @@ function PreviaDosArquivos({ entregas }: { entregas: Entrega[] }) {
                 aria-pressed={i === indice}
                 onClick={() => setIndice(i)}
                 className={cn(
-                  "max-w-[220px] truncate rounded-md border px-3 py-1.5 text-sm",
+                  "max-w-[160px] truncate rounded-md border px-2.5 py-1 text-xs",
                   i === indice
                     ? "bg-action-soft border-action text-action font-medium"
                     : "bg-card border-input hover:bg-muted",
