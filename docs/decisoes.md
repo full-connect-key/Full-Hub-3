@@ -21863,3 +21863,5 @@ scripts/                      Verificação de conexão e geradores de protótip
 - **CLAUDE.md** virou um resumo de regras; este arquivo é o histórico.
 
 - **0159 — Relatório em blocos.** Substitui a grade de métricas da 0150: `relatorios.blocos` (jsonb) com destaques, crescimento contra o período anterior (obrigatório, destaca só o que cresceu), conteúdos, texto e referências. Item próprio no menu (`/painel/relatorios`) e seção no portal (`/portal/relatorios`); o cliente só lê o publicado (policy). Sem PDF por decisão do usuário.
+
+- **0160 — Demandas no portal.** `demandas_do_portal()` (security definer) devolve nome, etapas de 1º nível e se há rodada do cliente pendente; o início do portal mostra um box por demanda, em destaque quando há material para aprovar. Sem policy nova em `tasks`/`subtasks`. Fora: rascunho, arquivada, cancelada, mês de social, demanda de campanha, concluída há mais de 14 dias.

@@ -10,6 +10,8 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { BarraDeProgresso } from "@/components/shared/barra-de-progresso";
 import { CapaDoCartao } from "@/components/shared/capa-do-cartao";
 import { identidadeDoPortal } from "@/lib/dados/clientes";
+import { demandasDoPortal } from "@/lib/dados/demandas-do-portal";
+import { DemandasEmAndamento } from "@/components/portal/demandas-em-andamento";
 import { IdentidadeDoCliente } from "@/components/portal/identidade-do-cliente";
 import { SocialQueChegou } from "@/components/portal/social-que-chegou";
 import { EscopoDoMes } from "@/components/portal/escopo-do-mes";
@@ -67,6 +69,10 @@ export async function InicioDoPortal({
   nome: string;
 }) {
   const { hoje } = prazosDoPortal();
+
+  // AS DEMANDAS ABERTAS DA CONTA (0160). Para a equipe sem conta escolhida a
+  // função devolve vazio, e o bloco some.
+  const demandas = await demandasDoPortal(clienteId);
 
   const [itens, atividade, campanhas, identidade, mesesDeSocial, pedidos] =
     await Promise.all([
@@ -477,6 +483,12 @@ export async function InicioDoPortal({
           aqui", e o recorte dele é o bloco inteiro — contagem, lista e o "ver
           tudo". Com a âncora no `<h2>`, o destaque seria uma linha de texto
           com a lista inteira fora dele. */}
+      <DemandasEmAndamento
+        demandas={demandas}
+        base={base}
+        comoEquipe={comoEquipe}
+      />
+
       <section
         id="precisa-decidir"
         className="scroll-mt-20 space-y-6"

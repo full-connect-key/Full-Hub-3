@@ -1204,7 +1204,9 @@ from (
     ('0158', 'as sugestoes para o hub', 'trigger',
              'sugestoes_so_muda_a_vista'),
     ('0159', 'o relatorio em blocos', 'trigger',
-             'relatorios_marca_a_edicao')
+             'relatorios_marca_a_edicao'),
+    ('0160', 'as demandas no portal', 'funcao',
+             'demandas_do_portal')
     -- SEM LINHA: 0157 - ela so apaga linhas de `campaign_templates`, e nao
     -- cria objeto nenhum; uma tabela vazia nao distingue aplicada de nunca
     -- usada.

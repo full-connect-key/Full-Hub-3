@@ -4711,6 +4711,18 @@ export interface Database {
        * rastro alheio de proposito, e a aba Usuarios precisa da DATA sem
        * precisar da lista.
        */
+      demandas_do_portal: {
+        Args: { p_cliente?: string };
+        Returns: {
+          task_id: string;
+          client_id: string;
+          titulo: string;
+          prazo: string | null;
+          concluida: boolean;
+          esperando: boolean;
+          etapas: Json;
+        }[];
+      };
       usuarios_do_meu_cliente: {
         Args: Record<string, never>;
         Returns: {

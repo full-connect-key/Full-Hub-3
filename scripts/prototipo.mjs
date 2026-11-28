@@ -1737,6 +1737,7 @@ const SUBSTITUICOES = {
   "@/lib/dados/notificacoes": ["./scripts/prototipo/notificacoes.ts"],
   "@/lib/dados/sugestoes": ["./scripts/prototipo/sugestoes.ts"],
   "@/lib/dados/relatorios": ["./scripts/prototipo/relatorios.ts"],
+  "@/lib/dados/demandas-do-portal": ["./scripts/prototipo/demandas-do-portal.ts"],
   "@/lib/dados/portais-de-clientes": ["./scripts/prototipo/portais-de-clientes.ts"],
   "@/lib/dados/home": ["./scripts/prototipo/home.ts"],
   "@/lib/dados/metricas": ["./scripts/prototipo/metricas.ts"],
