@@ -5,6 +5,8 @@ import { ptBR } from "date-fns/locale";
 import { CornerDownRight, Lock, PartyPopper } from "lucide-react";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCliqueNoCartao } from "@/components/shared/clique-no-cartao";
 
 import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -97,7 +99,7 @@ export function MeuDia({
       ) : (
         <ul className="divide-y">
           {itens.map((item) => (
-            <li key={item.chave} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+            <LinhaDoDia key={item.chave} taskId={item.taskId}>
               <span
                 aria-hidden
                 className={cn(
@@ -143,7 +145,12 @@ export function MeuDia({
                 </div>
                 <p className="flex items-center gap-1.5 truncate text-sm">
                   <CornerDownRight aria-hidden className="text-muted-foreground size-3.5 shrink-0" />
-                  {item.titulo}
+                  <Link
+                    href={hrefDaTask(item.taskId)}
+                    className="truncate hover:underline"
+                  >
+                    {item.titulo}
+                  </Link>
                   {item.requerAprovacao ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -198,7 +205,7 @@ export function MeuDia({
                 usuarioId={usuarioId}
                 souGestor={souGestor}
               />
-            </li>
+            </LinhaDoDia>
           ))}
         </ul>
       )}
@@ -215,5 +222,46 @@ export function MeuDia({
         </footer>
       ) : null}
     </section>
+  );
+}
+
+/** A demanda aberta no painel de Minhas Tasks — que todo perfil interno alcança. */
+function hrefDaTask(taskId: string) {
+  return `/painel/minhas-tasks?task=${taskId}`;
+}
+
+/**
+ * A LINHA INTEIRA ABRE A DEMANDA, e o nome também.
+ *
+ * Decisão do usuário: *"na tela inicial quero que quando eu clique no bloco da
+ * task, eu consiga entrar na task em si, ou quando eu clique no nome"*. A linha
+ * só tinha o botão de ação: quem queria VER a etapa não tinha em que clicar.
+ *
+ * O clique é do contêiner e o foco continua no NOME, que é um link de verdade —
+ * a decisão de `useCliqueNoCartao`: `role="button"` num contêiner que carrega
+ * o botão de concluir seria `nested-interactive`. E a linha virou componente
+ * porque o gancho guarda onde o ponteiro desceu, e gancho não se chama de
+ * dentro de um `.map`.
+ *
+ * O destino é `?task=` em Minhas Tasks e não a página da demanda: aquela é
+ * `GESTAO`, e esta lista é de todo perfil interno.
+ */
+function LinhaDoDia({
+  taskId,
+  children,
+}: {
+  taskId: string;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const clique = useCliqueNoCartao(() => router.push(hrefDaTask(taskId)));
+
+  return (
+    <li
+      {...clique}
+      className="hover:bg-muted flex cursor-pointer flex-wrap items-center gap-3 px-4 py-2.5 transition-colors"
+    >
+      {children}
+    </li>
   );
 }

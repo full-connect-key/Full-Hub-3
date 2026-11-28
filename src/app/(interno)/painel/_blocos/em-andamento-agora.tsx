@@ -84,7 +84,11 @@ export function EmAndamentoAgora({
           Em andamento agora
         </h2>
 
-        <p className="text-text-primary mt-1.5 truncate text-base font-semibold">{etapa.titulo}</p>
+        <p className="text-text-primary mt-1.5 truncate text-base font-semibold">
+          <Link href={`/painel/minhas-tasks?task=${etapa.taskId}`} className="hover:underline">
+            {etapa.titulo}
+          </Link>
+        </p>
 
         <p className="text-text-secondary mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <span className="truncate">{etapa.tituloDaMae}</span>
@@ -120,10 +124,10 @@ export function EmAndamentoAgora({
         ) : null}
 
         <Link
-          href="/painel/minhas-tasks"
+          href={`/painel/minhas-tasks?task=${etapa.taskId}`}
           className="text-accent-strong text-xs hover:underline"
         >
-          Ver em Minhas Tasks
+          Abrir a demanda
         </Link>
       </div>
     </section>
