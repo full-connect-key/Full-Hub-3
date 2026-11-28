@@ -53,6 +53,7 @@ import type {
 
 import {
   aprovarInterna,
+  enviarConcluidaAoAtendimento,
   enviarParaAprovacao,
   enviarParaCliente,
   solicitarAjustesInterna,
@@ -212,6 +213,13 @@ export function AcoesDaSubtarefa({
         return;
       case "enviar_cliente":
         setEnviandoAoCliente(true);
+        return;
+      case "enviar_ao_atendimento":
+        iniciar(async () => {
+          terminar(
+            await chamarAcao(() => enviarConcluidaAoAtendimento(subtarefa.id)),
+          );
+        });
         return;
       case "solicitar_ajustes":
         setMotivo("");

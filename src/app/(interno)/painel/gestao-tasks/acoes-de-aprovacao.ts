@@ -815,3 +815,56 @@ async function decidirRodadaDeEntregavel(
       : "Ajustes pedidos. O material voltou para quem o produziu, com o seu recado.",
   );
 }
+
+/**
+ * A ETAPA CONCLUÍDA VAI AO ATENDIMENTO, QUE ENVIA AO CLIENTE.
+ *
+ * Um clique faz as três coisas que antes eram três telas: liga a aprovação do
+ * cliente na etapa, reabre-a e abre a rodada interna. Cada passo é uma escrita
+ * conferida — se o banco recusar um, a pessoa lê qual.
+ */
+export async function enviarConcluidaAoAtendimento(
+  subtaskId: string,
+): Promise<Resultado> {
+  return executarAcao("enviarConcluidaAoAtendimento", async () => {
+    await exigirEquipeNaAcao();
+    const supabase = await criarClienteServidor();
+
+    const { data: linhas, error: erroDaLeitura } = await supabase
+      .from("subtasks")
+      .select("id, status, requer_aprovacao, tipo_aprovacao")
+      .eq("id", subtaskId)
+      .limit(1);
+    if (erroDaLeitura) return falha(erroDaLeitura.message);
+    const sub = linhas?.[0];
+    if (!sub) return falha("Subtarefa não encontrada.");
+
+    if (!sub.requer_aprovacao || sub.tipo_aprovacao !== "cliente") {
+      const { data, error } = await supabase
+        .from("subtasks")
+        .update({ requer_aprovacao: true, tipo_aprovacao: "cliente" })
+        .eq("id", subtaskId)
+        .select("id");
+      if (error) return falha(error.message);
+      if (!data || data.length === 0)
+        return falha("O banco recusou ligar a aprovação do cliente nesta etapa.");
+    }
+
+    if (sub.status === "concluida") {
+      const { data, error } = await supabase
+        .from("subtasks")
+        .update({ status: "em_andamento" })
+        .eq("id", subtaskId)
+        .select("id");
+      if (error) return falha(error.message);
+      if (!data || data.length === 0)
+        return falha("O banco recusou reabrir esta etapa.");
+    }
+
+    const envio = await enviarParaAprovacao(subtaskId);
+    if (!envio.ok) return envio;
+    return sucesso(
+      "Enviada ao atendimento. Depois do aval, ela segue para o cliente.",
+    );
+  });
+}

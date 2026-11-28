@@ -215,7 +215,8 @@ export type IdDeAcao =
   | "enviar_aprovacao"
   | "aprovar"
   | "solicitar_ajustes"
-  | "enviar_cliente";
+  | "enviar_cliente"
+  | "enviar_ao_atendimento";
 
 export type AcaoDeSubtarefa = {
   id: IdDeAcao;
@@ -377,6 +378,26 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
     acoes.push({
       id: "enviar_cliente",
       rotulo: "Enviar ao cliente",
+      principal: true,
+      desabilitada: false,
+    });
+  }
+
+  // A ETAPA CONCLUÍDA GANHA A PORTA ATÉ O CLIENTE. Pedido do usuário: *"quando
+  // concluída, apareça enviar para o cliente, e isso faça com que envie para o
+  // atendimento"*. O clique reabre a etapa, liga a aprovação do cliente e abre
+  // a rodada interna — quem responde por ela envia ao cliente. Some quando a
+  // etapa já passou pela aprovação inteira (`avalFinal`).
+  if (
+    ctx.status === "concluida" &&
+    !ctx.avalFinal &&
+    !ctx.enviadaAoCliente &&
+    !ctx.faseDeSocial &&
+    (ctx.souOResponsavel || ctx.souGestor)
+  ) {
+    acoes.push({
+      id: "enviar_ao_atendimento",
+      rotulo: "Enviar para o cliente",
       principal: true,
       desabilitada: false,
     });
