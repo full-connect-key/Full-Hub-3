@@ -1200,7 +1200,9 @@ from (
     ('0155', 'o aviso sai quando o item sai', 'funcao',
              'avisos_saem_com_o_item'),
     ('0156', 'a peca sai de aguardando quando o trabalho comeca', 'funcao',
-             'peca_entra_em_producao')
+             'peca_entra_em_producao'),
+    ('0158', 'as sugestoes para o hub', 'trigger',
+             'sugestoes_so_muda_a_vista')
     -- SEM LINHA: 0157 - ela so apaga linhas de `campaign_templates`, e nao
     -- cria objeto nenhum; uma tabela vazia nao distingue aplicada de nunca
     -- usada.

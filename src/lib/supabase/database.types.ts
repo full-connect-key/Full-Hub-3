@@ -4232,6 +4232,28 @@ export interface Database {
        * não entra no `Update`: mover a linha para outro nome é recusado, e o
        * campo aqui só serviria para alguém tentar.
        */
+      // O que a equipe sugere para o Full Hub (0158).
+      sugestoes: {
+        Row: {
+          id: string;
+          autor_id: string;
+          texto: string;
+          vista_em: string | null;
+          vista_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          autor_id: string;
+          texto: string;
+        };
+        // Só a marca de vista muda — o texto e o autor são travados por gatilho.
+        Update: {
+          vista_em?: string | null;
+          vista_por?: string | null;
+        };
+        Relationships: [];
+      };
       primeiros_passos_dispensados: {
         Row: {
           id: string;

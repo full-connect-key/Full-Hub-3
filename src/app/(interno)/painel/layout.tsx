@@ -17,6 +17,8 @@ import { obterMinhaFicha } from "@/lib/dados/equipe";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import { meuPedidoDeNotaEmAberto } from "@/lib/dados/notas-fiscais";
 import { minhasNotificacoes } from "@/lib/dados/notificacoes";
+import { sugestoesParaLer } from "@/lib/dados/sugestoes";
+import { Sugestoes } from "@/components/painel/sugestoes";
 import { meusTours } from "@/lib/dados/tour";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
 import { destinoDoAviso } from "@/lib/dominio/avisos";
@@ -73,6 +75,11 @@ export default async function LayoutDoPainel({
     // exigiria um segundo caminho de leitura para a mesma pergunta.
     meuPedidoDeNotaEmAberto(),
   ]);
+
+  // AS SUGESTÕES só são lidas para a gestão (0158): quem não é gestão só
+  // escreve, e a consulta devolveria apenas as dela.
+  const sugestoes = ehGestor(profile.role) ? await sugestoesParaLer() : null;
+
 
   // O TOUR É MONTADO NO SERVIDOR e desce como dado: `tourDoPainel()` é um
   // módulo compartilhado, então chamá-lo aqui e no cliente daria o mesmo
@@ -179,6 +186,7 @@ export default async function LayoutDoPainel({
                 convidaARever={convidaARever(TOUR_DO_PAINEL, tours)}
                 hrefDosPlaybooks="/painel/academy"
               />
+              <Sugestoes paraLer={sugestoes} />
               <SinoDeNotificacoes
                 notificacoes={avisos.lista.map((aviso) => ({
                   ...aviso,
