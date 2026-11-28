@@ -374,6 +374,7 @@ function familiaDaEntrega(entrega: Entrega): "imagem" | "pdf" | "outro" {
 function PreviaDosArquivos({ entregas }: { entregas: Entrega[] }) {
   const visiveis = entregas.filter((e) => e.assinado !== null);
   const [indice, setIndice] = useState(0);
+  const [ampliada, setAmpliada] = useState(false);
   if (visiveis.length === 0) return null;
 
   const atual = visiveis[Math.min(indice, visiveis.length - 1)];
@@ -383,11 +384,22 @@ function PreviaDosArquivos({ entregas }: { entregas: Entrega[] }) {
     <div className="space-y-3">
       <div className="bg-muted overflow-hidden rounded-xl border">
         {familia === "imagem" ? (
-          <ImagemAssinada
-            src={atual.assinado}
-            alt={nomeDaEntrega(atual)}
-            className="mx-auto h-56 w-auto object-contain"
-          />
+          /* A IMAGEM NO TAMANHO DELA, dentro de um palco. Ela nunca é
+             esticada (um ícone de 96px continua com 96px) e só encolhe quando
+             é maior que o cartão; o clique abre o tamanho original. */
+          <button
+            type="button"
+            onClick={() => setAmpliada(true)}
+            aria-label={`Ampliar ${nomeDaEntrega(atual)}`}
+            className="flex min-h-56 w-full cursor-zoom-in items-center justify-center p-5"
+          >
+            <ImagemAssinada
+              emFluxo
+              src={atual.assinado}
+              alt={nomeDaEntrega(atual)}
+              className="max-h-[420px] max-w-full rounded-md"
+            />
+          </button>
         ) : familia === "pdf" ? (
           <iframe
             key={atual.id}
@@ -436,6 +448,21 @@ function PreviaDosArquivos({ entregas }: { entregas: Entrega[] }) {
           Abrir em outra aba
         </a>
       </div>
+
+      <Dialog open={ampliada} onOpenChange={setAmpliada}>
+        <DialogContent className="max-h-[92vh] w-auto max-w-[95vw] overflow-auto sm:max-w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>{nomeDaEntrega(atual)}</DialogTitle>
+            <DialogDescription>No tamanho original.</DialogDescription>
+          </DialogHeader>
+          <ImagemAssinada
+            emFluxo
+            src={atual.assinado}
+            alt={nomeDaEntrega(atual)}
+            className="max-w-none"
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -460,7 +487,7 @@ function Decidida({
       <div className="flex items-start gap-4">
       <div
         className={cn(
-          "flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg",
+          "relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg",
           aprovada ? "bg-success-soft text-success" : "bg-muted text-text-muted",
         )}
       >

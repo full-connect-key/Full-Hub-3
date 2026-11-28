@@ -163,12 +163,12 @@ function Bloco({
                   key={i}
                   className="grid gap-5 sm:grid-cols-[200px_minmax(0,1fr)]"
                 >
-                  <div className="bg-muted aspect-[4/5] overflow-hidden rounded-xl">
+                  <div className="bg-muted relative aspect-[4/5] overflow-hidden rounded-xl">
                     {post.imagem && imagens[post.imagem] ? (
                       <ImagemAssinada
                         src={imagens[post.imagem]}
                         alt={post.nome}
-                        className="size-full object-cover"
+                        className="object-cover"
                       />
                     ) : null}
                   </div>
@@ -223,11 +223,13 @@ function Bloco({
               .map((ref, i) => (
                 <div key={i} className="bg-muted overflow-hidden rounded-xl">
                   {ref.imagem && imagens[ref.imagem] ? (
-                    <ImagemAssinada
-                      src={imagens[ref.imagem]}
-                      alt={ref.titulo}
-                      className="aspect-video w-full object-cover"
-                    />
+                    <div className="relative aspect-video w-full">
+                      <ImagemAssinada
+                        src={imagens[ref.imagem]}
+                        alt={ref.titulo}
+                        className="object-cover"
+                      />
+                    </div>
                   ) : null}
                   <div className="p-4">
                     <p className="font-bold">{ref.titulo}</p>

@@ -76,7 +76,14 @@ export function ImagemAssinada({
   alt,
   className,
   aoFalhar,
+  emFluxo = false,
 }: {
+  /**
+   * A imagem ocupa o lugar dela no texto, no TAMANHO NATURAL, em vez de
+   * preencher o contêiner. É para a prévia de um material: sem isto ela é
+   * `absolute inset-0` e escapa de qualquer pai que não seja `relative`.
+   */
+  emFluxo?: boolean;
   /** O endereço já assinado. Nulo quando a assinatura não veio. */
   src: string | null;
   alt: string;
@@ -132,7 +139,7 @@ export function ImagemAssinada({
       src={endereco}
       alt={alt}
       onError={() => setFalhou(true)}
-      className={cn("absolute inset-0 size-full", className)}
+      className={cn(!emFluxo && "absolute inset-0 size-full", className)}
     />
   );
 }

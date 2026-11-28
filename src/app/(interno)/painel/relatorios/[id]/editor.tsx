@@ -100,11 +100,9 @@ export function EditorDoRelatorio({
   ) => (
     <div className="flex items-center gap-3">
       {atual && imagens[atual] ? (
-        <ImagemAssinada
-          src={imagens[atual]}
-          alt=""
-          className="bg-muted size-16 rounded-lg object-cover"
-        />
+        <div className="bg-muted relative size-16 shrink-0 overflow-hidden rounded-lg">
+          <ImagemAssinada src={imagens[atual]} alt="" className="object-cover" />
+        </div>
       ) : null}
       <EnviarArquivos
         bucket={BUCKET}

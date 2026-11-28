@@ -120,7 +120,7 @@ export function ArquivosDaEntrega({
                           IMAGEM tem miniatura; PDF, PSD e link ganham o
                           ladrilho com o ícone, que ocupa o mesmo lugar para a
                           coluna de nomes não andar de linha para linha. */}
-                      <span className="bg-muted flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-md border">
+                      <span className="bg-muted relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-md border">
                         {entrega.tipo === "arquivo" &&
                         entrega.assinado &&
                         EH_IMAGEM.test(entrega.nome ?? entrega.url) ? (
