@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  * O QUE A AGÊNCIA ESTÁ FAZENDO PARA O CLIENTE, demanda por demanda (0160).
  *
  * Pedido do usuário: o box aparece assim que a demanda é aberta para a conta,
- * as etapas andam sozinhas, e ele FICA EM DESTAQUE quando há material
+ * os passos andam sozinhos, e ele FICA EM DESTAQUE quando há material
  * esperando a aprovação — com o botão que leva até ela.
  */
 export function DemandasEmAndamento({
@@ -30,10 +30,10 @@ export function DemandasEmAndamento({
 
       <ul className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
         {demandas.map((demanda) => {
-          const feitas = demanda.etapas.filter(
+          const feitas = demanda.passos.filter(
             (e) => e.estado === "concluida",
           ).length;
-          const total = demanda.etapas.length;
+          const total = demanda.passos.length;
           const largura = total > 0 ? Math.round((feitas / total) * 100) : 0;
 
           return (
@@ -77,32 +77,32 @@ export function DemandasEmAndamento({
                     />
                   </div>
                   <ol className="space-y-2">
-                    {demanda.etapas.map((etapa, i) => (
+                    {demanda.passos.map((passo, i) => (
                       <li key={i} className="flex items-center gap-2.5 text-sm">
                         <span
                           className={cn(
                             "flex size-5 shrink-0 items-center justify-center rounded-full",
-                            etapa.estado === "concluida"
+                            passo.estado === "concluida"
                               ? "bg-success text-success-foreground"
-                              : etapa.estado === "em_andamento"
+                              : passo.estado === "em_andamento"
                                 ? "bg-action ring-action-soft ring-4"
                                 : "bg-card border-input border-2",
                           )}
                         >
-                          {etapa.estado === "concluida" ? (
+                          {passo.estado === "concluida" ? (
                             <Check aria-hidden className="size-3" />
                           ) : null}
                         </span>
                         <span
                           className={cn(
                             "min-w-0 truncate",
-                            etapa.estado === "a_fazer" && "text-text-muted",
-                            etapa.estado === "em_andamento" && "font-medium",
+                            passo.estado === "a_fazer" && "text-text-muted",
+                            passo.estado === "em_andamento" && "font-medium",
                           )}
                         >
-                          {etapa.titulo}
+                          {passo.titulo}
                         </span>
-                        {etapa.estado === "em_andamento" ? (
+                        {passo.estado === "em_andamento" ? (
                           <span className="text-text-muted ml-auto shrink-0 text-xs">
                             em produção
                           </span>

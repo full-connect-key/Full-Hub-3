@@ -15,6 +15,7 @@ import {
   rotuloDoStatus,
 } from "@/components/shared/status-badge";
 import { enderecoDaArte } from "@/lib/dados/conteudo";
+import { conteudosEmProducao } from "@/lib/dados/demandas-do-portal";
 import {
   loteAbertoDoMes,
   postsDoMes,
@@ -130,6 +131,8 @@ export async function SocialDoPortal({
     todos.some((post) => post.plataformas.includes(rede)),
   );
 
+  const emProducao = await conteudosEmProducao(mes, clienteId);
+
   return (
     <div className="space-y-6">
       <NavegacaoDoMes
@@ -163,6 +166,40 @@ export async function SocialDoPortal({
           que chegou, e os filtros são como se recorta o que chegou. Depois
           deles, a faixa leria como o resultado de um filtro. */}
       <CabecalhoDoLote lote={lote} />
+
+      {/* A FAIXA "EM PRODUÇÃO" (0161): o que a agência está fazendo para este
+          mês e ainda não enviou. Só o tema e a data — sem arte e sem link,
+          porque o material continua atrás do envio. */}
+      {emProducao.length > 0 ? (
+        <section className="bg-surface-card rounded-card shadow-cartao space-y-3 border p-5">
+          <div>
+            <h2 className="text-base font-bold">Em produção na Full</h2>
+            <p className="text-text-muted text-sm">
+              {emProducao.length === 1
+                ? "1 conteúdo deste mês está sendo criado. Ele chega aqui para a aprovação assim que ficar pronto."
+                : `${emProducao.length} conteúdos deste mês estão sendo criados. Eles chegam aqui para a aprovação assim que ficarem prontos.`}
+            </p>
+          </div>
+          <ul className="flex flex-wrap gap-2">
+            {emProducao.map((c) => (
+              <li
+                key={c.id}
+                className="bg-muted flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+              >
+                {c.dataPublicacao ? (
+                  <span className="text-text-muted text-xs tabular-nums">
+                    {c.dataPublicacao.slice(8, 10)}/{c.dataPublicacao.slice(5, 7)}
+                  </span>
+                ) : null}
+                <span className="font-medium">{c.tema}</span>
+                {c.formato ? (
+                  <span className="text-text-muted text-xs">{c.formato}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {/* O RELATÓRIO SAIU DAQUI (0159): ele é uma seção própria do portal,
           "Relatórios", no modelo em blocos. */}

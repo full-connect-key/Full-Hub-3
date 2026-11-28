@@ -29,6 +29,25 @@ import type { ColunaDoQuadro } from "@/lib/dominio/solicitacoes";
  * 2xl, três no meio e duas no celular. Uma segunda fileira não esconde nada —
  * o que esconde é a barra de rolagem.
  */
+/**
+ * CADA COLUNA TEM CHÃO E COR. Pedido do usuário: o quadro estava "apagado" —
+ * cinco listas soltas no fundo da página. O chão separa as colunas, a pílula
+ * dá a cor do estado (os pares cheios de status, já medidos pelo
+ * `check:cores`) e os cards ficam brancos em cima.
+ */
+const PILULA_DA_COLUNA: Record<string, string> = {
+  nova: "bg-status-marca text-status-marca-foreground",
+  analise: "bg-status-marca text-status-marca-foreground",
+  em_analise: "bg-status-atencao text-status-atencao-foreground",
+  ajustes: "bg-status-atencao text-status-atencao-foreground",
+  em_andamento: "bg-status-laranja text-status-laranja-foreground",
+  producao: "bg-status-laranja text-status-laranja-foreground",
+  concluida: "bg-status-positivo text-status-positivo-foreground",
+  entregue: "bg-status-positivo text-status-positivo-foreground",
+  recusada: "bg-status-negativo text-status-negativo-foreground",
+  recusado: "bg-status-negativo text-status-negativo-foreground",
+};
+
 export function QuadroDePedidos<T>({
   colunas,
   itens,
@@ -89,26 +108,28 @@ export function QuadroDePedidos<T>({
                conteúdo dela por padrão: sem isso, um título comprido num card
                empurra a coluna e desalinha as outras quatro. É a coluna de
                domingo do Cronograma pela enésima vez. */
-            className="flex min-w-0 flex-col"
+            className="bg-muted flex min-w-0 flex-col rounded-2xl p-2.5"
           >
-            <header className="flex items-baseline justify-between gap-2 px-1.5 pb-2.5">
+            <header className="flex items-center justify-between gap-2 px-0.5 pb-3">
               <h3
                 id={`coluna-${coluna.chave}`}
-                className="text-text-secondary text-[11px] font-bold tracking-wider uppercase"
+                className={`rounded-full px-3 py-1 text-xs font-bold ${
+                  PILULA_DA_COLUNA[coluna.chave] ?? "bg-card text-text-secondary"
+                }`}
               >
                 {coluna.titulo}
               </h3>
               {/* A CONTAGEM É DA COLUNA INTEIRA, nunca do que o teto deixou
                   desenhado: ela é o número que a pessoa reconcilia com a
                   lista, e cortá-la junto esconderia o corte. */}
-              <span className="text-text-muted text-xs font-bold tabular-nums">
+              <span className="bg-card text-text-secondary rounded-full px-2 py-0.5 text-xs font-bold tabular-nums">
                 {todos.length}
               </span>
             </header>
 
             <ul className="flex min-w-0 flex-col gap-2.5 px-0.5 pb-1">
               {visiveis.length === 0 ? (
-                <li className="text-text-muted rounded-card border border-dashed px-2 py-5 text-center text-xs font-semibold">
+                <li className="text-text-muted bg-card rounded-card border border-dashed px-2 py-5 text-center text-xs font-semibold">
                   {coluna.vazio}
                 </li>
               ) : (

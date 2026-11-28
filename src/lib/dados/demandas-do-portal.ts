@@ -15,7 +15,7 @@ export type DemandaNoPortal = {
   concluida: boolean;
   /** Há material esperando a decisão do cliente. */
   esperando: boolean;
-  etapas: EtapaNoPortal[];
+  passos: EtapaNoPortal[];
 };
 
 const ESTADOS = new Set(["concluida", "em_andamento", "a_fazer"]);
@@ -42,7 +42,7 @@ export async function demandasDoPortal(
     prazo: l.prazo,
     concluida: l.concluida,
     esperando: l.esperando,
-    etapas: (Array.isArray(l.etapas) ? l.etapas : [])
+    passos: (Array.isArray(l.etapas) ? l.etapas : [])
       .map((e) => e as { titulo?: unknown; estado?: unknown })
       .filter((e) => typeof e.titulo === "string" && ESTADOS.has(String(e.estado)))
       .map((e) => ({
@@ -54,4 +54,36 @@ export async function demandasDoPortal(
   // O que espera o cliente sobe; o concluído desce.
   const peso = (d: DemandaNoPortal) => (d.esperando ? 0 : d.concluida ? 2 : 1);
   return demandas.sort((a, b) => peso(a) - peso(b));
+}
+
+export type ConteudoEmProducao = {
+  id: string;
+  tema: string;
+  dataPublicacao: string | null;
+  formato: string | null;
+};
+
+/**
+ * Os conteúdos do mês que a agência ainda está produzindo (0161): só tema,
+ * data e formato. `mes` chega como `AAAA-MM`.
+ */
+export async function conteudosEmProducao(
+  mes: string,
+  clienteId?: string | null,
+): Promise<ConteudoEmProducao[]> {
+  if (!/^\d{4}-\d{2}$/.test(mes)) return [];
+  const supabase = await criarClienteServidor();
+  const linhas = ouFalha(
+    "os conteúdos em produção",
+    await supabase.rpc("posts_em_producao_do_portal", {
+      p_mes: `${mes}-01`,
+      p_cliente: clienteId ?? undefined,
+    }),
+  );
+  return linhas.map((l) => ({
+    id: l.post_id,
+    tema: l.tema,
+    dataPublicacao: l.data_publicacao,
+    formato: l.formato,
+  }));
 }
