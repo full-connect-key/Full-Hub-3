@@ -476,6 +476,8 @@ function Decidida({
   /** Na fila de um projeto, o material já decidido também se vê. */
   comPrevia?: boolean;
 }) {
+  const [aberta, setAberta] = useState(comPrevia);
+  const arquivos = item.entregas.filter((e) => e.assinado !== null).length;
   const aprovada = item.status === "aprovada";
   const desfecho = DESFECHO_DA_RODADA[item.status];
   const capa = item.entregas.find(
@@ -505,7 +507,7 @@ function Decidida({
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{item.titulo}</p>
+        <p className="line-clamp-2 font-medium">{item.titulo}</p>
         <p className="text-text-muted truncate text-xs">
           {item.demanda ? <>{item.demanda} · </> : null}
           {item.numeroRodada > 0 ? <>rodada {item.numeroRodada}</> : null}
@@ -526,7 +528,24 @@ function Decidida({
         </p>
       </div>
       </div>
-      {comPrevia ? <PreviaDosArquivos entregas={item.entregas} /> : null}
+      {/* O MATERIAL CONTINUA À MÃO DEPOIS DA DECISÃO — pedido do usuário:
+          "quero poder visualizar mesmo após ter dado o feedback". */}
+      {arquivos > 0 ? (
+        <button
+          type="button"
+          aria-expanded={aberta}
+          onClick={() => setAberta((a) => !a)}
+          className="text-accent-strong inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+        >
+          <FileText aria-hidden className="size-4" />
+          {aberta
+            ? "Fechar os arquivos"
+            : arquivos === 1
+              ? "Ver o arquivo"
+              : `Ver os ${arquivos} arquivos`}
+        </button>
+      ) : null}
+      {aberta ? <PreviaDosArquivos entregas={item.entregas} /> : null}
     </li>
   );
 }
