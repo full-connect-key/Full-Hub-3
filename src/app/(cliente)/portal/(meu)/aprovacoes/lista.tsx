@@ -66,13 +66,40 @@ export function ListaDeAprovacoes({
   decididas,
   base = "/portal",
   somenteLeitura = false,
+  projeto = null,
 }: {
   esperando: AprovacaoDoCliente[];
   decididas: AprovacaoDoCliente[];
+  /** Quando a fila está estreitada a um projeto (`?projeto=`). */
+  projeto?: string | null;
   /** Prefixo dos links, para a peça abrir no portal certo. */
   base?: string;
   somenteLeitura?: boolean;
 }) {
+  const nomeDoProjeto =
+    projeto !== null
+      ? ([...esperando, ...decididas][0]?.demanda ?? null)
+      : null;
+
+  if (projeto !== null && esperando.length === 0 && decididas.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Link
+          href={`${base}/aprovacoes`}
+          className="text-accent-strong inline-flex items-center gap-1 text-sm font-medium hover:underline"
+        >
+          Ver todas as aprovações
+          <ArrowRight aria-hidden className="size-4" />
+        </Link>
+        <EmptyState
+          icon={BadgeCheck}
+          title="Nenhuma entrega enviada ainda"
+          description="Assim que a agência enviar o primeiro material deste projeto, ele aparece aqui para você ver e aprovar."
+        />
+      </div>
+    );
+  }
+
   if (esperando.length === 0 && decididas.length === 0) {
     return (
       <EmptyState
@@ -91,6 +118,18 @@ export function ListaDeAprovacoes({
 
   return (
     <div className="space-y-8">
+      {projeto !== null ? (
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <p className="text-lg font-bold">{nomeDoProjeto}</p>
+          <Link
+            href={`${base}/aprovacoes`}
+            className="text-accent-strong inline-flex items-center gap-1 text-sm font-medium hover:underline"
+          >
+            Ver todas as aprovações
+            <ArrowRight aria-hidden className="size-4" />
+          </Link>
+        </div>
+      ) : null}
       <section className="space-y-3">
         <h2 className="text-xl font-bold tracking-[-0.02em]">
           {somenteLeitura ? "Esperando o cliente" : "Esperando você"}
@@ -118,7 +157,11 @@ export function ListaDeAprovacoes({
           <h2 className="text-xl font-bold tracking-[-0.02em]">Já decididas</h2>
           <ul className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
             {decididas.map((item) => (
-              <Decidida key={item.rodadaId} item={item} />
+              <Decidida
+                key={item.rodadaId}
+                item={item}
+                comPrevia={projeto !== null}
+              />
             ))}
           </ul>
         </section>
@@ -398,7 +441,14 @@ function PreviaDosArquivos({ entregas }: { entregas: Entrega[] }) {
 }
 
 /** A linha de uma rodada já decidida: o que foi, o desfecho e quando. */
-function Decidida({ item }: { item: AprovacaoDoCliente }) {
+function Decidida({
+  item,
+  comPrevia = false,
+}: {
+  item: AprovacaoDoCliente;
+  /** Na fila de um projeto, o material já decidido também se vê. */
+  comPrevia?: boolean;
+}) {
   const aprovada = item.status === "aprovada";
   const desfecho = DESFECHO_DA_RODADA[item.status];
   const capa = item.entregas.find(
@@ -406,7 +456,8 @@ function Decidida({ item }: { item: AprovacaoDoCliente }) {
   );
 
   return (
-    <li className="bg-surface-card rounded-card shadow-cartao flex items-start gap-4 border p-4">
+    <li className="bg-surface-card rounded-card shadow-cartao space-y-4 border p-4">
+      <div className="flex items-start gap-4">
       <div
         className={cn(
           "flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg",
@@ -447,6 +498,8 @@ function Decidida({ item }: { item: AprovacaoDoCliente }) {
             : ""}
         </p>
       </div>
+      </div>
+      {comPrevia ? <PreviaDosArquivos entregas={item.entregas} /> : null}
     </li>
   );
 }

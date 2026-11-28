@@ -55,6 +55,8 @@ export type AprovacaoDoCliente = {
   /** Onde o material abre, quando ele tem tela própria. Relativo à base. */
   caminho: string | null;
   subtaskId: string;
+  /** A demanda de onde o material vem — o filtro `?projeto=` usa isto. */
+  taskId?: string;
   titulo: string;
   /** A demanda a que o material pertence. */
   demanda: string;
@@ -247,6 +249,7 @@ async function aprovacoesDeEtapa(
       tipo: "subtask",
       caminho: null,
       subtaskId: sub.id,
+      taskId: sub.task_id,
       titulo: sub.titulo,
       demanda: porTask.get(sub.task_id)?.titulo ?? "",
       numeroRodada: rodada.numero_rodada,

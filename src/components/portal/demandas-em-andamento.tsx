@@ -23,11 +23,7 @@ export function DemandasEmAndamento({
   if (demandas.length === 0) return null;
 
   return (
-    <section className="space-y-4" data-tour="portal-demandas">
-      <h2 className="text-xl font-bold tracking-[-0.02em]">
-        {comoEquipe ? "Projetos do cliente" : "Seus projetos"}
-      </h2>
-
+    <div data-tour="portal-demandas">
       <ul className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
         {demandas.map((demanda) => {
           const feitas = demanda.passos.filter(
@@ -37,15 +33,17 @@ export function DemandasEmAndamento({
           const largura = total > 0 ? Math.round((feitas / total) * 100) : 0;
 
           return (
-            <li
-              key={demanda.id}
-              className={cn(
-                "rounded-card shadow-cartao space-y-4 border p-5",
-                demanda.esperando
-                  ? "bg-action-soft border-action"
-                  : "bg-surface-card",
-              )}
-            >
+            <li key={demanda.id}>
+              {/* O BOX INTEIRO É O LINK para as entregas do projeto. */}
+              <Link
+                href={`${base}/aprovacoes?projeto=${demanda.id}`}
+                className={cn(
+                  "rounded-card shadow-cartao hover:border-accent-strong block space-y-4 border p-5 transition-colors",
+                  demanda.esperando
+                    ? "bg-action-soft border-action"
+                    : "bg-surface-card",
+                )}
+              >
               {demanda.esperando ? (
                 <p className="text-action flex items-center gap-1.5 text-xs font-bold uppercase">
                   <Hourglass aria-hidden className="size-3.5" />
@@ -113,19 +111,22 @@ export function DemandasEmAndamento({
                 </>
               ) : null}
 
-              {demanda.esperando ? (
-                <Link
-                  href={`${base}/aprovacoes`}
-                  className="bg-action text-action-foreground inline-flex items-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-medium"
-                >
-                  Ver e aprovar
-                  <ArrowRight aria-hidden className="size-4" />
-                </Link>
-              ) : null}
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-medium",
+                  demanda.esperando
+                    ? "bg-action text-action-foreground"
+                    : "bg-muted text-text-secondary",
+                )}
+              >
+                {demanda.esperando ? "Ver e aprovar" : "Ver as entregas"}
+                <ArrowRight aria-hidden className="size-4" />
+              </span>
+              </Link>
             </li>
           );
         })}
       </ul>
-    </section>
+    </div>
   );
 }

@@ -171,6 +171,12 @@ export async function InicioDoPortal({
     .filter((i) => i.status === "em_aprovacao")
     .sort(ordenarPorUrgencia);
 
+  // O material de demanda já aparece no box do projeto dele.
+  const pendentesForaDosProjetos =
+    demandas.length > 0
+      ? pendentes.filter((i) => i.tipo !== "subtask")
+      : pendentes;
+
   const inicioDoMes = `${hoje.slice(0, 7)}-01`;
   const aprovadosNoMes = itens.filter(
     (i) => i.status === "aprovado" && (i.enviadoEm ?? "") >= inicioDoMes,
@@ -483,12 +489,6 @@ export async function InicioDoPortal({
           aqui", e o recorte dele é o bloco inteiro — contagem, lista e o "ver
           tudo". Com a âncora no `<h2>`, o destaque seria uma linha de texto
           com a lista inteira fora dele. */}
-      <DemandasEmAndamento
-        demandas={demandas}
-        base={base}
-        comoEquipe={comoEquipe}
-      />
-
       <section
         id="precisa-decidir"
         className="scroll-mt-20 space-y-6"
@@ -516,7 +516,18 @@ export async function InicioDoPortal({
             deixá-la seria exatamente o que a regra desta tela proíbe — o
             mesmo número duas vezes, a dois centímetros de distância. */}
 
-        {pendentes.length === 0 ? (
+        {/* OS PROJETOS E AS APROVAÇÕES SÃO UMA COISA SÓ — pedido do usuário:
+            "esse seus projetos é o que o cliente vai aprovar, preciso que
+            unifique tudo". O box do projeto vem primeiro, leva às entregas
+            dele, e o material de demanda deixa de aparecer uma segunda vez na
+            lista de baixo. */}
+        <DemandasEmAndamento
+          demandas={demandas}
+          base={base}
+          comoEquipe={comoEquipe}
+        />
+
+        {pendentesForaDosProjetos.length === 0 && demandas.length > 0 ? null : pendentesForaDosProjetos.length === 0 ? (
           // ZERO PENDÊNCIA É BOA NOTÍCIA, e a tela diz isso. Um vazio genérico
           // ("nenhum resultado") deixa a pessoa em dúvida se ela procurou
           // errado ou se está tudo bem.
@@ -541,7 +552,7 @@ export async function InicioDoPortal({
              Tasks: num contêiner com fios o que se lê primeiro é a CAIXA, e
              aqui cada linha é uma decisão separada, sobre uma peça diferente. */
           <div className="space-y-[9px]">
-            {pendentes.slice(0, 5).map((item, indice) => (
+            {pendentesForaDosProjetos.slice(0, 5).map((item, indice) => (
               <CartaoDeItem
                 key={item.conteudoId}
                 item={item}
@@ -554,12 +565,12 @@ export async function InicioDoPortal({
                 ancora={indice === 0 ? ANCORAS.portalMaterial : undefined}
               />
             ))}
-            {pendentes.length > 5 ? (
+            {pendentesForaDosProjetos.length > 5 ? (
               <Link
                 href={`${base}/itens?status=em_aprovacao`}
                 className="text-accent-strong block py-2 text-center text-sm hover:underline"
               >
-                Ver os outros {pendentes.length - 5}
+                Ver os outros {pendentesForaDosProjetos.length - 5}
               </Link>
             ) : null}
           </div>
