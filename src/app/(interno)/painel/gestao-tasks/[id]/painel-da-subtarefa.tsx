@@ -129,6 +129,25 @@ export function PainelDaSubtarefa({
   const souOResponsavel = fazASubtarefa(subtarefa, usuarioId);
   const podeMexer = podeGerenciar || souOResponsavel;
 
+  async function trocarAprovacao(valor: string) {
+    const resultado = await chamarAcao(() =>
+      atualizarSubtarefa(subtarefa.id, taskId, {
+        requer_aprovacao: valor !== "nenhuma",
+        tipo_aprovacao: valor === "nenhuma" ? null : valor,
+      }),
+    );
+    if (!resultado.ok) {
+      toast.error(resultado.error);
+      return;
+    }
+    toast.success(
+      valor === "cliente"
+        ? "Esta etapa agora vai ao cliente: envie para aprovação quando a entrega estiver pronta."
+        : "Aprovação da etapa atualizada.",
+    );
+    router.refresh();
+  }
+
   function trocarStatus(destino: SubtaskStatus) {
     iniciar(async () => {
       const resultado = await chamarAcao(() =>
@@ -412,7 +431,33 @@ export function PainelDaSubtarefa({
               aoMudar={trocarStatus}
               compacto
             />
-            {subtarefa.requer_aprovacao ? (
+            {/* A APROVAÇÃO SE ESCOLHE AQUI. A etapa criada pelo campo "Nova
+                subtarefa" nasce sem aprovação, e não havia onde ligá-la: os
+                arquivos da entrega ficavam só para baixar, sem caminho até o
+                cliente. `atualizarSubtarefa` grava o par desde sempre. */}
+            {podeGerenciar ? (
+              <Select
+                value={
+                  subtarefa.requer_aprovacao
+                    ? (subtarefa.tipo_aprovacao ?? "interna")
+                    : "nenhuma"
+                }
+                onValueChange={trocarAprovacao}
+              >
+                <SelectTrigger
+                  size="sm"
+                  aria-label="Aprovação desta etapa"
+                  className="bg-card w-auto"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nenhuma">Sem aprovação</SelectItem>
+                  <SelectItem value="interna">Aprovação interna</SelectItem>
+                  <SelectItem value="cliente">Aprovação do cliente</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : subtarefa.requer_aprovacao ? (
               <Badge variant="outline" className="gap-1">
                 <Lock className="size-3" aria-hidden />
                 Requer aprovação:{" "}
