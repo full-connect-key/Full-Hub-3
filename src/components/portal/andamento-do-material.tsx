@@ -201,10 +201,22 @@ function Passo({
           liga a nada. */}
       <div className="flex flex-col items-center">
         <Marcador estado={passo.estado} />
-        {ultimo ? null : <span aria-hidden className="bg-border w-px flex-1" />}
+        {/* O fio é VERDE depois de um passo concluído e neutro depois do
+            atual: o caminho já percorrido se lê de relance, como na
+            referência que o usuário mandou. */}
+        {ultimo ? null : (
+          <span
+            aria-hidden
+            className={
+              passo.estado === "concluido"
+                ? "bg-success w-0.5 flex-1"
+                : "bg-border w-0.5 flex-1"
+            }
+          />
+        )}
       </div>
 
-      <div className={ultimo ? "min-w-0 pt-0.5" : "min-w-0 pt-0.5 pb-4"}>
+      <div className={ultimo ? "min-w-0 pt-1" : "min-w-0 pt-1 pb-5"}>
         <p
           className={
             passo.estado === "futuro"
@@ -236,16 +248,19 @@ function Passo({
 function Marcador({ estado }: { estado: PassoDoAndamento["estado"] }) {
   if (estado === "concluido") {
     return (
-      <span className="bg-success text-success-foreground flex size-5 shrink-0 items-center justify-center rounded-full">
-        <Check aria-hidden className="size-3" strokeWidth={3} />
+      <span className="bg-success text-success-foreground flex size-7 shrink-0 items-center justify-center rounded-full">
+        <Check aria-hidden className="size-4" strokeWidth={3} />
       </span>
     );
   }
 
+  // O PASSO DE AGORA é o disco azul com o halo — o único da escada que pede
+  // atenção. Par nomeado: `--action-foreground` sobre `--action`, e o halo é
+  // `--action-soft`, nunca opacidade.
   if (estado === "atual") {
     return (
-      <span className="bg-accent text-accent-foreground flex size-5 shrink-0 items-center justify-center rounded-full">
-        <span aria-hidden className="size-2 rounded-full bg-current" />
+      <span className="bg-action text-action-foreground ring-action-soft flex size-7 shrink-0 items-center justify-center rounded-full ring-4">
+        <span aria-hidden className="size-2.5 rounded-full bg-current" />
       </span>
     );
   }
@@ -253,7 +268,7 @@ function Marcador({ estado }: { estado: PassoDoAndamento["estado"] }) {
   return (
     <span
       aria-hidden
-      className="bg-neutral-soft size-5 shrink-0 rounded-full border"
+      className="bg-card border-input size-7 shrink-0 rounded-full border-2"
     />
   );
 }

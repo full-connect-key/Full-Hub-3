@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { hojeNaAgencia, horaNaAgencia } from "@/lib/dominio/datas";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowLeft, Download } from "lucide-react";
@@ -400,8 +401,11 @@ export function DetalheDoConteudo({
           </p>
         ) : null}
 
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="min-w-0 space-y-4">
+        {/* O ANDAMENTO FICA À ESQUERDA E A PRÉVIA À DIREITA, a partir de `lg` —
+            é a referência que o usuário mandou. No celular a ordem do DOM
+            manda, e ali a peça vem primeiro: é ela que a pessoa veio ver. */}
+        <div className="grid items-start gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+          <div className="min-w-0 space-y-4 lg:order-2">
             {temPreview ? (
               <section
                 aria-labelledby="previa-do-material"
@@ -423,15 +427,22 @@ export function DetalheDoConteudo({
                     verdadeiro e não promete um histórico que a tela não tem —
                     e quem quer o histórico tem o botão logo abaixo, com a
                     contagem dele. */}
-                  {versoes.length >= modelo.versaoAtual ? (
-                    <p className="text-text-muted text-xs tabular-nums">
-                      versão {modelo.versaoAtual} de {versoes.length}
-                    </p>
-                  ) : versoes.length > 0 ? (
-                    <p className="text-text-muted text-xs tabular-nums">
-                      versão {modelo.versaoAtual}
-                    </p>
-                  ) : null}
+                  <p className="text-text-muted text-xs tabular-nums">
+                    {versoes.length >= modelo.versaoAtual
+                      ? `versão ${modelo.versaoAtual} de ${versoes.length}`
+                      : versoes.length > 0
+                        ? `versão ${modelo.versaoAtual}`
+                        : null}
+                    {modelo.decisaoPedidaEm
+                      ? `${versoes.length > 0 ? " · " : ""}enviada em ${hojeNaAgencia(
+                          parseISO(modelo.decisaoPedidaEm),
+                        )
+                          .slice(5)
+                          .split("-")
+                          .reverse()
+                          .join("/")} às ${horaNaAgencia(parseISO(modelo.decisaoPedidaEm))}`
+                      : null}
+                  </p>
                 </div>
 
                 {modelo.video ? (
@@ -486,7 +497,7 @@ export function DetalheDoConteudo({
                   `somenteLeitura`: sem a pergunta aqui, uma peça já decidida
                   sairia com um fio e um respiro soltos no pé do cartão. */}
                 {modelo.rodadaPendenteId ? (
-                  <div className="-mx-4 -mb-4 border-t px-4 pt-3.5 pb-4">
+                  <div className="-mx-4 -mb-4 flex flex-wrap items-center justify-end gap-2 border-t px-4 pt-3.5 pb-4">
                     {decisoes}
                   </div>
                 ) : null}
@@ -515,9 +526,7 @@ export function DetalheDoConteudo({
             ) : null}
           </div>
 
-          <div className="space-y-4">
-            {textoNaColunaEstreita ? <Texto texto={modelo.texto} /> : null}
-
+          <div className="space-y-4 lg:order-1">
             <AndamentoDoMaterial
               status={modelo.status}
               recebidoEm={modelo.recebidoEm}
@@ -529,6 +538,8 @@ export function DetalheDoConteudo({
               propriedades={modelo.propriedades}
               agora={agora}
             />
+
+            {textoNaColunaEstreita ? <Texto texto={modelo.texto} /> : null}
           </div>
         </div>
 
