@@ -13,6 +13,7 @@ import {
   ExternalLink,
   FileText,
   PencilLine,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,6 +23,7 @@ import { ImagemAssinada } from "@/components/shared/imagem-assinada";
 import { BotaoDeDecisao } from "@/components/shared/botao-de-decisao";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -61,6 +63,13 @@ import { decisaoCliente } from "./acoes";
  * `decidir_rodada_do_cliente` no Postgres, que confere se quem chama é o
  * cliente daquela rodada.
  */
+function semAcento(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 export function ListaDeAprovacoes({
   esperando,
   decididas,
@@ -76,12 +85,33 @@ export function ListaDeAprovacoes({
   base?: string;
   somenteLeitura?: boolean;
 }) {
+  // A PESQUISA — pedido do usuário: achar uma entrega que já foi feita. Ela
+  // procura no nome do material, no do projeto e no nome de cada arquivo, e
+  // vale para as duas listas.
+  const [busca, setBusca] = useState("");
+  const termo = semAcento(busca.trim());
+  const casa = (item: AprovacaoDoCliente) =>
+    termo.length === 0 ||
+    semAcento(
+      [item.titulo, item.demanda, ...item.entregas.map((e) => e.nome ?? "")].join(
+        " ",
+      ),
+    ).includes(termo);
+  const esperandoTodas = esperando;
+  const decididasTodas = decididas;
+  esperando = esperando.filter(casa);
+  decididas = decididas.filter(casa);
+
   const nomeDoProjeto =
     projeto !== null
       ? ([...esperando, ...decididas][0]?.demanda ?? null)
       : null;
 
-  if (projeto !== null && esperando.length === 0 && decididas.length === 0) {
+  if (
+    projeto !== null &&
+    esperandoTodas.length === 0 &&
+    decididasTodas.length === 0
+  ) {
     return (
       <div className="space-y-4">
         <Link
@@ -100,7 +130,7 @@ export function ListaDeAprovacoes({
     );
   }
 
-  if (esperando.length === 0 && decididas.length === 0) {
+  if (esperandoTodas.length === 0 && decididasTodas.length === 0) {
     return (
       <EmptyState
         icon={BadgeCheck}
@@ -130,6 +160,32 @@ export function ListaDeAprovacoes({
           </Link>
         </div>
       ) : null}
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="relative block w-full max-w-sm">
+          <Search
+            aria-hidden
+            className="text-text-muted pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+          />
+          <Input
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Pesquisar uma entrega"
+            aria-label="Pesquisar uma entrega"
+            className="bg-card pl-9"
+          />
+        </label>
+        {termo.length > 0 ? (
+          <p className="text-text-muted text-sm">
+            {esperando.length + decididas.length === 0
+              ? "Nenhuma entrega com esse nome."
+              : `${esperando.length + decididas.length} encontrada${
+                  esperando.length + decididas.length === 1 ? "" : "s"
+                }`}
+          </p>
+        ) : null}
+      </div>
+
       <section className="space-y-3">
         <h2 className="text-xl font-bold tracking-[-0.02em]">
           {somenteLeitura ? "Esperando o cliente" : "Esperando você"}

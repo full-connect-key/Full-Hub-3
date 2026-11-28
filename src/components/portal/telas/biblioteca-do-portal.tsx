@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, Download, FolderOpen, ImageOff } from "lucide-react";
+import { ArrowRight, Download, Eye, FileText, FolderOpen } from "lucide-react";
 
 import { ArquivosDaMarca } from "@/components/portal/arquivos-da-marca";
 import { FiltrosDaBiblioteca as BarraDaBiblioteca } from "@/components/portal/filtros-da-biblioteca";
@@ -171,7 +171,7 @@ export async function BibliotecaDoPortal({
         /* TRÊS COLUNAS, como o roteiro pede, e duas em tela média: num
            notebook de 1280 o conteúdo tem cerca de 1100px, e três cartões de
            340px cabem com folga. Em 375px vira uma. */
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {encontrados.map((arquivo) => (
             <Cartao key={arquivo.id} arquivo={arquivo} vertentes={vertentes} />
           ))}
@@ -207,12 +207,22 @@ function Cartao({
           moldura escolhida e não um buraco: numa grade, altura desigual
           deixa a última linha torta — é a decisão da capa da campanha, que
           tem três respostas para "sem imagem" e usa a do FUNDO na grade. */}
-      <div className="bg-neutral-soft relative aspect-[4/3] w-full">
+      <div className="bg-neutral-soft relative aspect-[16/10] w-full">
         {arquivo.miniatura ? (
           <ImagemAssinada src={arquivo.miniatura} alt="" className="object-cover" />
         ) : (
-          <div className="text-text-muted flex h-full items-center justify-center">
-            <ImageOff aria-hidden className="size-6" />
+          /* SEM IMAGEM NÃO É IMAGEM QUEBRADA. Um PDF ou um arquivo de criação
+             não tem miniatura, e o ícone de "imagem indisponível" fazia o
+             cartão parecer com defeito. Agora é uma folha com o formato. */
+          <div className="flex h-full flex-col items-center justify-center gap-2">
+            <span className="bg-card text-action shadow-cartao flex size-14 items-center justify-center rounded-2xl">
+              <FileText aria-hidden className="size-7" />
+            </span>
+            {formato ? (
+              <span className="bg-card text-text-secondary rounded-full px-2.5 py-0.5 text-[11px] font-bold">
+                {formato}
+              </span>
+            ) : null}
           </div>
         )}
       </div>
@@ -257,6 +267,16 @@ function Cartao({
               Um botão "Baixar" desligado em toda peça de social seria ruído
               em metade da grade. */}
           {arquivo.arquivo ? (
+            <span className="flex flex-wrap gap-2">
+            <a
+              href={arquivo.arquivo.href}
+              target="_blank"
+              rel="noreferrer"
+              className="bg-action text-action-foreground inline-flex min-h-9 items-center gap-2 rounded-md px-3 text-sm font-medium"
+            >
+              <Eye aria-hidden className="size-4" />
+              Visualizar
+            </a>
             <a
               href={arquivo.arquivo.href}
               download={arquivo.arquivo.nome}
@@ -276,6 +296,7 @@ function Cartao({
                 </span>
               ) : null}
             </a>
+            </span>
           ) : arquivo.caminho ? (
             <Link
               href={arquivo.caminho}
