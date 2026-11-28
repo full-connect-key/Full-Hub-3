@@ -1,6 +1,8 @@
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Download, ExternalLink, FolderOpen, Lock } from "lucide-react";
+import { Download, ExternalLink, FileText, FolderOpen, Lock } from "lucide-react";
+
+import { ImagemAssinada } from "@/components/shared/imagem-assinada";
 
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -44,6 +46,9 @@ import type { SubtarefaDetalhada } from "@/lib/dados/tasks";
  * recebesse por um caminho montado à mão, contá-la aqui mostraria o mesmo
  * arquivo duas vezes — na mãe e na filha.
  */
+/** O que o navegador desenha num `<img>` — sem SVG, como `EH_IMAGEM` da 0053. */
+const EH_IMAGEM = /\.(jpe?g|png|gif|webp|avif)$/i;
+
 export function ArquivosDaEntrega({
   subtarefas,
 }: {
@@ -109,6 +114,30 @@ export function ArquivosDaEntrega({
                       key={entrega.id}
                       className="flex min-w-0 items-center gap-2 py-1.5 text-sm"
                     >
+                      {/* A PRÉVIA, ao lado do nome — decisão do usuário: *"uma
+                          caixa referente a qual é a peça, com um previewzinho,
+                          igual a disposição no portal do cliente"*. Só a
+                          IMAGEM tem miniatura; PDF, PSD e link ganham o
+                          ladrilho com o ícone, que ocupa o mesmo lugar para a
+                          coluna de nomes não andar de linha para linha. */}
+                      <span className="bg-muted flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-md border">
+                        {entrega.tipo === "arquivo" &&
+                        entrega.assinado &&
+                        EH_IMAGEM.test(entrega.nome ?? entrega.url) ? (
+                          <ImagemAssinada
+                            src={entrega.assinado}
+                            alt=""
+                            className="size-full object-cover"
+                            aoFalhar={
+                              <FileText aria-hidden className="text-text-muted size-4" />
+                            }
+                          />
+                        ) : entrega.tipo === "arquivo" ? (
+                          <FileText aria-hidden className="text-text-muted size-4" />
+                        ) : (
+                          <ExternalLink aria-hidden className="text-text-muted size-4" />
+                        )}
+                      </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate">
                           {entrega.nome ?? entrega.url}
