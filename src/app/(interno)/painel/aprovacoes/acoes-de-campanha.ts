@@ -1,5 +1,6 @@
 "use server";
 
+import { levarParaAEtapa } from "@/lib/acoes/ponte-de-arquivos";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -736,9 +737,24 @@ export async function gravarVersaoDoEntregavel(
       );
     }
 
+    // O ARQUIVO DA PEÇA VAI PARA A ETAPA DA DEMANDA — o caminho inverso do
+    // anexo da etapa. Avisa em vez de recusar: a versão já está gravada.
+    const ponte = await levarParaAEtapa(
+      supabase,
+      entregavelId,
+      validado.data.arquivos,
+      sessao.usuarioId,
+    );
+    if (ponte.taskId) {
+      revalidatePath(`/painel/gestao-tasks/${ponte.taskId}`);
+      revalidatePath("/painel/minhas-tasks");
+    }
+
     revalidatePath(ROTA);
     revalidatePath("/portal/campanhas");
-    return sucesso(`Versão ${data[0].numero_versao} gravada.`);
+    return sucesso(
+      `Versão ${data[0].numero_versao} gravada.${ponte.aviso ? ` ${ponte.aviso}` : ""}`,
+    );
   });
 }
 

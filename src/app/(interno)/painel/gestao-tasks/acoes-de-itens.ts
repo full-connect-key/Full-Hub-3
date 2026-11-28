@@ -1,5 +1,6 @@
 "use server";
 
+import { levarParaACampanha } from "@/lib/acoes/ponte-de-arquivos";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -780,6 +781,23 @@ export async function anexarEntrega(
       para_valor: entrega.nome ?? entrega.url,
       autor_id: sessao.usuarioId,
     });
+
+    // O ARQUIVO DA ETAPA VAI PARA A PEÇA DA CAMPANHA, quando a etapa é uma.
+    // Só arquivo, nunca link — e a ponte avisa em vez de recusar, porque o
+    // anexo já está gravado.
+    if (entrega.tipo === "arquivo") {
+      const aviso = await levarParaACampanha(
+        supabase,
+        subtaskId,
+        { url: entrega.url.trim(), nome: entrega.nome ?? null },
+        sessao.usuarioId,
+      );
+      revalidatePath("/painel/aprovacoes");
+      if (aviso) {
+        revalidar(taskId);
+        return sucesso(`Entrega anexada. ${aviso}`);
+      }
+    }
 
     revalidar(taskId);
     return sucesso("Entrega anexada.");
