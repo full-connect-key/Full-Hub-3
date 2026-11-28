@@ -262,21 +262,44 @@ export type ComentarioDoConteudo = {
 export async function comentariosDe(
   conteudo: Conteudo,
 ): Promise<ComentarioDoConteudo[]> {
-  const supabase = await criarClienteServidor();
   const { content_type, content_id } = colunasDoConteudo(conteudo);
+  return (
+    (await comentariosDosConteudos(content_type, [content_id])).get(
+      content_id,
+    ) ?? []
+  );
+}
+
+/**
+ * A conversa de VÁRIOS materiais do mesmo tipo, numa ida só.
+ *
+ * Nasceu para a árvore de produção da campanha, que desenha quinze peças e
+ * abre cada uma no lugar — uma chamada por peça é a conta que só aparece com
+ * a campanha cheia. É a forma de `historicoDeAprovacoes()`, e `comentariosDe`
+ * passou a ser ela com um id: duas leituras nomeando as mesmas colunas seriam
+ * o lugar onde elas divergem.
+ */
+export async function comentariosDosConteudos(
+  tipo: Conteudo["tipo"],
+  ids: string[],
+): Promise<Map<string, ComentarioDoConteudo[]>> {
+  const mapa = new Map<string, ComentarioDoConteudo[]>();
+  if (ids.length === 0) return mapa;
+
+  const supabase = await criarClienteServidor();
 
   const linhas = ouFalha(
     "os comentários do material",
     await supabase
       .from("comments")
       .select(
-        "id, texto, created_at, autor_id, interno, resposta_a, card_indice, card_versao",
+        "id, content_id, texto, created_at, autor_id, interno, resposta_a, card_indice, card_versao",
       )
-      .eq("content_type", content_type)
-      .eq("content_id", content_id)
+      .eq("content_type", tipo)
+      .in("content_id", ids)
       .order("created_at"),
   );
-  if (linhas.length === 0) return [];
+  if (linhas.length === 0) return mapa;
 
   const pessoas = ouFalha(
     "os autores dos comentários",
@@ -288,9 +311,10 @@ export async function comentariosDe(
 
   const porId = new Map(pessoas.map((p) => [p.id, p]));
 
-  return linhas.map((l) => {
+  for (const l of linhas) {
     const pessoa = porId.get(l.autor_id);
-    return {
+    const lista = mapa.get(l.content_id) ?? [];
+    lista.push({
       id: l.id,
       texto: l.texto,
       quando: l.created_at,
@@ -303,8 +327,10 @@ export async function comentariosDe(
       respostaA: l.resposta_a,
       cardIndice: l.card_indice,
       cardVersao: l.card_versao,
-    };
-  });
+    });
+    mapa.set(l.content_id, lista);
+  }
+  return mapa;
 }
 
 /**

@@ -58,8 +58,11 @@ export function PrecisaDeMim({
   notasRecusadas,
   notasEsperandoOSocio,
   notasPedidas,
+  destinoDoComentario,
 }: {
   dados: ResumoDaHome["precisa_de_mim"];
+  /** Onde está o comentário mais antigo sem resposta — o material, não o módulo. */
+  destinoDoComentario?: string | null;
   /** As minhas notas que voltaram e cujo mês ainda não tem nota nova. */
   notasRecusadas: number;
   /** Quantas esperam a conferência — zero para quem não é sócio. */
@@ -79,6 +82,7 @@ export function PrecisaDeMim({
     notasRecusadas,
     notasEsperandoOSocio,
     notasPedidas,
+    destinoDoComentario,
   });
 
   if (linhas.length === 0) return null;
@@ -133,11 +137,13 @@ export function linhasDoPrecisaDeMim({
   notasRecusadas,
   notasEsperandoOSocio,
   notasPedidas,
+  destinoDoComentario,
 }: {
   dados: ResumoDaHome["precisa_de_mim"];
   notasRecusadas: number;
   notasEsperandoOSocio: number;
   notasPedidas: number;
+  destinoDoComentario?: string | null;
 }): {
   quantos: number;
   href: string;
@@ -157,7 +163,12 @@ export function linhasDoPrecisaDeMim({
     },
     {
       quantos: dados?.comentarios ?? 0,
-      href: "/painel/social-media",
+      // O MATERIAL, E NÃO O MÓDULO. O link era fixo em Social Media, e o
+      // comentário pode estar numa peça de CAMPANHA: quem clicava caía num
+      // índice de meses onde aquilo não existe — foi o relato do usuário, e
+      // ele leu o beco como "resquício de post apagado". O comentário existia;
+      // o caminho até ele, não. Sem destino resolvido, cai no módulo.
+      href: destinoDoComentario ?? "/painel/social-media",
       singular: "comentário de cliente sem resposta",
       plural: "comentários de cliente sem resposta",
       Icone: MessageSquare,

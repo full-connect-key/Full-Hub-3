@@ -21,6 +21,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { EnvioAoCliente } from "@/components/shared/envio-ao-cliente";
 import { HistoricoDeAprovacoes } from "@/components/shared/historico-de-aprovacoes";
+import { ThreadDeComentarios } from "@/components/portal/thread-de-comentarios";
+import type { ComentarioDoConteudo } from "@/lib/dados/conteudo";
 import {
   doEntregavel,
   type EnvioEscolhido,
@@ -68,6 +70,10 @@ export function ArvoreDeProducao({
   assinadas,
   analise,
   historico,
+  comentarios,
+  nomeDaEmpresa,
+  agora,
+  pecaAberta,
   ehGestao,
 }: {
   clienteId: string;
@@ -78,10 +84,17 @@ export function ArvoreDeProducao({
   /** O estado do aval interno de cada peça. A chave é o id dela. */
   analise: Record<string, AnaliseDaPeca>;
   historico: Record<string, RodadaDoHistorico[]>;
+  /** A conversa com o cliente, por peça. Peça sem conversa não tem chave. */
+  comentarios: Record<string, ComentarioDoConteudo[]>;
+  nomeDaEmpresa: string;
+  /** O "agora" do servidor, para a thread não divergir na hidratação. */
+  agora: string;
+  /** A peça que o link pediu aberta (`?peca=`), vinda do sino ou do Início. */
+  pecaAberta: string | null;
   /** Quem envia ao cliente é `is_gestor()`, e o botão segue a mesma pergunta. */
   ehGestao: boolean;
 }) {
-  const [aberto, setAberto] = useState<string | null>(null);
+  const [aberto, setAberto] = useState<string | null>(pecaAberta);
 
   /** O cartão de uma peça, com o estado de aberto que a lista guarda. */
   const cartao = (item: EntregavelDoPortal) => (
@@ -95,6 +108,9 @@ export function ArvoreDeProducao({
       aoAbrir={() => setAberto((atual) => (atual === item.id ? null : item.id))}
       analise={analise[item.id] ?? { pendente: false, aprovado: false }}
       historico={historico[item.id] ?? []}
+      comentarios={comentarios[item.id] ?? []}
+      nomeDaEmpresa={nomeDaEmpresa}
+      agora={agora}
       ehGestao={ehGestao}
     />
   );
@@ -168,6 +184,9 @@ function Peca({
   aoAbrir,
   analise,
   historico,
+  comentarios,
+  nomeDaEmpresa,
+  agora,
   ehGestao,
 }: {
   item: EntregavelDoPortal;
@@ -179,6 +198,9 @@ function Peca({
   aoAbrir: () => void;
   analise: AnaliseDaPeca;
   historico: RodadaDoHistorico[];
+  comentarios: ComentarioDoConteudo[];
+  nomeDaEmpresa: string;
+  agora: string;
   ehGestao: boolean;
 }) {
   const router = useRouter();
@@ -500,6 +522,25 @@ function Peca({
                 rodadas={historico}
               />
             </div>
+          ) : null}
+
+          {/* A CONVERSA COM O CLIENTE, que esta tela não mostrava.
+
+              O cliente comenta a peça no portal desde a 0032, e do lado de cá
+              o texto só chegava pelo sino — que se apaga no primeiro clique.
+              É a MESMA thread do portal e do editor de post, com a mesma ação:
+              quem responde aqui está respondendo ao cliente.
+
+              Ela só é desenhada quando a peça JÁ FOI ao cliente ou já tem
+              conversa: numa peça que ele nunca viu, um campo de comentar
+              escreveria para ninguém. */}
+          {jaFoi || comentarios.length > 0 ? (
+            <ThreadDeComentarios
+              conteudo={doEntregavel(item.id)}
+              comentarios={comentarios}
+              agora={agora}
+              nomeDaEmpresa={nomeDaEmpresa}
+            />
           ) : null}
         </div>
       ) : null}

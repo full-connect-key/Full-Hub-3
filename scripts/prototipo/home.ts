@@ -73,3 +73,8 @@ export async function resumoDaHome(): Promise<ResumoDaHome> {
     ],
   };
 }
+
+/** O prototipo nao tem Supabase: a linha do Inicio cai no modulo, como antes. */
+export async function comentarioSemResposta(): Promise<string | null> {
+  return null;
+}

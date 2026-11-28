@@ -129,7 +129,16 @@ export function PainelPessoal({
   const pathname = usePathname();
   const parametros = useSearchParams();
 
-  const [taskAberta, setTaskAberta] = useState<string | null>(null);
+  const [taskEscolhida, setTaskAberta] = useState<string | null>(null);
+
+  // `?task=` ABRE O PAINEL, e é por ele que o sino chega até a demanda de quem
+  // não é gestão: os avisos do banco apontam para `/painel/gestao-tasks/{id}`,
+  // que é `GESTAO` — quem executa clicava e levava 403. O layout reescreve o
+  // link para cá (`destinoDoAviso`), e esta tela abre a demanda no lugar.
+  //
+  // DERIVADO e não sincronizado por efeito: o clique na tela ganha da URL, e
+  // fechar limpa os dois.
+  const taskAberta = taskEscolhida ?? parametros.get("task");
 
   // DERIVADO e não guardado, que é a regra desta casa: o destino é uma função
   // da task aberta, e um segundo estado ao lado dela seria a segunda verdade
@@ -492,7 +501,10 @@ export function PainelPessoal({
       <PainelLateralDaTask
         taskId={taskAberta}
         destino={destinoDaTaskAberta}
-        aoFechar={() => setTaskAberta(null)}
+        aoFechar={() => {
+          setTaskAberta(null);
+          if (parametros.get("task")) navegar({ task: null });
+        }}
       />
     </div>
   );

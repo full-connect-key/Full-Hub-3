@@ -19,6 +19,8 @@ import { meuPedidoDeNotaEmAberto } from "@/lib/dados/notas-fiscais";
 import { minhasNotificacoes } from "@/lib/dados/notificacoes";
 import { meusTours } from "@/lib/dados/tour";
 import { hojeNaAgencia } from "@/lib/dominio/datas";
+import { destinoDoAviso } from "@/lib/dominio/avisos";
+import { ehGestor } from "@/lib/auth/roles";
 import { convidaARever, devoConvidar, tourComecado } from "@/lib/tour/convite";
 import { TOUR_DO_PAINEL, tourDoPainel } from "@/lib/tour/passos";
 import { quandoFoiPublicado, rotuloDaVersao } from "@/lib/versao";
@@ -178,7 +180,10 @@ export default async function LayoutDoPainel({
                 hrefDosPlaybooks="/painel/academy"
               />
               <SinoDeNotificacoes
-                notificacoes={avisos.lista}
+                notificacoes={avisos.lista.map((aviso) => ({
+                  ...aviso,
+                  link: destinoDoAviso(aviso.link, ehGestor(profile.role)),
+                }))}
                 naoLidas={avisos.naoLidas}
               />
               <MenuDoUsuario

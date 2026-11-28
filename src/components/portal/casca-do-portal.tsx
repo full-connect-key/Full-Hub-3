@@ -3,6 +3,7 @@ import { GavetaDoPortal } from "@/components/portal/gaveta-do-portal";
 import { MenuDoCliente } from "@/components/portal/menu-do-cliente";
 import { SeletorDeEmpresa } from "@/components/portal/seletor-de-empresa";
 import { SinoDeNotificacoes } from "@/components/painel/sino-de-notificacoes";
+import type { NotificacaoNaTela } from "@/lib/dados/notificacoes";
 import { Logo } from "@/components/shared/logo";
 
 /**
@@ -54,8 +55,19 @@ export function CascaDoPortal({
   aviso,
   fotoDaEmpresa = null,
   aprovacoesPendentes = 0,
+  avisos,
   children,
 }: {
+  /**
+   * Os avisos do sino de quem está logado.
+   *
+   * **O SINO DO PORTAL NASCEU VAZIO E FICOU ASSIM:** o banco avisa o cliente a
+   * cada envio desde a 0098 — com o link do material dentro —, e esta casca
+   * desenhava o sino sem passar nada para ele. O aviso existia e não aparecia
+   * em tela nenhuma. Ausente na visualização administrativa, de propósito: lá
+   * quem está logado é a agência, e os avisos dela moram no painel.
+   */
+  avisos?: { lista: NotificacaoNaTela[]; naoLidas: number };
   nome: string;
   email: string;
   nomeDaEmpresa: string | null;
@@ -147,7 +159,10 @@ export function CascaDoPortal({
             ) : null}
 
             <div className="ml-auto flex items-center gap-1 sm:gap-2">
-              <SinoDeNotificacoes />
+              <SinoDeNotificacoes
+                notificacoes={avisos?.lista}
+                naoLidas={avisos?.naoLidas}
+              />
               {ajuda}
               <MenuDoCliente
                 nome={nome}

@@ -8,7 +8,7 @@ import { BotaoDeNovaTask } from "@/components/shared/botao-de-nova-task";
 import { exigirAcessoARota, primeiroNome } from "@/lib/auth/dal";
 import { ehGestor } from "@/lib/auth/roles";
 import { saudacaoDaAgencia } from "@/lib/dominio/datas";
-import { resumoDaHome } from "@/lib/dados/home";
+import { comentarioSemResposta, resumoDaHome } from "@/lib/dados/home";
 import {
   etapaEmAndamento,
   meuDia,
@@ -166,6 +166,13 @@ export default async function PaginaInicialDoPainel() {
     notasPedidas: pedidosDeNotaAbertos.length,
   }).reduce((total, linha) => total + linha.quantos, 0);
 
+  // SÓ QUANDO HÁ O QUE LEVAR: a leitura custa três idas, e o zero é o caso
+  // de quase toda visita.
+  const destinoDoComentario =
+    (resumo.precisa_de_mim?.comentarios ?? 0) > 0
+      ? await comentarioSemResposta()
+      : null;
+
   const prazos = prazosDeHoje();
 
   return (
@@ -232,6 +239,7 @@ export default async function PaginaInicialDoPainel() {
             notasRecusadas={recusadas.length}
             notasEsperandoOSocio={esperandoOSocio}
             notasPedidas={pedidosDeNotaAbertos.length}
+            destinoDoComentario={destinoDoComentario}
           />
 
           <MeuDia

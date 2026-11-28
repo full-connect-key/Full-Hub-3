@@ -145,7 +145,12 @@ export function SinoDeNotificacoes({
                         {notificacao.titulo}
                       </p>
                       {notificacao.corpo ? (
-                        <p className="text-muted-foreground mt-0.5 text-xs">
+                        /* O CORPO É CORTADO EM TRÊS LINHAS, e o texto inteiro
+                           mora no item. Um pedido de ajuste do cliente chega
+                           aqui com o parágrafo todo, e três avisos assim
+                           empurravam o resto da lista para fora do sino — o
+                           aviso diz QUE há algo e leva até lá, não o repete. */
+                        <p className="text-muted-foreground mt-0.5 line-clamp-3 text-xs">
                           {notificacao.corpo}
                         </p>
                       ) : null}

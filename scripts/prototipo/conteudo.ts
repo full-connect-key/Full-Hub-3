@@ -40,6 +40,18 @@ export async function nomesDe(
 
 const HOJE = new Date();
 
+export async function comentariosDosConteudos(
+  tipo: Conteudo["tipo"],
+  ids: string[],
+): Promise<Map<string, ComentarioDoConteudo[]>> {
+  const mapa = new Map<string, ComentarioDoConteudo[]>();
+  for (const id of ids) {
+    const lista = await comentariosDe({ tipo, id });
+    if (lista.length > 0) mapa.set(id, lista);
+  }
+  return mapa;
+}
+
 export async function comentariosDe(
   conteudo: Conteudo,
 ): Promise<ComentarioDoConteudo[]> {

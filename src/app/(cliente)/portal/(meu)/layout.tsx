@@ -1,3 +1,4 @@
+import { minhasNotificacoes } from "@/lib/dados/notificacoes";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -88,7 +89,10 @@ export default async function LayoutDoMeuPortal({
   // este layout serve toda tela do portal, e `minhasAprovacoes()` faz seis
   // idas ao banco para montar a conversa de cada material. No zero o selo não
   // aparece, que é a regra do produto: a ausência é a resposta.
-  const aprovacoesPendentes = await quantasEsperamDecisao();
+  const [aprovacoesPendentes, avisos] = await Promise.all([
+    quantasEsperamDecisao(),
+    minhasNotificacoes(),
+  ]);
   // SÓ COM UMA EMPRESA. Com duas, o cabeçalho troca o nome pelo seletor, e uma
   // foto ao lado de um controle que lista N empresas diria que ela é de todas.
   const identidade =
@@ -107,6 +111,7 @@ export default async function LayoutDoMeuPortal({
         fotoDaEmpresa={identidade?.fotoAssinada ?? null}
         empresas={empresas}
         aprovacoesPendentes={aprovacoesPendentes}
+        avisos={avisos}
         ajuda={
           <MenuDeAjuda
             tour={tour}

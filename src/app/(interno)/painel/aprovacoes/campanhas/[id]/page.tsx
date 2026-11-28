@@ -20,7 +20,11 @@ import {
   urlsDosArquivos,
   versoesDoEntregavel,
 } from "@/lib/dados/campanhas";
-import { enderecoDaArte, historicoDeAprovacoes } from "@/lib/dados/conteudo";
+import {
+  comentariosDosConteudos,
+  enderecoDaArte,
+  historicoDeAprovacoes,
+} from "@/lib/dados/conteudo";
 import { referenciasDaDemanda } from "@/lib/dados/tasks";
 import { souDoAtendimento } from "@/lib/dados/minhas-tasks";
 import {
@@ -61,11 +65,19 @@ export const metadata: Metadata = { title: "Campanha" };
  */
 export default async function PaginaDaCampanha({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sessao = await exigirAcessoARota("/painel/aprovacoes");
   const { id } = await params;
+  // `?peca=` ABRE A PEÇA, e é por ele que o aviso do sino e o "comentário de
+  // cliente sem resposta" do Início chegam até o material — os dois caíam na
+  // lista de campanhas, e quem clicava procurava de novo a peça que o aviso
+  // já tinha nomeado.
+  const pecaPedida = (await searchParams).peca;
+  const pecaAberta = typeof pecaPedida === "string" ? pecaPedida : null;
 
   const campanha = await obterCampanha(id);
   if (!campanha) notFound();
@@ -114,6 +126,17 @@ export default async function PaginaDaCampanha({
   // histórico responde "por que refizemos isso três vezes" — as rodadas de
   // CLIENTE inclusive, que aquela consulta filtra fora de propósito.
   const historico = await historicoDeAprovacoes(
+    "deliverable",
+    itens.map((i) => i.id),
+  );
+
+  // A CONVERSA COM O CLIENTE, peça por peça, numa ida só.
+  //
+  // `comments_select` é `is_staff()` desde a 0032 e esta tela não lia a
+  // tabela: o que o cliente escrevia numa peça de campanha só existia do lado
+  // de lá. O Início contava "1 comentário de cliente sem resposta" e não havia
+  // tela nenhuma da agência onde lê-lo — que é o relato que abriu isto.
+  const comentarios = await comentariosDosConteudos(
     "deliverable",
     itens.map((i) => i.id),
   );
@@ -313,6 +336,10 @@ export default async function PaginaDaCampanha({
         assinadas={arquivosDasVersoes}
         analise={Object.fromEntries(analise)}
         historico={Object.fromEntries(historico)}
+        comentarios={Object.fromEntries(comentarios)}
+        nomeDaEmpresa={campanha.cliente}
+        agora={new Date().toISOString()}
+        pecaAberta={pecaAberta}
         ehGestao={ehGestor(sessao.profile.role)}
       />
 

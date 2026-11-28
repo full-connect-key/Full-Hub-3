@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { exigirEquipeNaAcao, exigirRotaNaAcao } from "@/lib/acoes/guardas";
+import { exigirEquipeNaAcao } from "@/lib/acoes/guardas";
 import {
   executarAcao,
   falha,
@@ -51,6 +51,8 @@ const ROTA = "/painel/gestao-tasks";
 
 function revalidar(taskId: string) {
   revalidatePath(ROTA);
+  // Quem executa mexe por Minhas Tasks, e é lá que a etapa precisa mudar.
+  revalidatePath("/painel/minhas-tasks");
   revalidatePath(`${ROTA}/${taskId}`);
   // O AVISO PEGA CARONA NA REVALIDAÇÃO, e não em cada action.
   //
@@ -103,7 +105,7 @@ export async function criarSubtarefa(
   dados: { titulo: string } & Record<string, unknown>,
 ): Promise<Resultado<string>> {
   return executarAcao("criarSubtarefa", async () => {
-    const sessao = await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirEquipeNaAcao();
 
     const validacao = esquemaDeSubtarefa.safeParse(dados);
     if (!validacao.success) return falha("Confira os dados da subtarefa.");
@@ -202,7 +204,7 @@ export async function mudarResponsavelExtra(
   entra: boolean,
 ): Promise<Resultado> {
   return executarAcao("mudarResponsavelExtra", async () => {
-    await exigirRotaNaAcao(ROTA);
+    await exigirEquipeNaAcao();
     const supabase = await criarClienteServidor();
 
     if (entra) {
@@ -241,7 +243,7 @@ export async function atualizarSubtarefa(
   campos: unknown,
 ): Promise<Resultado> {
   return executarAcao("atualizarSubtarefa", async () => {
-    const sessao = await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirEquipeNaAcao();
 
     const validacao = esquemaDeSubtarefa.safeParse(campos);
     if (!validacao.success) return falha("Dados inválidos.");
@@ -335,7 +337,7 @@ export async function moverSubtarefa(
   tempoReal?: number | string | null,
 ): Promise<Resultado> {
   return executarAcao("moverSubtarefa", async () => {
-    const sessao = await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirEquipeNaAcao();
     const supabase = await criarClienteServidor();
 
     const { data: antes } = await supabase
@@ -378,7 +380,7 @@ export async function removerSubtarefa(
   taskId: string,
 ): Promise<Resultado> {
   return executarAcao("removerSubtarefa", async () => {
-    await exigirRotaNaAcao(ROTA);
+    await exigirEquipeNaAcao();
     const supabase = await criarClienteServidor();
     const { data, error } = await supabase
       .from("subtasks")
@@ -398,7 +400,7 @@ export async function reordenarSubtarefas(
   ids: string[],
 ): Promise<Resultado> {
   return executarAcao("reordenarSubtarefas", async () => {
-    await exigirRotaNaAcao(ROTA);
+    await exigirEquipeNaAcao();
     const supabase = await criarClienteServidor();
 
     for (const [indice, id] of ids.entries()) {
@@ -422,7 +424,7 @@ export async function vincularDependencia(
   dependeDeId: string,
 ): Promise<Resultado> {
   return executarAcao("vincularDependencia", async () => {
-    await exigirRotaNaAcao(ROTA);
+    await exigirEquipeNaAcao();
     if (subtaskId === dependeDeId)
       return falha("Uma subtarefa não depende de si mesma.");
 
@@ -445,7 +447,7 @@ export async function desvincularDependencia(
   dependeDeId: string,
 ): Promise<Resultado> {
   return executarAcao("desvincularDependencia", async () => {
-    await exigirRotaNaAcao(ROTA);
+    await exigirEquipeNaAcao();
     const supabase = await criarClienteServidor();
     const { error } = await supabase
       .from("subtask_dependencies")
@@ -500,7 +502,7 @@ export async function adicionarReferencia(
   },
 ): Promise<Resultado> {
   return executarAcao("adicionarReferencia", async () => {
-    const sessao = await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirEquipeNaAcao();
 
     if (!referencia.url?.trim()) return falha("Informe o endereço.");
 
@@ -546,7 +548,7 @@ export async function removerReferencia(
   taskId: string,
 ): Promise<Resultado> {
   return executarAcao("removerReferencia", async () => {
-    const sessao = await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirEquipeNaAcao();
     const supabase = await criarClienteServidor();
 
     const { data: antes } = await supabase
@@ -587,7 +589,7 @@ export async function urlDoArquivo(
   caminho: string,
 ): Promise<Resultado<string>> {
   return executarAcao("urlDoArquivo", async () => {
-    await exigirRotaNaAcao(ROTA);
+    await exigirEquipeNaAcao();
 
     const supabase = await criarClienteServidor();
     const { data, error } = await supabase.storage
@@ -638,7 +640,7 @@ export async function comentar(
   },
 ): Promise<Resultado> {
   return executarAcao("comentar", async () => {
-    const sessao = await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirEquipeNaAcao();
     if (texto.trim().length === 0) return falha("Escreva alguma coisa.");
     await exigirCotaDeComentario(sessao.usuarioId);
 
@@ -687,7 +689,7 @@ export async function removerComentario(
   taskId: string,
 ): Promise<Resultado> {
   return executarAcao("removerComentario", async () => {
-    const sessao = await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirEquipeNaAcao();
     const supabase = await criarClienteServidor();
 
     // A ETAPA VEM ANTES DO `delete`, pela razão de `removerReferencia`:
@@ -737,7 +739,7 @@ export async function anexarEntrega(
   },
 ): Promise<Resultado> {
   return executarAcao("anexarEntrega", async () => {
-    const sessao = await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirEquipeNaAcao();
     if (!entrega.url?.trim())
       return falha("Informe o endereço ou envie o arquivo.");
 
@@ -818,7 +820,7 @@ export async function comentarEntrega(
   observacao: string,
 ): Promise<Resultado> {
   return executarAcao("comentarEntrega", async () => {
-    await exigirRotaNaAcao(ROTA);
+    await exigirEquipeNaAcao();
     const supabase = await criarClienteServidor();
 
     const { data, error } = await supabase
@@ -873,7 +875,7 @@ export async function removerEntrega(
   taskId: string,
 ): Promise<Resultado> {
   return executarAcao("removerEntrega", async () => {
-    const sessao = await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirEquipeNaAcao();
     const supabase = await criarClienteServidor();
 
     // O NOME VEM ANTES DO `delete`, e não há como ser depois: a linha some, e

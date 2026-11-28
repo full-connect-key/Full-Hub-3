@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { exigirRotaNaAcao } from "@/lib/acoes/guardas";
+import { exigirEquipeNaAcao, exigirRotaNaAcao } from "@/lib/acoes/guardas";
 import {
   executarAcao,
   falha,
@@ -348,7 +348,7 @@ export async function atualizarTask(
   campos: unknown,
 ): Promise<Resultado> {
   return executarAcao("atualizarTask", async () => {
-    const sessao = await exigirRotaNaAcao(ROTA);
+    const sessao = await exigirEquipeNaAcao();
 
     const validacao = esquemaDeEdicao.safeParse(campos);
     if (!validacao.success) {
