@@ -4,12 +4,19 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CornerDownRight, Send } from "lucide-react";
 
-import { comentarNoConteudo } from "@/app/(cliente)/portal/_actions/conteudo";
+import { toast } from "sonner";
+
+import {
+  apagarComentario,
+  comentarNoConteudo,
+  editarComentario,
+  reagirAoComentario,
+} from "@/app/(cliente)/portal/_actions/conteudo";
 import { useCardSelecionado } from "@/components/portal/card-selecionado";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { chamarEMostrar } from "@/lib/acoes/cliente";
+import { chamarAcao, chamarEMostrar } from "@/lib/acoes/cliente";
 import type { Conteudo } from "@/lib/aprovacoes/conteudo";
 import type { ComentarioDoConteudo } from "@/lib/dados/conteudo";
 import { tempoRelativo } from "@/lib/dominio/recomendacoes";
@@ -66,6 +73,8 @@ import { ANCORAS, ancora } from "@/lib/tour/ancoras";
  * arte só não há card a distinguir, e o controle seria dois botões em que um
  * dos escopos está sempre vazio.
  */
+const REACOES = ["👍", "❤️", "👏", "✅", "👀"];
+
 export function ThreadDeComentarios({
   conteudo,
   comentarios,
@@ -284,6 +293,27 @@ function Comentario({
   versaoAtual?: number;
 }) {
   const quando = tempoRelativo(comentario.quando, agora);
+  const router = useRouter();
+  const [ocupado, iniciar] = useTransition();
+  const [editando, setEditando] = useState(false);
+  const [escolhendo, setEscolhendo] = useState(false);
+  const [rascunho, setRascunho] = useState(comentario.texto);
+
+  function agir(acao: () => Promise<boolean>) {
+    iniciar(async () => {
+      if (await acao()) router.refresh();
+    });
+  }
+
+  function reagir(emoji: string, ligar: boolean) {
+    agir(async () => {
+      const r = await chamarAcao(() =>
+        reagirAoComentario(comentario.id, emoji, ligar),
+      );
+      if (!r.ok) toast.error(r.error);
+      return r.ok;
+    });
+  }
 
   // A VERSÃO SÓ APARECE QUANDO NÃO É A DE AGORA, e é ela que impede o índice
   // de mentir: remover um slide do meio faz os quadros andarem (0048), então
@@ -326,24 +356,146 @@ function Comentario({
           ) : null}
         </p>
 
-        <p
-          className={cn(
-            "text-sm whitespace-pre-wrap",
-            comentario.interno && "italic",
-          )}
-        >
-          {comentario.texto}
-        </p>
-
-        {aoResponder ? (
-          <button
-            type="button"
-            onClick={aoResponder}
-            className="text-accent-strong text-xs hover:underline"
+        {editando ? (
+          <div className="space-y-2">
+            <Textarea
+              rows={3}
+              value={rascunho}
+              onChange={(e) => setRascunho(e.target.value)}
+              aria-label="Editar o comentário"
+            />
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={ocupado || rascunho.trim().length === 0}
+                onClick={() =>
+                  agir(async () => {
+                    const r = await chamarEMostrar(() =>
+                      editarComentario(comentario.id, rascunho),
+                    );
+                    if (r.ok) setEditando(false);
+                    return r.ok;
+                  })
+                }
+              >
+                Salvar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setRascunho(comentario.texto);
+                  setEditando(false);
+                }}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p
+            className={cn(
+              "text-sm whitespace-pre-wrap",
+              comentario.interno && "italic",
+            )}
           >
-            Responder
-          </button>
-        ) : null}
+            {comentario.texto}
+            {comentario.editado ? (
+              <span className="text-text-muted text-xs"> · editado</span>
+            ) : null}
+          </p>
+        )}
+
+        {/* REAGIR, RESPONDER, EDITAR, APAGAR (0163). As reações já dadas
+            aparecem primeiro; as que faltam ficam atrás do "Reagir". */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {(comentario.reacoes ?? []).map((r) => (
+            <button
+              key={r.emoji}
+              type="button"
+              disabled={ocupado}
+              aria-pressed={r.minha}
+              onClick={() => reagir(r.emoji, !r.minha)}
+              className={cn(
+                "bg-card border-input rounded-full border px-2 py-0.5 text-xs tabular-nums",
+                r.minha &&
+                  "bg-action-soft border-action text-action font-medium",
+              )}
+            >
+              {r.emoji} {r.total}
+            </button>
+          ))}
+
+          {escolhendo ? (
+            <span className="bg-card inline-flex gap-1 rounded-full border px-1.5 py-0.5">
+              {REACOES.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  disabled={ocupado}
+                  aria-label={`Reagir com ${emoji}`}
+                  onClick={() => {
+                    setEscolhendo(false);
+                    const ja = (comentario.reacoes ?? []).find(
+                      (r) => r.emoji === emoji,
+                    );
+                    reagir(emoji, !(ja?.minha ?? false));
+                  }}
+                  className="hover:bg-muted rounded-full px-1 text-sm"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEscolhendo(true)}
+              className="text-accent-strong text-xs hover:underline"
+            >
+              Reagir
+            </button>
+          )}
+
+          {aoResponder ? (
+            <button
+              type="button"
+              onClick={aoResponder}
+              className="text-accent-strong text-xs hover:underline"
+            >
+              Responder
+            </button>
+          ) : null}
+          {comentario.meu && !editando ? (
+            <button
+              type="button"
+              onClick={() => setEditando(true)}
+              className="text-accent-strong text-xs hover:underline"
+            >
+              Editar
+            </button>
+          ) : null}
+          {comentario.possoApagar ? (
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => {
+                if (!window.confirm("Apagar este comentário?")) return;
+                agir(async () => {
+                  const r = await chamarEMostrar(() =>
+                    apagarComentario(comentario.id),
+                  );
+                  return r.ok;
+                });
+              }}
+              className="text-destructive text-xs hover:underline"
+            >
+              Apagar
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

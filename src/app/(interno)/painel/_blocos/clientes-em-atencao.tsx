@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 
 import type { ResumoDaHome } from "@/lib/dados/home";
 
@@ -22,37 +22,45 @@ import type { ResumoDaHome } from "@/lib/dados/home";
 export function ClientesEmAtencao({ clientes }: { clientes: ResumoDaHome["clientes_em_atencao"] }) {
   if (!clientes || clientes.length === 0) return null;
 
+  /* O DESENHO NOVO, a pedido do usuário: a faixa amarela inteira lia como um
+     erro do sistema. Agora é um cartão branco como os outros, o amarelo fica
+     no ícone e no selo de dias — que é o dado que pede ação —, e a linha
+     inteira é o link para as demandas da conta. */
   return (
-    <section className="bg-warning-soft rounded-card border p-4">
-      <h2 className="flex items-center gap-2 text-sm font-semibold">
-        <AlertTriangle aria-hidden className="size-4" />
+    <section className="bg-surface-card rounded-card shadow-cartao border p-5">
+      <h2 className="flex items-center gap-3 text-base font-bold">
+        <span className="bg-warning-soft text-warning flex size-9 shrink-0 items-center justify-center rounded-full">
+          <AlertTriangle aria-hidden className="size-4.5" />
+        </span>
         {clientes.length === 1
           ? "Um cliente com trabalho parado"
           : `${clientes.length} clientes com trabalho parado`}
       </h2>
 
-      <ul className="mt-3 space-y-1">
+      <ul className="mt-4 grid gap-2 sm:grid-cols-2">
         {clientes.map((cliente) => (
-          <li key={cliente.cliente_id} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+          <li key={cliente.cliente_id}>
             <Link
               href={`/painel/gestao-tasks?cliente=${cliente.cliente_id}`}
-              className="text-accent-strong font-medium hover:underline"
+              className="bg-muted hover:bg-accent group flex items-center gap-3 rounded-xl p-3"
             >
-              {cliente.cliente}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-bold">
+                  {cliente.cliente}
+                </span>
+                <span className="text-text-secondary block text-sm">
+                  {cliente.paradas} etapa{cliente.paradas === 1 ? "" : "s"}{" "}
+                  parada{cliente.paradas === 1 ? "" : "s"}
+                </span>
+              </span>
+              <span className="bg-warning-soft text-warning shrink-0 rounded-full px-2.5 py-1 text-xs font-bold tabular-nums">
+                há {cliente.dias} dias
+              </span>
+              <ArrowRight
+                aria-hidden
+                className="text-text-muted size-4 shrink-0"
+              />
             </Link>
-            <span className="text-text-secondary">
-              {cliente.paradas} etapa{cliente.paradas === 1 ? "" : "s"} parada
-              {cliente.paradas === 1 ? "" : "s"}
-            </span>
-            {/*
-              `secondary` E NÃO `muted`: este bloco tem fundo `--warning-soft`,
-              e o par apagado sobre ele dá 4,42:1 a 12px. É o mesmo caso do
-              rótulo do cartão de número — um fundo tingido não é o cartão nem
-              a página, que eram os dois únicos pares medidos.
-            */}
-            <span className="text-text-secondary text-xs tabular-nums">
-              a mais antiga há {cliente.dias} dias
-            </span>
           </li>
         ))}
       </ul>

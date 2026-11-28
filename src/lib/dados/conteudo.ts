@@ -246,6 +246,13 @@ export type ComentarioDoConteudo = {
   daAgencia: boolean;
   interno: boolean;
   respostaA: string | null;
+  /** Editado depois de enviado (0163). */
+  editado?: boolean;
+  /** Quem está olhando escreveu este comentário: pode editar. */
+  meu?: boolean;
+  /** O autor ou a gestão: pode apagar. */
+  possoApagar?: boolean;
+  reacoes?: { emoji: string; total: number; minha: boolean }[];
   /**
    * De qual quadro da composição é o comentário — nulo quando é da peça.
    *
@@ -293,7 +300,7 @@ export async function comentariosDosConteudos(
     await supabase
       .from("comments")
       .select(
-        "id, content_id, texto, created_at, autor_id, interno, resposta_a, card_indice, card_versao",
+        "id, content_id, texto, created_at, autor_id, interno, resposta_a, card_indice, card_versao, editado_em",
       )
       .eq("content_type", tipo)
       .in("content_id", ids)
@@ -311,6 +318,38 @@ export async function comentariosDosConteudos(
 
   const porId = new Map(pessoas.map((p) => [p.id, p]));
 
+  // QUEM OLHA, e as reações de cada comentário (0163). O perfil de quem olha
+  // decide os botões: editar é do autor, apagar é do autor ou da gestão.
+  const { data: quem } = await supabase.auth.getUser();
+  const euId = quem.user?.id ?? null;
+  const [meuPerfil, reacoes] = await Promise.all([
+    euId
+      ? supabase.from("profiles").select("id, role").eq("id", euId).limit(1)
+      : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("comment_reactions")
+      .select("comment_id, user_id, emoji")
+      .in(
+        "comment_id",
+        linhas.map((l) => l.id),
+      ),
+  ]);
+  const meuPapel = meuPerfil.data?.[0]?.role ?? null;
+  const souGestao = meuPapel === "socio" || meuPapel === "desenvolvedor";
+  const reacoesPorComentario = new Map<
+    string,
+    Map<string, { total: number; minha: boolean }>
+  >();
+  for (const r of ouFalha("as reações dos comentários", reacoes)) {
+    const doComentario = reacoesPorComentario.get(r.comment_id) ?? new Map();
+    const atual = doComentario.get(r.emoji) ?? { total: 0, minha: false };
+    doComentario.set(r.emoji, {
+      total: atual.total + 1,
+      minha: atual.minha || r.user_id === euId,
+    });
+    reacoesPorComentario.set(r.comment_id, doComentario);
+  }
+
   for (const l of linhas) {
     const pessoa = porId.get(l.autor_id);
     const lista = mapa.get(l.content_id) ?? [];
@@ -325,6 +364,12 @@ export async function comentariosDosConteudos(
       daAgencia: pessoa?.role !== "cliente",
       interno: l.interno,
       respostaA: l.resposta_a,
+      editado: l.editado_em !== null,
+      meu: l.autor_id === euId,
+      possoApagar: l.autor_id === euId || souGestao,
+      reacoes: [...(reacoesPorComentario.get(l.id) ?? new Map())].map(
+        ([emoji, v]) => ({ emoji, total: v.total, minha: v.minha }),
+      ),
       cardIndice: l.card_indice,
       cardVersao: l.card_versao,
     });

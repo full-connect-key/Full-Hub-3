@@ -1210,7 +1210,9 @@ from (
     ('0161', 'o que esta em producao no mes', 'funcao',
              'posts_em_producao_do_portal'),
     ('0162', 'a peca que o cliente nao ve', 'coluna',
-             'deliverables.visivel_no_portal')
+             'deliverables.visivel_no_portal'),
+    ('0163', 'o comentario se edita e ganha reacao', 'tabela',
+             'comment_reactions')
     -- SEM LINHA: 0157 - ela so apaga linhas de `campaign_templates`, e nao
     -- cria objeto nenhum; uma tabela vazia nao distingue aplicada de nunca
     -- usada.

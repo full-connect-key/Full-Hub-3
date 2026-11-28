@@ -217,3 +217,97 @@ async function avisarDoComentario(
     console.error("[email:comentario] não deu para avisar:", erro);
   }
 }
+
+const REACOES = ["👍", "❤️", "👏", "✅", "👀"];
+
+function revalidarComentarios() {
+  revalidatePath("/portal", "layout");
+  revalidatePath("/painel", "layout");
+}
+
+/** Editar é só do autor (policy 0163), e só o texto (gatilho). */
+export async function editarComentario(
+  id: string,
+  texto: string,
+): Promise<Resultado> {
+  return executarAcao("editarComentario", async () => {
+    await exigirSessaoNaAcao();
+    if (texto.trim().length === 0) {
+      return falha("O comentário não pode ficar vazio.");
+    }
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("comments")
+      .update({ texto: texto.trim() })
+      .eq("id", id)
+      .select("id");
+
+    if (error) return falha(error.message);
+    if (!data || data.length === 0) {
+      return falha("Só quem escreveu o comentário pode editá-lo.");
+    }
+
+    revalidarComentarios();
+    return sucesso("Comentário editado.");
+  });
+}
+
+/** Apagar é do autor ou da gestão — a policy `comments_delete` decide. */
+export async function apagarComentario(id: string): Promise<Resultado> {
+  return executarAcao("apagarComentario", async () => {
+    await exigirSessaoNaAcao();
+
+    const supabase = await criarClienteServidor();
+    const { data, error } = await supabase
+      .from("comments")
+      .delete()
+      .eq("id", id)
+      .select("id");
+
+    if (error) return falha(error.message);
+    if (!data || data.length === 0) {
+      return falha("Só quem escreveu o comentário, ou a gestão, pode apagá-lo.");
+    }
+
+    revalidarComentarios();
+    return sucesso("Comentário apagado.");
+  });
+}
+
+/** Liga ou desliga uma reação de quem está olhando. */
+export async function reagirAoComentario(
+  id: string,
+  emoji: string,
+  ligar: boolean,
+): Promise<Resultado> {
+  return executarAcao("reagirAoComentario", async () => {
+    const sessao = await exigirSessaoNaAcao();
+    if (!REACOES.includes(emoji)) return falha("Esta reação não existe.");
+
+    const supabase = await criarClienteServidor();
+    if (ligar) {
+      const { data, error } = await supabase
+        .from("comment_reactions")
+        .upsert(
+          { comment_id: id, user_id: sessao.usuarioId, emoji },
+          { onConflict: "comment_id,user_id,emoji", ignoreDuplicates: true },
+        )
+        .select("comment_id");
+      if (error) return falha(error.message);
+      void data;
+    } else {
+      const { error } = await supabase
+        .from("comment_reactions")
+        .delete()
+        .eq("comment_id", id)
+        .eq("user_id", sessao.usuarioId)
+        .eq("emoji", emoji)
+        .select("comment_id");
+      if (error) return falha(error.message);
+    }
+
+    revalidarComentarios();
+    return sucesso(ligar ? "Reação registrada." : "Reação retirada.");
+  });
+}
