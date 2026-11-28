@@ -34,7 +34,16 @@ import { AcoesDaSubtarefa } from "@/components/shared/acoes-da-subtarefa";
 import { Cronometro } from "@/components/shared/cronometro";
 import { DateBadge } from "@/components/shared/date-badge";
 import { LinhaDeTrabalho } from "@/components/shared/linha-de-trabalho";
-import { PriorityBadge } from "@/components/shared/priority-badge";
+import {
+  PRIORIDADES_DISPONIVEIS,
+  PriorityBadge,
+} from "@/components/shared/priority-badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SeletorDeResponsavel } from "@/components/shared/seletor-de-responsavel";
 import { UserAvatarGroup } from "@/components/shared/user-avatar";
 import { SeletorDeStatusDaSubtarefa } from "@/components/shared/seletor-de-status";
@@ -807,7 +816,11 @@ function Linha({
          prazo e o relógio passam a ser de cada uma delas. O que ela tem a
          dizer sobre tempo é a soma, e ela vai nos extras. */
       prioridade={
-        agrupadora ? null : <PriorityBadge priority={sub.prioridade} />
+        agrupadora ? null : podeGerenciar || fazASubtarefa(sub, usuarioId) ? (
+          <PrioridadeNoClique sub={sub} />
+        ) : (
+          <PriorityBadge priority={sub.prioridade} />
+        )
       }
       vencimento={
         agrupadora ||
@@ -997,4 +1010,44 @@ function somar(
   return valores.length === 0
     ? null
     : valores.reduce((total, v) => total + v, 0);
+}
+
+/**
+ * A PRIORIDADE MUDA NO CLIQUE DA PRÓPRIA ETIQUETA. Pedido do usuário: *"quero
+ * poder mudar a prioridade só clicando no normal"* — antes era preciso abrir o
+ * painel da subtarefa. Quem pode é quem já edita a linha.
+ */
+function PrioridadeNoClique({ sub }: { sub: SubtarefaDetalhada }) {
+  const router = useRouter();
+  const [pendente, iniciar] = useTransition();
+
+  function mudar(prioridade: SubtarefaDetalhada["prioridade"]) {
+    if (prioridade === sub.prioridade) return;
+    iniciar(async () => {
+      const resultado = await chamarAcao(() =>
+        atualizarSubtarefa(sub.id, sub.task_id, { prioridade }),
+      );
+      if (!resultado.ok) toast.error(resultado.error);
+      else router.refresh();
+    });
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        disabled={pendente}
+        aria-label="Mudar a prioridade"
+        className="cursor-pointer rounded-md"
+      >
+        <PriorityBadge priority={sub.prioridade} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {PRIORIDADES_DISPONIVEIS.map((p) => (
+          <DropdownMenuItem key={p} onSelect={() => mudar(p)}>
+            <PriorityBadge priority={p} />
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
