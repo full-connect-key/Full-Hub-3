@@ -12,6 +12,7 @@ import {
 } from "@/components/shared/editor-da-composicao";
 import { SecaoDoFormulario } from "@/components/shared/secao-do-formulario";
 import { Button } from "@/components/ui/button";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -148,7 +149,7 @@ export function FormularioDeCampanha({
    * Quem responde é `arvoreDoWorkflowParaCampanha`, no clique.
    */
   workflows: { id: string; nome: string; descricao: string | null; etapas: number }[];
-  pessoas: { id: string; nome: string; funcao: string | null }[];
+  pessoas: { id: string; nome: string; funcao: string | null; avatar?: string | null }[];
   /**
    * AS FRENTES DE CADA CONTA (0118), todas de uma vez.
    *
@@ -868,7 +869,7 @@ function Linha({
 }: {
   item: ItemEmEdicao;
   placeholder: string;
-  pessoas: { id: string; nome: string; funcao: string | null }[];
+  pessoas: { id: string; nome: string; funcao: string | null; avatar?: string | null }[];
   aoMudar: (mudanca: Partial<ItemEmEdicao>) => void;
   aoRemover: () => void;
 }) {
@@ -923,7 +924,17 @@ function Linha({
           <SelectItem value={SEM_DONO}>Sem responsável</SelectItem>
           {pessoas.map((pessoa) => (
             <SelectItem key={pessoa.id} value={pessoa.id}>
-              {pessoa.funcao ? `${pessoa.nome} · ${pessoa.funcao}` : pessoa.nome}
+              {/* SÓ NOME E FOTO — pedido do usuário: a área ao lado do nome
+                  alongava a linha e não ajudava a escolher. */}
+              <span className="flex items-center gap-2">
+                <UserAvatar
+                  name={pessoa.nome}
+                  src={pessoa.avatar ?? null}
+                  size="xs"
+                  tooltip={false}
+                />
+                {pessoa.nome}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>

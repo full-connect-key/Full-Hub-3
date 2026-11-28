@@ -76,6 +76,9 @@ export async function DetalheDaCampanha({
 
   const alerta = alertaDePrazo(campanha, pendentes(itens), hoje);
   const restantes = diasAte(campanha.dataFim, hoje);
+  const faltamParaComecar = campanha.dataInicio
+    ? diasAte(campanha.dataInicio, hoje)
+    : 0;
 
   return (
     <div className="space-y-8">
@@ -144,6 +147,21 @@ export async function DetalheDaCampanha({
           </p>
           {campanha.descricao ? (
             <p className="text-sm">{campanha.descricao}</p>
+          ) : null}
+          {/* A CONTAGEM PARA O INÍCIO — pedido do usuário. Só existe enquanto a
+              campanha ainda não começou; depois, quem fala é o "quanto falta"
+              logo abaixo. */}
+          {faltamParaComecar > 0 ? (
+            <p className="bg-action-soft text-action inline-flex items-baseline gap-2 rounded-xl px-4 py-2.5">
+              <span className="text-2xl leading-none font-bold tabular-nums">
+                {faltamParaComecar}
+              </span>
+              <span className="text-sm font-medium">
+                {faltamParaComecar === 1
+                  ? "dia para a campanha começar"
+                  : "dias para a campanha começar"}
+              </span>
+            </p>
           ) : null}
         </div>
       </div>

@@ -117,12 +117,6 @@ export default async function PaginaDeNovaCampanha({
     <div className="space-y-8">
       <div>
         <PageHeader title="Nova campanha" />
-        <p className="text-text-muted mt-1">
-          A campanha nasce com uma <strong>demanda</strong> junto, e cada
-          entregável vira uma <strong>etapa</strong> dela — com responsável e
-          prazo. É por isso que esta tela pede briefing e pasta de entrega: são
-          os campos da demanda.
-        </p>
       </div>
 
       {/* A FAIXA DIZ DE ONDE OS CAMPOS VIERAM, e ela é obrigatória (0138).
@@ -188,6 +182,7 @@ export default async function PaginaDeNovaCampanha({
           id: p.id,
           nome: p.nome,
           funcao: p.funcao,
+          avatar: "avatar_url" in p ? ((p.avatar_url as string | null) ?? null) : null,
         }))}
         pedido={prefill}
         vertentes={Object.fromEntries(
