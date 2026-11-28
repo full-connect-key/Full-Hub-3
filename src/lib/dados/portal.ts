@@ -247,9 +247,10 @@ async function etapasComoItens(clienteId?: string): Promise<ItemDoPortal[]> {
           (e) =>
             e.subtask_id === sub.id && /\.(png|jpe?g|webp|gif)$/i.test(e.url),
         )?.url ?? null,
-      // O material que vem de uma demanda se decide na própria fila de
-      // aprovações: não há tela de detalhe para ele.
-      caminho: null,
+      // O material que vem de uma demanda se decide na fila de aprovações —
+      // e o cartão LEVA até ela. Com `null` o cartão da Home era uma caixa
+      // que não respondia ao clique (relato do usuário).
+      caminho: "/aprovacoes",
     });
   }
 
