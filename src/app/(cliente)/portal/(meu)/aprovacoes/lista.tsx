@@ -191,7 +191,7 @@ export function ListaDeAprovacoes({
           {somenteLeitura ? "Esperando o cliente" : "Esperando você"}
         </h2>
         {esperando.length === 0 ? (
-          <p className="text-text-muted rounded-card border border-dashed p-4 text-sm">
+          <p className="bg-surface-card text-text-secondary rounded-card shadow-cartao border p-4 text-sm">
             Nada pendente no momento.
           </p>
         ) : (

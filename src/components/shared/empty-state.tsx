@@ -27,14 +27,17 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "border-border flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-14 text-center",
+        /* O VAZIO É UM CARTÃO BRANCO, como os outros da tela. Relato do usuário:
+           "cinza no cinza" — a caixa tracejada sem chão, com o ícone num
+           círculo cinza, sumia no fundo da página. */
+        "bg-surface-card rounded-card shadow-cartao flex flex-col items-center justify-center border px-6 py-14 text-center",
         className,
       )}
     >
-      <span className="bg-muted text-muted-foreground mb-4 flex size-11 items-center justify-center rounded-full">
+      <span className="bg-action-soft text-action mb-4 flex size-12 items-center justify-center rounded-full">
         <Icon aria-hidden className="size-5" />
       </span>
-      <p className="font-medium text-balance">{title}</p>
+      <p className="text-base font-bold text-balance">{title}</p>
       {description ? (
         <p className="text-muted-foreground mt-1.5 max-w-sm text-sm text-pretty">{description}</p>
       ) : null}
