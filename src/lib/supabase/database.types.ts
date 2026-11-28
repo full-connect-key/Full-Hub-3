@@ -4744,6 +4744,21 @@ export interface Database {
         }[];
       };
 
+      /**
+       * Os dois carimbos da corrente que o cliente pode ler (migration 0154):
+       * quando a peca entrou em criacao e quando foi para a revisao interna.
+       * `security definer` com a guarda escrita a mao; so volta a peca que
+       * tem ao menos um dos dois.
+       */
+      criacao_e_revisao_das_pecas: {
+        Args: { p_ids: string[] };
+        Returns: {
+          post_id: string;
+          producao_em: string | null;
+          revisao_em: string | null;
+        }[];
+      };
+
       // --- O envio em lote do mes de social (migrations 0090 e 0091) -------
       //
       // `enviar_mes_ao_cliente` abre UM `social_lotes` e uma rodada de escopo

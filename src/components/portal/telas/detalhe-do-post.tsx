@@ -10,6 +10,7 @@ import {
 import { doPost } from "@/lib/aprovacoes/conteudo";
 import { comentariosDe, enderecoDaArte } from "@/lib/dados/conteudo";
 import {
+  criacaoERevisaoDasPecas,
   obterPost,
   postsDoMesmoMes,
   urlsDasArtes,
@@ -65,10 +66,11 @@ export async function DetalheDoPost({
   // portao do meio nao tem data (0044, 0076), e `mesDe(null)` estourava. A
   // vizinhanca sai do MES da peca -- `posts.social_task_id` --, que e o mesmo
   // recorte que a listagem passou a usar desde a 0091.
-  const [versoes, comentarios, doMes] = await Promise.all([
+  const [versoes, comentarios, doMes, carimbos] = await Promise.all([
     versoesDoPost(post.id),
     comentariosDe(doPost(post.id)),
     postsDoMesmoMes(post, clienteId ?? undefined),
+    criacaoERevisaoDasPecas([post.id]),
   ]);
 
   // O MES PARA O LINK DE VOLTA sai da primeira vizinha DATADA, e nao do post:
@@ -187,6 +189,8 @@ export async function DetalheDoPost({
     decididoPor: post.decididoPor,
     decididoEm: post.decididoEm,
     recebidoEm: post.enviadoEm,
+    producaoEm: carimbos.get(post.id)?.producaoEm ?? null,
+    revisaoEm: carimbos.get(post.id)?.revisaoEm ?? null,
     decisaoPedidaEm: post.decisaoPedidaEm,
     voltar: {
       href: mesDaVolta

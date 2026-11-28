@@ -366,26 +366,35 @@ export type PassoDoAndamento = {
  * ---------------------------------------------------------------------------
  * **O sprint pede uma escada de cinco passos — Recebida, Em criação, Em
  * revisão, Para aprovar, Aprovada — cada um com o horário em que foi
- * atingido. Três daqueles cinco não existem deste lado da porta, e a diferença
+ * atingido. UM daqueles cinco não existe deste lado da porta, e a diferença
  * não é de vocabulário: é de quem pode ler o quê.**
  *
  * "Em criação" e "Em revisão" são elos da corrente interna — `subtasks` com
  * `social_papel`, e as caixinhas de `post_etapa_progresso`. O cliente não tem
  * policy em nenhuma das duas, e não passa a ter: a corrente diz quem está com
  * o material na mão, qual fase travou e quem atrasou (0045). Mostrá-los
- * exigiria abrir a conversa interna da agência ou inventar uma função nova
- * para devolver o que a regra do módulo mantém fechado.
+ * exigiria abrir a conversa interna da agência — ou uma função que devolva
+ * **só os dois instantes**, e nada do que a regra do módulo mantém fechado.
+ * **É isso que `criacao_e_revisao_das_pecas()` (0154) faz:** `security
+ * definer` com a guarda de `posts_select_cliente` escrita à mão, devolvendo
+ * dois `timestamptz` por peça — nem o nome da fase (vocabulário interno,
+ * editável por conta desde a 0087), nem quem fechou a caixinha, nem a
+ * observação.
  *
- * **E o horário de cada passo não existe nem internamente.** Não há histórico
- * por status de um material: o que o produto guarda é o carimbo de quando ele
- * foi enviado, a data de cada versão, e quando cada rodada abriu e foi
- * decidida. Escrever "hoje 10:40" num passo sem coluna que o date seria
- * inventar um fato na tela que o cliente usa para decidir — o oposto do que
- * esta tela existe para fazer.
+ * **E o horário dos dois existe internamente**, o que esta função mediu e
+ * este bloco afirmava o contrário: `post_etapa_progresso.concluido_em` e
+ * `concluido_por` existem por (peça, fase) desde a 0088, e
+ * `approval_rounds.solicitado_em` carrega o instante do aval interno desde a
+ * 0007. **É a 0127 e a 0129 pela terceira vez** — *o custo de afirmar aqui uma
+ * propriedade que não foi conferida é que ela passa a ser lida como verdade
+ * por quem vier depois*. O que continua sem carimbo é a PRODUÇÃO depois do
+ * ajuste, e é só ela que sai sem data.
  *
- * **Então os passos são o CICLO DE DECISÃO** — que é o que o
- * cliente efetivamente percorre, e o único recorte em que cada passo tem uma
- * coluna por trás. O quarto só existe quando a bola está de volta com a
+ * **Então os passos são a criação, a revisão e o CICLO DE DECISÃO** — o
+ * recorte em que cada passo tem uma coluna por trás. Os dois primeiros só
+ * aparecem **quando há carimbo**, que é o que `PassoDoAndamento` distingue de
+ * propósito: *aconteceu e o produto não guarda a hora* não é *não aconteceu*.
+ * E "Em produção na Full" só existe quando a bola está de volta com a
  * agência, e ele é o único sem data: produção é trabalho interno, e o cliente
  * sabe que ele está acontecendo, não quando cada parte dele aconteceu.
  * ---------------------------------------------------------------------------
@@ -403,6 +412,17 @@ export function andamentoDoMaterial(entrada: {
   status: ContentStatus;
   /** Quando o material chegou para o cliente — `enviado_em`. */
   recebidoEm: string | null;
+  /**
+   * Quando a peça entrou em CRIAÇÃO — o primeiro carimbo de uma fase de
+   * produção da corrente do mês (0154).
+   *
+   * **Opcional porque ele só existe para o POST**: o entregável de campanha
+   * não tem corrente, e um campo obrigatório ali faria o adaptador dele
+   * passar nulo por obrigação em vez de por ausência.
+   */
+  producaoEm?: string | null;
+  /** Quando a peça entrou em REVISÃO — a rodada interna mais recente (0154). */
+  revisaoEm?: string | null;
   /** Quando a decisão desta rodada foi pedida — `solicitado_em`. */
   decisaoPedidaEm: string | null;
   /** Quando a última rodada fechada foi decidida. */
@@ -427,6 +447,31 @@ export function andamentoDoMaterial(entrada: {
   const naAgencia = fase === "producao" || fase === "ajustes";
 
   const passos: PassoDoAndamento[] = [];
+
+  // OS DOIS PRIMEIROS SÓ EXISTEM QUANDO HÁ CARIMBO, e é `PassoDoAndamento`
+  // quem permite isso: `estado: "concluido"` com `quando` preenchido é um
+  // passo que aconteceu numa hora que o produto guarda. Sem carimbo o passo
+  // não é empurrado — e não entra como `futuro`, que afirmaria que a peça
+  // ainda não foi produzida numa tela que só mostra material JÁ ENVIADO.
+  //
+  // Eles vêm ANTES de "Recebido" porque a produção antecede o envio: a
+  // ordem da escada é a ordem do tempo, e é ela que o cliente lê de cima
+  // para baixo.
+  if (entrada.producaoEm) {
+    passos.push({
+      rotulo: "Em criação",
+      estado: "concluido",
+      quando: entrada.producaoEm,
+    });
+  }
+
+  if (entrada.revisaoEm) {
+    passos.push({
+      rotulo: "Em revisão",
+      estado: "concluido",
+      quando: entrada.revisaoEm,
+    });
+  }
 
   // "RECEBIDO" SÓ APARECE QUANDO ELE DIZ ALGO QUE O PASSO SEGUINTE NÃO DIZ.
   //

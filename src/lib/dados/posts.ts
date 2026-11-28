@@ -144,6 +144,51 @@ async function programadas(
 }
 
 /**
+ * Quando cada peça entrou em criação e em revisão (migration 0154).
+ *
+ * O cliente não tem policy na corrente do mês nem nas rodadas internas, e não
+ * passa a ter: o que chega aqui são DOIS INSTANTES por peça, por uma função
+ * `security definer` com a guarda escrita à mão — a forma de `programadas()`,
+ * logo acima, e pela mesma razão.
+ *
+ * A ausência é a resposta: a peça sem nenhum dos dois não volta, e a escada
+ * de andamento simplesmente não desenha o passo. E a leitura não derruba a
+ * tela — o detalhe do material funciona inteiro sem ela; o erro vai para o
+ * log, senão dois passos que sumissem para todo cliente não avisariam ninguém.
+ */
+export async function criacaoERevisaoDasPecas(
+  ids: string[],
+): Promise<
+  Map<string, { producaoEm: string | null; revisaoEm: string | null }>
+> {
+  const mapa = new Map<
+    string,
+    { producaoEm: string | null; revisaoEm: string | null }
+  >();
+  if (ids.length === 0) return mapa;
+
+  const supabase = await criarClienteServidor();
+  const { data, error } = await supabase.rpc("criacao_e_revisao_das_pecas", {
+    p_ids: ids,
+  });
+
+  if (error) {
+    console.error(
+      "[consulta:quando a peça entrou em criação e em revisão]",
+      error,
+    );
+    return mapa;
+  }
+  for (const linha of data ?? []) {
+    mapa.set(linha.post_id, {
+      producaoEm: linha.producao_em,
+      revisaoEm: linha.revisao_em,
+    });
+  }
+  return mapa;
+}
+
+/**
  * Os posts de um mês. `mes` é `AAAA-MM`.
  *
  * ---------------------------------------------------------------------------

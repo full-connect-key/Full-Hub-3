@@ -157,6 +157,15 @@ export type ModeloDoConteudo = {
    */
   recebidoEm: string | null;
   /**
+   * OS DOIS CARIMBOS DA CORRENTE DO MÊS (0154), **opcionais porque só o POST
+   * os tem**: o entregável de campanha não tem corrente, e um campo
+   * obrigatório ali faria o adaptador dele passar nulo por obrigação em vez de
+   * por ausência. Eles vêm de `criacao_e_revisao_das_pecas()`, que devolve só
+   * os dois instantes — o cliente não tem policy na corrente e não passa a ter.
+   */
+  producaoEm?: string | null;
+  revisaoEm?: string | null;
+  /**
    * Quando a decisão desta rodada foi pedida — `approval_rounds.solicitado_em`.
    *
    * **Pendente ou decidida**: é ela que data o passo "Enviado para a sua
@@ -512,6 +521,8 @@ export function DetalheDoConteudo({
             <AndamentoDoMaterial
               status={modelo.status}
               recebidoEm={modelo.recebidoEm}
+              producaoEm={modelo.producaoEm}
+              revisaoEm={modelo.revisaoEm}
               decisaoPedidaEm={modelo.decisaoPedidaEm}
               decididoEm={modelo.decididoEm}
               decididoPor={modelo.decididoPor}

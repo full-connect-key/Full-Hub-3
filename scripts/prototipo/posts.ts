@@ -589,3 +589,29 @@ export function enderecoDaArte(
   if (!caminho) return null;
   return assinadas[caminho] ?? caminho;
 }
+
+/**
+ * Os dois carimbos da corrente (0154). So a p1 e a p6 os carregam, de
+ * proposito: com todas preenchidas a imagem provaria que os dois passos
+ * aparecem, e nao que a escada sabe faltar com eles -- que e o estado de toda
+ * peca anterior a corrente mensal.
+ */
+export async function criacaoERevisaoDasPecas(
+  ids: string[],
+): Promise<
+  Map<string, { producaoEm: string | null; revisaoEm: string | null }>
+> {
+  const mapa = new Map<
+    string,
+    { producaoEm: string | null; revisaoEm: string | null }
+  >();
+  for (const id of ids) {
+    if (id === "p1" || id === "p6") {
+      mapa.set(id, {
+        producaoEm: horasAtras(24 * 9),
+        revisaoEm: horasAtras(24 * 7),
+      });
+    }
+  }
+  return mapa;
+}

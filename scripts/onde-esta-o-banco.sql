@@ -1191,7 +1191,9 @@ from (
     ('0153', 'a porta unica da intencao (PASSO 3, e o PASSO 1 com ele)',
              'trigger', 'tasks_vira_campanha'),
     ('0153', 'a etapa que o cliente ve sem envio (PASSO 4)', 'funcao',
-             'etapas_da_campanha_para_o_cliente')
+             'etapas_da_campanha_para_o_cliente'),
+    ('0154', 'os dois carimbos da corrente que o cliente ve', 'funcao',
+             'criacao_e_revisao_das_pecas')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

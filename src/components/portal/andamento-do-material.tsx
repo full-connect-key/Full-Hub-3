@@ -82,6 +82,8 @@ const ICONE_DA_PROPRIEDADE: Record<string, LucideIcon> = {
 export function AndamentoDoMaterial({
   status,
   recebidoEm,
+  producaoEm,
+  revisaoEm,
   decisaoPedidaEm,
   decididoEm,
   decididoPor,
@@ -90,6 +92,14 @@ export function AndamentoDoMaterial({
 }: {
   status: ContentStatus;
   recebidoEm: string | null;
+  /**
+   * Os dois carimbos da corrente do mês (0154), **opcionais porque só o POST
+   * os tem**: o entregável de campanha não tem corrente, e um campo
+   * obrigatório ali faria o adaptador dele passar nulo por obrigação em vez
+   * de por ausência.
+   */
+  producaoEm?: string | null;
+  revisaoEm?: string | null;
   decisaoPedidaEm: string | null;
   decididoEm: string | null;
   decididoPor: string | null;
@@ -99,6 +109,8 @@ export function AndamentoDoMaterial({
   const passos = andamentoDoMaterial({
     status,
     recebidoEm,
+    producaoEm,
+    revisaoEm,
     decisaoPedidaEm,
     decididoEm,
     decididoPor,
