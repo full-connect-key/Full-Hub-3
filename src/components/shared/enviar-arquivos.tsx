@@ -73,6 +73,28 @@ export type ArquivoEnviado = {
  */
 const PEDACO = 6 * 1024 * 1024;
 
+/**
+ * A CHAVE DO ARMAZENAMENTO SÓ ACEITA ASCII. Relato do usuário: *"ICONE BOLHAS
+ * DE SABÃO ILUS.png não subiu: Invalid key"* — o "Ã" derrubava o envio. O
+ * conserto mora AQUI, e não em cada tela que monta um caminho: tira o acento,
+ * troca o que sobrar de estranho por "-", e preserva as barras das pastas. O
+ * nome que a pessoa lê (`nome`) continua o original, com acento.
+ */
+function chaveSegura(caminho: string): string {
+  return caminho
+    .split("/")
+    .map((parte) =>
+      parte
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^A-Za-z0-9._-]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, ""),
+    )
+    .filter(Boolean)
+    .join("/");
+}
+
 export function EnviarArquivos({
   bucket,
   caminho,
@@ -171,7 +193,7 @@ export function EnviarArquivos({
 
     try {
       for (const [indice, arquivo] of arquivos.entries()) {
-        const destino = caminho(arquivo, indice);
+        const destino = chaveSegura(caminho(arquivo, indice));
         setEmFoco(arquivo.name);
 
         try {
