@@ -26,6 +26,7 @@ import {
   Lock,
   Plus,
   Trash2,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -139,6 +140,26 @@ export function Subtarefas({
    * pela mesma razão. E ela é por NÍVEL: a chave é o id do pai, ou `"raiz"`.
    */
   const [ordemLocal, setOrdemLocal] = useState<Record<string, string[]>>({});
+
+  /**
+   * OS TÓPICOS RECOLHIDOS — decisão do usuário: *"em tasks muito grandes, quero
+   * poder minimizar um tópico, como Enxoval, mesmo assim mostrando o que está
+   * ali"*. Uma campanha com cinco grupos de dez peças são cinquenta linhas, e
+   * quem trabalha num grupo rola pelos outros quatro.
+   *
+   * **A linha da mãe continua dizendo o que há dentro** ("3/10" e a soma do
+   * tempo já moravam nela): recolher não é esconder. É estado da tela e não
+   * do banco — é a arrumação de quem está olhando, e não da demanda.
+   */
+  const [recolhidas, setRecolhidas] = useState<Set<string>>(new Set());
+  function alternarTopico(id: string) {
+    setRecolhidas((antes) => {
+      const depois = new Set(antes);
+      if (depois.has(id)) depois.delete(id);
+      else depois.add(id);
+      return depois;
+    });
+  }
 
   const sensores = useSensors(
     // Os MESMOS 6px do board, e o número não é estilo: a linha também ABRE o
@@ -384,7 +405,37 @@ export function Subtarefas({
                     <>
                       <Linha
                         sub={etapa}
-                        alca={alca}
+                        alca={
+                          filhas.length > 0 ? (
+                            <>
+                              {alca}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  alternarTopico(etapa.id);
+                                }}
+                                aria-expanded={!recolhidas.has(etapa.id)}
+                                aria-label={
+                                  recolhidas.has(etapa.id)
+                                    ? `Mostrar as ${filhas.length} sub-etapas de ${etapa.titulo}`
+                                    : `Recolher as sub-etapas de ${etapa.titulo}`
+                                }
+                                className="text-text-secondary hover:bg-muted hover:text-text-primary focus-visible:ring-ring -ml-1 inline-flex size-6 shrink-0 items-center justify-center rounded focus-visible:ring-2 focus-visible:outline-none"
+                              >
+                                <ChevronDown
+                                  aria-hidden
+                                  className={cn(
+                                    "size-4 transition-transform",
+                                    recolhidas.has(etapa.id) && "-rotate-90",
+                                  )}
+                                />
+                              </button>
+                            </>
+                          ) : (
+                            alca
+                          )
+                        }
                         equipe={equipe}
                         aoMudarResponsavel={(quem) =>
                           trocarResponsavel(etapa, quem)
@@ -418,7 +469,7 @@ export function Subtarefas({
                         aoRemover={() => remover(etapa, filhas.length)}
                       />
 
-                      {filhas.length > 0 ? (
+                      {filhas.length > 0 && !recolhidas.has(etapa.id) ? (
                         <SortableContext
                           items={filhas.map((f) => f.id)}
                           strategy={verticalListSortingStrategy}
