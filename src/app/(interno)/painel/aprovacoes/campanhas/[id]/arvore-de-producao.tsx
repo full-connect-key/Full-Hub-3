@@ -35,6 +35,7 @@ import {
   type AnaliseDaPeca,
   type EntregavelDoPortal,
   type NoDaArvore,
+  ehKV,
 } from "@/lib/dominio/campanhas";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ import {
   enviarEntregavelAoCliente,
   pedirAnaliseDoEntregavel,
   gravarVersaoDoEntregavel,
+  salvarDefesaDaPeca,
 } from "../../acoes-de-campanha";
 
 const BUCKET = "campanhas-arquivos";
@@ -207,6 +209,8 @@ function Peca({
   const podeAnalise = podePedirAnalise(item, analise);
   const podeEnviar = podeEnviarPecaAoCliente(item, analise);
   const [notas, setNotas] = useState("");
+  const [defesa, setDefesa] = useState(item.descricao ?? "");
+  const [salvandoDefesa, iniciarDefesa] = useTransition();
   const [enviandoAoCliente, setEnviandoAoCliente] = useState(false);
   const [enviando, enviar] = useTransition();
 
@@ -341,6 +345,48 @@ function Peca({
 
       {aberto ? (
         <div className="mt-3 space-y-4 border-t pt-3">
+          {/* A DEFESA DO KV só existe quando a peça é um KV — quem decide é o
+              nome dela, por `ehKV()`. O cliente lê este texto no portal, junto
+              com a peça, e a frase embaixo do campo diz isso antes de alguém
+              escrever. */}
+          {ehKV(item.nome) ? (
+            <div className="space-y-1.5">
+              <Label htmlFor={`defesa-${item.id}`}>Defesa do KV</Label>
+              <Textarea
+                id={`defesa-${item.id}`}
+                value={defesa}
+                onChange={(e) => setDefesa(e.target.value)}
+                placeholder="Por que este caminho: o conceito, as escolhas de cor e de tipografia."
+                rows={4}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-text-muted text-xs">
+                  O cliente lê a defesa no portal, junto com o KV.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={salvandoDefesa || defesa === (item.descricao ?? "")}
+                  onClick={() =>
+                    iniciarDefesa(async () => {
+                      const r = await chamarAcao(() =>
+                        salvarDefesaDaPeca(item.id, defesa),
+                      );
+                      if (!r.ok) {
+                        toast.error(r.error);
+                        return;
+                      }
+                      toast.success(r.mensagem);
+                      router.refresh();
+                    })
+                  }
+                >
+                  Salvar defesa
+                </Button>
+              </div>
+            </div>
+          ) : null}
           <div className="space-y-1.5">
             <Label htmlFor={`notas-${item.id}`}>O que mudou nesta versão</Label>
             <Textarea

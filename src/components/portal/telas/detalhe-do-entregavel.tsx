@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { ehKV } from "@/lib/dominio/campanhas";
 import {
   DetalheDoConteudo,
   dataLonga,
@@ -104,11 +105,11 @@ export async function DetalheDoEntregavel({
     // "Descrição" e não "Legenda": um entregável de campanha não vai para uma
     // rede social. O rótulo também vira o do histórico de versões, onde o
     // texto comparado é o nome do arquivo.
-    texto: {
-      titulo: "Descrição",
-      rotulo: "a descrição",
-      corpo: item.descricao,
-    },
+    // NUM KV O TEXTO É A DEFESA — o que a agência escreveu para explicar a
+    // escolha, e que o cliente lê junto com a peça.
+    texto: ehKV(item.nome)
+      ? { titulo: "Defesa do KV", rotulo: "a defesa", corpo: item.descricao }
+      : { titulo: "Descrição", rotulo: "a descrição", corpo: item.descricao },
     artes: arquivo ? [arquivo] : [],
     versaoAtual: item.versaoAtual,
     download: arquivo

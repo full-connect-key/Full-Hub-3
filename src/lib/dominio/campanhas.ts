@@ -906,3 +906,20 @@ export const FORMATOS_SUGERIDOS = [
   "A5 impresso",
   "Banner web",
 ] as const;
+
+
+/**
+ * ESTA PEÇA É UM KV?
+ *
+ * Decisão do usuário: *"quando o sistema identificar que a entrega é um KV
+ * (detecta o termo KV automaticamente), acrescentar um campo de defesa"* — e a
+ * defesa é para o cliente ler no portal, junto com o KV.
+ *
+ * A pergunta é o NOME da peça, como palavra inteira: "KV", "KV principal",
+ * "Criar KV" e "Key Visual" casam; "Akva" não. Mora aqui porque são DUAS telas
+ * que perguntam — a da agência, que mostra o campo, e a do portal, que troca o
+ * rótulo —, e duas respostas divergiriam.
+ */
+export function ehKV(nome: string): boolean {
+  return /(^|[^\p{L}\p{N}])(kv|key\s*visual)([^\p{L}\p{N}]|$)/iu.test(nome);
+}
