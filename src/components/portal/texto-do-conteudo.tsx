@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Highlighter } from "lucide-react";
+
+import { useCardSelecionado } from "@/components/portal/card-selecionado";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -35,6 +37,13 @@ export function TextoDoConteudo({
 }) {
   const [aberta, setAberta] = useState(false);
   const [copiou, setCopiou] = useState<boolean | null>(null);
+  const foco = useCardSelecionado();
+  const [selecao, setSelecao] = useState<string | null>(null);
+
+  function lerSelecao() {
+    const escolhido = window.getSelection()?.toString().trim() ?? "";
+    setSelecao(escolhido.length >= 2 ? escolhido.slice(0, 500) : null);
+  }
 
   if (!legenda) {
     return (
@@ -58,7 +67,30 @@ export function TextoDoConteudo({
 
   return (
     <div className="space-y-2">
-      <p className="text-sm whitespace-pre-wrap">{visivel}</p>
+      {/* GRIFAR E COMENTAR (0164): selecionar um trecho faz aparecer o botão
+          que o leva para a conversa, como citação do comentário. */}
+      <p
+        className="text-sm whitespace-pre-wrap"
+        onMouseUp={lerSelecao}
+        onTouchEnd={lerSelecao}
+      >
+        {visivel}
+      </p>
+      {foco && selecao ? (
+        <Button
+          size="sm"
+          onClick={() => {
+            foco.definirTrecho(selecao);
+            setSelecao(null);
+            document
+              .getElementById("comentar-no-material")
+              ?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }}
+        >
+          <Highlighter aria-hidden className="size-4" />
+          Comentar este trecho
+        </Button>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         {longa ? (

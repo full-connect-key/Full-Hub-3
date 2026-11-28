@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CornerDownRight, Send } from "lucide-react";
 
@@ -117,6 +117,21 @@ export function ThreadDeComentarios({
 
   const visiveis = escopoAtual === "card" ? doCard : daPeca;
 
+  // OS PONTOS NA ARTE (0164), numerados na ordem em que foram feitos. A
+  // conversa é quem sabe quais existem; ela entrega a lista à arte.
+  const comPonto = comentarios.filter((c) => c.marca);
+  const numeroDoPonto = new Map(comPonto.map((c, i) => [c.id, i + 1]));
+  const assinaturaDosPontos = comPonto
+    .map((c) => `${c.id}:${c.marca!.x}:${c.marca!.y}:${c.marca!.card}`)
+    .join("|");
+  const definirPinos = foco?.definirPinos;
+  useEffect(() => {
+    definirPinos?.(comPonto.map((c, i) => ({ ...c.marca!, numero: i + 1 })));
+    // A assinatura resume a lista: o array novo a cada render não serve de
+    // dependência.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assinaturaDosPontos, definirPinos]);
+
   const raizes = visiveis.filter((c) => c.respostaA === null);
   const respostas = (id: string) =>
     visiveis.filter((c) => c.respostaA === id);
@@ -138,11 +153,14 @@ export function ThreadDeComentarios({
           escopoAtual === "card" && cardEmFoco !== null && composicao
             ? { indice: cardEmFoco, versao: composicao.versaoAtual }
             : null,
+          { marca: foco?.ponto ?? null, trecho: foco?.trecho ?? null },
         ),
       );
       if (resultado.ok) {
         setTexto("");
         setRespondendo(null);
+        foco?.definirPonto(null);
+        foco?.definirTrecho(null);
         router.refresh();
       }
     });
@@ -199,6 +217,8 @@ export function ThreadDeComentarios({
             <li key={comentario.id} className="space-y-3">
               <Comentario
                 comentario={comentario}
+                numeroDoPonto={numeroDoPonto.get(comentario.id)}
+                aoVerPonto={(card) => foco?.escolher(card)}
                 agora={agora}
                 nomeDaEmpresa={nomeDaEmpresa}
                 versaoAtual={composicao?.versaoAtual}
@@ -215,6 +235,8 @@ export function ThreadDeComentarios({
                     <li key={resposta.id}>
                       <Comentario
                         comentario={resposta}
+                        numeroDoPonto={numeroDoPonto.get(resposta.id)}
+                        aoVerPonto={(card) => foco?.escolher(card)}
                         agora={agora}
                         nomeDaEmpresa={nomeDaEmpresa}
                         versaoAtual={composicao?.versaoAtual}
@@ -247,7 +269,35 @@ export function ThreadDeComentarios({
             </p>
           ) : null}
 
+          {/* O QUE ESTE COMENTÁRIO VAI CARREGAR: o ponto recém-marcado na
+              arte e o trecho recém-grifado, cada um com o seu "tirar". */}
+          {foco?.ponto ? (
+            <p className="bg-action-soft text-action flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium">
+              Comentando o ponto marcado na arte
+              <button
+                type="button"
+                onClick={() => foco.definirPonto(null)}
+                className="ml-auto hover:underline"
+              >
+                tirar
+              </button>
+            </p>
+          ) : null}
+          {foco?.trecho ? (
+            <p className="bg-warning-soft flex items-start gap-2 rounded-md px-2.5 py-1.5 text-xs">
+              <span className="min-w-0 flex-1 italic">“{foco.trecho}”</span>
+              <button
+                type="button"
+                onClick={() => foco.definirTrecho(null)}
+                className="text-accent-strong shrink-0 hover:underline"
+              >
+                tirar
+              </button>
+            </p>
+          ) : null}
+
           <Textarea
+            id="comentar-no-material"
             value={texto}
             onChange={(evento) => setTexto(evento.target.value)}
             rows={3}
@@ -284,6 +334,8 @@ function Comentario({
   nomeDaEmpresa,
   aoResponder,
   versaoAtual,
+  numeroDoPonto,
+  aoVerPonto,
 }: {
   comentario: ComentarioDoConteudo;
   agora: string;
@@ -291,6 +343,8 @@ function Comentario({
   aoResponder?: () => void;
   /** A versão de agora, para a do comentário só aparecer quando divergir. */
   versaoAtual?: number;
+  numeroDoPonto?: number;
+  aoVerPonto?: (card: number) => void;
 }) {
   const quando = tempoRelativo(comentario.quando, agora);
   const router = useRouter();
@@ -355,6 +409,26 @@ function Comentario({
             </span>
           ) : null}
         </p>
+
+        {/* SOBRE O QUE É O COMENTÁRIO (0164): o ponto na arte, o trecho
+            grifado, ou os dois. */}
+        {comentario.marca && numeroDoPonto ? (
+          <button
+            type="button"
+            onClick={() => aoVerPonto?.(comentario.marca!.card)}
+            className="bg-action-soft text-action inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+          >
+            <span className="bg-action text-action-foreground flex size-4 items-center justify-center rounded-full text-[10px] font-bold">
+              {numeroDoPonto}
+            </span>
+            ponto marcado na arte
+          </button>
+        ) : null}
+        {comentario.trecho ? (
+          <blockquote className="bg-warning-soft border-warning rounded-md border-l-4 px-3 py-1.5 text-sm italic">
+            “{comentario.trecho}”
+          </blockquote>
+        ) : null}
 
         {editando ? (
           <div className="space-y-2">

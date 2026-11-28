@@ -37,14 +37,47 @@ type Foco = {
   /** O quadro em foco, contado de zero. */
   card: number;
   escolher: (indice: number) => void;
+  /* O PONTO E O TRECHO (0164). A arte, o texto e a conversa são três
+     componentes irmãos: quem clica na arte ou grifa o texto guarda aqui, e a
+     conversa lê na hora de enviar. `pinos` faz o caminho contrário — a
+     conversa diz à arte quais pontos já existem. */
+  marcando: boolean;
+  marcar: (ligado: boolean) => void;
+  ponto: PontoNaArte | null;
+  definirPonto: (ponto: PontoNaArte | null) => void;
+  trecho: string | null;
+  definirTrecho: (trecho: string | null) => void;
+  pinos: Pino[];
+  definirPinos: (pinos: Pino[]) => void;
 };
+
+export type PontoNaArte = { x: number; y: number; card: number };
+export type Pino = PontoNaArte & { numero: number };
 
 const ContextoDoCard = createContext<Foco | null>(null);
 
 export function CardSelecionado({ children }: { children: React.ReactNode }) {
   const [card, setCard] = useState(0);
+  const [marcando, marcar] = useState(false);
+  const [ponto, definirPonto] = useState<PontoNaArte | null>(null);
+  const [trecho, definirTrecho] = useState<string | null>(null);
+  const [pinos, definirPinos] = useState<Pino[]>([]);
 
-  const valor = useMemo<Foco>(() => ({ card, escolher: setCard }), [card]);
+  const valor = useMemo<Foco>(
+    () => ({
+      card,
+      escolher: setCard,
+      marcando,
+      marcar,
+      ponto,
+      definirPonto,
+      trecho,
+      definirTrecho,
+      pinos,
+      definirPinos,
+    }),
+    [card, marcando, ponto, trecho, pinos],
+  );
 
   return (
     <ContextoDoCard.Provider value={valor}>{children}</ContextoDoCard.Provider>

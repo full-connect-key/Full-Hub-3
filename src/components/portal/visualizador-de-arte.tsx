@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ImageOff, Maximize2, Minus, Plus, RotateCcw } from "lucide-react";
+import {
+  ImageOff,
+  MapPin,
+  Maximize2,
+  Minus,
+  Plus,
+  RotateCcw,
+} from "lucide-react";
 
 import { useCardSelecionado } from "@/components/portal/card-selecionado";
 import { FaixaDaComposicao } from "@/components/shared/faixa-da-composicao";
@@ -161,9 +168,33 @@ export function VisualizadorDeArte({
           // `height` por isso: sem elas a imagem mostrava o produto num estado
           // que ele não tem — ao contrário.
           "relative mx-auto flex max-h-[min(70vh,600px)] w-fit max-w-full items-center justify-center touch-none overflow-hidden select-none",
-          escala > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in",
+          foco?.marcando
+            ? "cursor-crosshair"
+            : escala > 1
+              ? "cursor-grab active:cursor-grabbing"
+              : "cursor-zoom-in",
         )}
-        onDoubleClick={() => (escala > 1 ? reiniciar() : aproximar(1.5))}
+        onClick={(evento) => {
+          // MARCAR UM PONTO (0164): o clique vira uma proporção sobre a
+          // IMAGEM, e não um pixel — a arte muda de tamanho em cada tela.
+          if (!foco?.marcando) return;
+          const img = evento.currentTarget.querySelector("img");
+          if (!img) return;
+          const r = img.getBoundingClientRect();
+          const x = (evento.clientX - r.left) / r.width;
+          const y = (evento.clientY - r.top) / r.height;
+          if (x < 0 || x > 1 || y < 0 || y > 1) return;
+          foco.definirPonto({ x, y, card: indice });
+          foco.marcar(false);
+          const campo = document.getElementById("comentar-no-material");
+          campo?.scrollIntoView({ behavior: "smooth", block: "center" });
+          campo?.focus({ preventScroll: true });
+        }}
+        onDoubleClick={() => {
+          if (foco?.marcando) return;
+          if (escala > 1) reiniciar();
+          else aproximar(1.5);
+        }}
         onPointerDown={(evento) => {
           if (escala === 1) return;
           arrasto.current = {
@@ -214,9 +245,57 @@ export function VisualizadorDeArte({
           }}
           className="max-h-[min(70vh,600px)] w-auto max-w-full transition-transform duration-75"
         />
+
+        {/* OS PONTOS JÁ MARCADOS, e o que está sendo marcado agora. Só com a
+            arte enquadrada: com zoom a proporção deixa de bater com a tela. */}
+        {escala === 1
+          ? (foco?.pinos ?? [])
+              .filter((p) => p.card === indice)
+              .map((p) => (
+                <span
+                  key={p.numero}
+                  aria-label={`Ponto ${p.numero}`}
+                  style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
+                  className="bg-action text-action-foreground border-card pointer-events-none absolute flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-[11px] font-bold shadow-md"
+                >
+                  {p.numero}
+                </span>
+              ))
+          : null}
+        {escala === 1 && foco?.ponto && foco.ponto.card === indice ? (
+          <span
+            aria-label="Ponto que você está marcando"
+            style={{
+              left: `${foco.ponto.x * 100}%`,
+              top: `${foco.ponto.y * 100}%`,
+            }}
+            className="bg-status-atencao text-status-atencao-foreground border-card pointer-events-none absolute flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-[11px] font-bold shadow-md"
+          >
+            +
+          </span>
+        ) : null}
       </div>
 
+      {foco?.marcando ? (
+        <p className="bg-action-soft text-action rounded-lg px-3 py-2 text-sm font-medium">
+          Clique no ponto da arte que você quer comentar.
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2">
+        {foco ? (
+          <Button
+            variant={foco.marcando ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              reiniciar();
+              foco.marcar(!foco.marcando);
+            }}
+          >
+            <MapPin aria-hidden className="size-4" />
+            {foco.marcando ? "Cancelar" : "Marcar na arte"}
+          </Button>
+        ) : null}
         <Button
           variant="outline"
           size="icon"

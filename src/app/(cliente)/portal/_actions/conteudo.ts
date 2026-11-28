@@ -122,6 +122,10 @@ export async function comentarNoConteudo(
   texto: string,
   respostaA: string | null,
   card: { indice: number; versao: number } | null = null,
+  apontando: {
+    marca?: { x: number; y: number; card: number } | null;
+    trecho?: string | null;
+  } = {},
 ): Promise<Resultado> {
   return executarAcao("comentarNoConteudo", async () => {
     const sessao = await exigirSessaoNaAcao();
@@ -131,6 +135,23 @@ export async function comentarNoConteudo(
     }
 
     await exigirCotaDeComentario(sessao.usuarioId);
+
+    // O PONTO E O TRECHO (0164) são conferidos aqui: a proporção fica entre 0
+    // e 1, e o trecho é cortado — ele é uma citação, não um segundo texto.
+    const m = apontando.marca ?? null;
+    const marca =
+      m &&
+      Number.isFinite(m.x) &&
+      Number.isFinite(m.y) &&
+      m.x >= 0 &&
+      m.x <= 1 &&
+      m.y >= 0 &&
+      m.y <= 1
+        ? { x: m.x, y: m.y, card: Math.max(0, Math.trunc(m.card) || 0) }
+        : null;
+    const trecho = apontando.trecho?.trim()
+      ? apontando.trecho.trim().slice(0, 500)
+      : null;
 
     const supabase = await criarClienteServidor();
     const { data, error } = await supabase
@@ -145,6 +166,10 @@ export async function comentarNoConteudo(
         // banco numa tela que não sabe explicá-la.
         card_indice: card?.indice ?? null,
         card_versao: card?.versao ?? null,
+        marca_x: marca ? marca.x : null,
+        marca_y: marca ? marca.y : null,
+        marca_card: marca ? marca.card : null,
+        trecho,
       })
       .select("id");
 

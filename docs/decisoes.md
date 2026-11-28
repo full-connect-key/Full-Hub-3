@@ -21869,3 +21869,5 @@ scripts/                      Verificação de conexão e geradores de protótip
 - **0161/0162 e envio pelo Atendimento.** 0161: `posts_em_producao_do_portal()` dá ao cliente tema/data/formato do que ainda não foi enviado. 0162: `deliverables.visivel_no_portal` (padrão true) entra na policy do cliente. `enviarParaCliente` passa a aceitar `is_atendimento()` (decisão do usuário: atendimento, sócio ou desenvolvedor); o botão recebe a resposta por `podeEnviarAoCliente`, hoje só na tela da demanda.
 
 - **0163 — Comentário editável e com reação.** `comments.editado_em`, policy de UPDATE só do autor + gatilho que só deixa mudar o texto; `comment_reactions` (cinco emojis). Apagar já era autor ou gestão (`comments_delete`) e ganhou tela. Tudo na thread do portal.
+
+- **0164 — Comentário com ponto na arte e trecho grifado.** `comments.marca_x/marca_y` (proporção 0–1), `marca_card`, `marca_ref`, `trecho`. No portal: "Marcar na arte" no visualizador, "Comentar este trecho" ao selecionar o texto; o estado passa pelo contexto `CardSelecionado`. Pinos numerados pela ordem dos comentários.

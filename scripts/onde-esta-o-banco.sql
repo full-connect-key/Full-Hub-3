@@ -1212,7 +1212,9 @@ from (
     ('0162', 'a peca que o cliente nao ve', 'coluna',
              'deliverables.visivel_no_portal'),
     ('0163', 'o comentario se edita e ganha reacao', 'tabela',
-             'comment_reactions')
+             'comment_reactions'),
+    ('0164', 'o comentario aponta para a arte', 'coluna',
+             'comments.marca_x')
     -- SEM LINHA: 0157 - ela so apaga linhas de `campaign_templates`, e nao
     -- cria objeto nenhum; uma tabela vazia nao distingue aplicada de nunca
     -- usada.

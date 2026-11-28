@@ -246,6 +246,10 @@ export type ComentarioDoConteudo = {
   daAgencia: boolean;
   interno: boolean;
   respostaA: string | null;
+  /** O ponto marcado na arte, de 0 a 1, e em qual imagem (0164). */
+  marca?: { x: number; y: number; card: number } | null;
+  /** O trecho do texto que o comentário grifou (0164). */
+  trecho?: string | null;
   /** Editado depois de enviado (0163). */
   editado?: boolean;
   /** Quem está olhando escreveu este comentário: pode editar. */
@@ -300,7 +304,7 @@ export async function comentariosDosConteudos(
     await supabase
       .from("comments")
       .select(
-        "id, content_id, texto, created_at, autor_id, interno, resposta_a, card_indice, card_versao, editado_em",
+        "id, content_id, texto, created_at, autor_id, interno, resposta_a, card_indice, card_versao, editado_em, marca_x, marca_y, marca_card, trecho",
       )
       .eq("content_type", tipo)
       .in("content_id", ids)
@@ -365,6 +369,15 @@ export async function comentariosDosConteudos(
       interno: l.interno,
       respostaA: l.resposta_a,
       editado: l.editado_em !== null,
+      marca:
+        l.marca_x !== null && l.marca_y !== null
+          ? {
+              x: Number(l.marca_x),
+              y: Number(l.marca_y),
+              card: l.marca_card ?? 0,
+            }
+          : null,
+      trecho: l.trecho,
       meu: l.autor_id === euId,
       possoApagar: l.autor_id === euId || souGestao,
       reacoes: [...(reacoesPorComentario.get(l.id) ?? new Map())].map(

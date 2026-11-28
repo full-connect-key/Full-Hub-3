@@ -3855,6 +3855,11 @@ export interface Database {
            */
           card_versao: number | null;
           editado_em: string | null;
+          marca_x: number | null;
+          marca_y: number | null;
+          marca_card: number | null;
+          marca_ref: string | null;
+          trecho: string | null;
           created_at: string;
         };
         Insert: {
@@ -3869,6 +3874,11 @@ export interface Database {
           /** Os dois ou nenhum — `comments_card_coerente` (0126). */
           card_indice?: number | null;
           card_versao?: number | null;
+          marca_x?: number | null;
+          marca_y?: number | null;
+          marca_card?: number | null;
+          marca_ref?: string | null;
+          trecho?: string | null;
         };
         // Só o texto muda — o gatilho da 0163 devolve o resto.
         Update: { texto?: string };
