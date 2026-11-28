@@ -1198,7 +1198,9 @@ from (
     -- que nasce, que e o PASSO 3 -- e os remendos do PASSO 2 vem antes dela,
     -- entao uma colagem que morre num remendo responde FALTA.
     ('0155', 'o aviso sai quando o item sai', 'funcao',
-             'avisos_saem_com_o_item')
+             'avisos_saem_com_o_item'),
+    ('0156', 'a peca sai de aguardando quando o trabalho comeca', 'funcao',
+             'peca_entra_em_producao')
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;
