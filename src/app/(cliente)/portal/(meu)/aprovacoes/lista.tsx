@@ -8,13 +8,17 @@ import Link from "next/link";
 import {
   ArrowRight,
   BadgeCheck,
+  Check,
+  Download,
   ExternalLink,
-  Paperclip,
+  FileText,
+  PencilLine,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { DateBadge } from "@/components/shared/date-badge";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ImagemAssinada } from "@/components/shared/imagem-assinada";
 import { BotaoDeDecisao } from "@/components/shared/botao-de-decisao";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,7 +37,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { chamarAcao } from "@/lib/acoes/cliente";
+import { DESFECHO_DA_RODADA } from "@/lib/aprovacoes/decisoes";
 import type { AprovacaoDoCliente } from "@/lib/dados/portal-aprovacoes";
+import { cn } from "@/lib/utils";
 
 import { decisaoCliente } from "./acoes";
 
@@ -112,34 +118,7 @@ export function ListaDeAprovacoes({
           <h2 className="text-xl font-bold tracking-[-0.02em]">Já decididas</h2>
           <ul className="space-y-[9px]">
             {decididas.map((item) => (
-              <li
-                key={item.rodadaId}
-                className="bg-surface-card rounded-card shadow-cartao border p-4"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium">{item.titulo}</span>
-                  <Badge variant="secondary">Rodada {item.numeroRodada}</Badge>
-                  <Badge
-                    variant={item.status === "aprovada" ? "default" : "outline"}
-                  >
-                    {item.status === "aprovada"
-                      ? "Aprovado"
-                      : "Ajustes solicitados"}
-                  </Badge>
-                  <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-                    {item.decididaEm
-                      ? format(parseISO(item.decididaEm), "dd/MM/yy", {
-                          locale: ptBR,
-                        })
-                      : ""}
-                  </span>
-                </div>
-                {item.comentario ? (
-                  <p className="text-muted-foreground mt-1 text-sm">
-                    “{item.comentario}”
-                  </p>
-                ) : null}
-              </li>
+              <Decidida key={item.rodadaId} item={item} />
             ))}
           </ul>
         </section>
@@ -206,29 +185,7 @@ function CartaoPendente({
       </p>
 
       {item.entregas.length > 0 ? (
-        <ul className="flex flex-wrap gap-2">
-          {/* SÓ O QUE TEM ENDEREÇO (0121): um arquivo do bucket precisa da
-              URL assinada, e sem ela o botão levaria o cliente a um link que
-              não abre. Quem não assinou fica de fora — é melhor o material
-              não aparecer do que aparecer e não abrir, na tela em que ele
-              decide. */}
-          {item.entregas
-            .filter((entrega) => entrega.assinado !== null)
-            .map((entrega) => (
-            <li key={entrega.id}>
-              <a
-                href={entrega.assinado!}
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-accent-strong border-input bg-card inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
-              >
-                <Paperclip className="size-3.5" aria-hidden />
-                {entrega.nome ?? "Abrir material"}
-                <ExternalLink className="size-3" aria-hidden />
-              </a>
-            </li>
-          ))}
-        </ul>
+        <PreviaDosArquivos entregas={item.entregas} />
       ) : item.caminho ? null : (
         /* "SEM ARQUIVO ANEXADO" SÓ VALE PARA O MATERIAL DE DEMANDA, que
            entrega por `subtask_entregas` e às vezes não entrega nada. Para o
@@ -342,6 +299,154 @@ function CartaoPendente({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </li>
+  );
+}
+
+/* ------------------------------------------------------------------------
+   A PRÉVIA DO QUE SE APROVA. Pedido do usuário: *"quero que o cliente já tenha
+   uma pré-visualização do que ele vai aprovar"*. Antes eram botões com o nome
+   do arquivo, e decidir pedia abrir cada um numa aba.
+
+   Imagem aparece direto; PDF abre embutido (o `frame-src` já libera o
+   armazenamento); o resto vira um ladrilho com o botão de abrir. SÓ ENTRA O
+   QUE TEM ENDEREÇO ASSINADO (0121) — sem ele o quadro ficaria vazio.
+   ------------------------------------------------------------------------ */
+type Entrega = AprovacaoDoCliente["entregas"][number];
+
+const EH_IMAGEM = /\.(jpe?g|png|gif|webp|avif)(\?|$)/i;
+const EH_PDF = /\.pdf(\?|$)/i;
+
+function nomeDaEntrega(entrega: Entrega): string {
+  return entrega.nome ?? "Material";
+}
+
+function familiaDaEntrega(entrega: Entrega): "imagem" | "pdf" | "outro" {
+  const alvo = `${entrega.nome ?? ""} ${entrega.url}`;
+  if (EH_IMAGEM.test(alvo)) return "imagem";
+  if (EH_PDF.test(alvo)) return "pdf";
+  return "outro";
+}
+
+function PreviaDosArquivos({ entregas }: { entregas: Entrega[] }) {
+  const visiveis = entregas.filter((e) => e.assinado !== null);
+  const [indice, setIndice] = useState(0);
+  if (visiveis.length === 0) return null;
+
+  const atual = visiveis[Math.min(indice, visiveis.length - 1)];
+  const familia = familiaDaEntrega(atual);
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-muted overflow-hidden rounded-xl border">
+        {familia === "imagem" ? (
+          <ImagemAssinada
+            src={atual.assinado}
+            alt={nomeDaEntrega(atual)}
+            className="mx-auto max-h-[70vh] w-auto object-contain"
+          />
+        ) : familia === "pdf" ? (
+          <iframe
+            key={atual.id}
+            src={`${atual.assinado}#view=FitH`}
+            title={nomeDaEntrega(atual)}
+            className="bg-card h-[70vh] w-full"
+          />
+        ) : (
+          <div className="flex flex-col items-center gap-3 p-10 text-center">
+            <FileText aria-hidden className="text-text-muted size-10" />
+            <p className="text-sm font-medium">{nomeDaEntrega(atual)}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {visiveis.length > 1
+          ? visiveis.map((entrega, i) => (
+              <button
+                key={entrega.id}
+                type="button"
+                aria-pressed={i === indice}
+                onClick={() => setIndice(i)}
+                className={cn(
+                  "max-w-[220px] truncate rounded-md border px-3 py-1.5 text-sm",
+                  i === indice
+                    ? "bg-action-soft border-action text-action font-medium"
+                    : "bg-card border-input hover:bg-muted",
+                )}
+              >
+                {nomeDaEntrega(entrega)}
+              </button>
+            ))
+          : null}
+        <a
+          href={atual.assinado!}
+          target="_blank"
+          rel="noreferrer"
+          className="text-accent-strong ml-auto inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+        >
+          {familia === "outro" ? (
+            <ExternalLink aria-hidden className="size-4" />
+          ) : (
+            <Download aria-hidden className="size-4" />
+          )}
+          Abrir em outra aba
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/** A linha de uma rodada já decidida: o que foi, o desfecho e quando. */
+function Decidida({ item }: { item: AprovacaoDoCliente }) {
+  const aprovada = item.status === "aprovada";
+  const desfecho = DESFECHO_DA_RODADA[item.status];
+  const capa = item.entregas.find(
+    (e) => e.assinado !== null && familiaDaEntrega(e) === "imagem",
+  );
+
+  return (
+    <li className="bg-surface-card rounded-card shadow-cartao flex items-start gap-4 border p-4">
+      <div
+        className={cn(
+          "flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg",
+          aprovada ? "bg-success-soft text-success" : "bg-muted text-text-muted",
+        )}
+      >
+        {capa ? (
+          <ImagemAssinada
+            src={capa.assinado}
+            alt=""
+            className="size-full object-cover"
+          />
+        ) : aprovada ? (
+          <Check aria-hidden className="size-6" />
+        ) : (
+          <PencilLine aria-hidden className="size-6" />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium">{item.titulo}</p>
+        <p className="text-text-muted truncate text-xs">
+          {item.demanda ? <>{item.demanda} · </> : null}
+          {item.numeroRodada > 0 ? <>rodada {item.numeroRodada}</> : null}
+        </p>
+        {item.comentario ? (
+          <p className="text-text-muted mt-2 text-sm">“{item.comentario}”</p>
+        ) : null}
+      </div>
+
+      <div className="shrink-0 text-right">
+        <p className={cn("text-sm font-bold", desfecho.classeDeTexto)}>
+          {aprovada ? "Aprovado" : desfecho.rotulo}
+        </p>
+        <p className="text-text-muted text-xs tabular-nums">
+          {item.decididaEm
+            ? format(parseISO(item.decididaEm), "dd 'de' MMM", { locale: ptBR })
+            : ""}
+        </p>
+      </div>
     </li>
   );
 }

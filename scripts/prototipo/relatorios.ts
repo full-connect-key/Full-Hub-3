@@ -72,10 +72,16 @@ const ABERTO: RelatorioAberto = {
   ],
 };
 
-export async function listarRelatorios(): Promise<RelatorioNaLista[]> {
+export async function listarRelatorios(
+  clienteId?: string | null,
+): Promise<RelatorioNaLista[]> {
+  void clienteId;
   return [ABERTO];
 }
 
-export async function obterRelatorio(): Promise<RelatorioAberto | null> {
+export async function obterRelatorio(
+  id: string,
+): Promise<RelatorioAberto | null> {
+  void id;
   return ABERTO;
 }
