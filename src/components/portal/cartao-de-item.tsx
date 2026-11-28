@@ -89,7 +89,13 @@ export function CartaoDeItem({
         <div className="relative hidden size-20 shrink-0 overflow-hidden rounded-lg border sm:block">
           <ImagemAssinada src={item.miniatura} alt="" className="object-cover" />
         </div>
-      ) : null}
+      ) : (
+        /* SEM IMAGEM, O CARTÃO AINDA MOSTRA QUE HÁ MATERIAL: PDF e link não
+           viram miniatura, e a caixa vazia fazia o cartão parecer só texto. */
+        <div className="bg-muted text-text-muted hidden size-20 shrink-0 items-center justify-center rounded-lg sm:flex">
+          <Icone aria-hidden className="size-7" />
+        </div>
+      )}
 
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">

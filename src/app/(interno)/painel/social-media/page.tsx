@@ -313,6 +313,8 @@ export default async function PaginaDeSocialMedia({
    * corrente que ele percorre.
    */
   const pedida = texto(parametros, "aba");
+  // O RELATÓRIO VIROU MÓDULO PRÓPRIO (0159): o endereço antigo leva ao novo.
+  if (pedida === "relatorios") redirect("/painel/relatorios");
   const aba: AbaDoSocial =
     pedida === "fluxos" && souGestor
       ? "fluxos"

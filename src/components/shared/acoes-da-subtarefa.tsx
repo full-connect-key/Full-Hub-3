@@ -233,7 +233,15 @@ export function AcoesDaSubtarefa({
           return;
         }
         iniciar(async () => {
-          terminar(await chamarAcao(() => aprovarInterna(rodadaPendenteId)));
+          const aprovou = terminar(
+            await chamarAcao(() => aprovarInterna(rodadaPendenteId)),
+          );
+          // O AVAL DA GESTÃO JÁ ABRE O ENVIO. Sem isto o material ficava
+          // parado entre os dois cliques: aprovado por dentro, e ninguém
+          // lembrava do "Enviar ao cliente" (relato do usuário).
+          if (aprovou && souGestor && subtarefa.tipo_aprovacao === "cliente") {
+            setEnviandoAoCliente(true);
+          }
         });
         return;
       default: {

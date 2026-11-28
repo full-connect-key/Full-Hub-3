@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, CalendarRange, Workflow } from "lucide-react";
+import { CalendarRange, Workflow } from "lucide-react";
 
 import { BarraDeContexto, type SecaoDoModulo } from "@/components/shared/barra-de-contexto";
 
@@ -64,7 +64,6 @@ export type AbaDoSocial = "social" | "fluxos" | "relatorios";
  */
 const SECOES: SecaoDoModulo<AbaDoSocial>[] = [
   { chave: "social", rotulo: "Social", Icone: CalendarRange },
-  { chave: "relatorios", rotulo: "Relatórios", Icone: BarChart3 },
   { chave: "fluxos", rotulo: "Fluxos", Icone: Workflow },
 ];
 
