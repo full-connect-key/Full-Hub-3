@@ -119,6 +119,8 @@ export type ContextoDaSubtarefa = {
   souOResponsavel: boolean;
   /** Quem está olhando é desenvolvedor ou sócio? */
   souGestor: boolean;
+  /** A pessoa responde por `is_atendimento()`: pode enviar ao cliente. */
+  podeEnviarAoCliente?: boolean;
   /**
    * Quem está olhando é da equipe, numa tela que mostra a pauta de OUTRA
    * pessoa (migration 0144, item 23)?
@@ -367,8 +369,11 @@ export function acoesDaSubtarefa(ctx: ContextoDaSubtarefa): AcaoDeSubtarefa[] {
   //
   // A regra que o usuário pediu continua inteira: `souGestor` já recusa todo
   // colaborador, dono do material ou não.
+  // QUEM ENVIA É O ATENDIMENTO, O SÓCIO OU O DESENVOLVEDOR — confirmado pelo
+  // usuário. `podeEnviarAoCliente` é a resposta do banco (`is_atendimento()`),
+  // trazida pela tela; sem ela vale a regra antiga, só a gestão.
   if (
-    ctx.souGestor &&
+    (ctx.souGestor || ctx.podeEnviarAoCliente === true) &&
     ctx.requerAprovacao &&
     ctx.tipoAprovacao === "cliente" &&
     ctx.avalInterno &&

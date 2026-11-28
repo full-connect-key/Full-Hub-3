@@ -4026,6 +4026,7 @@ export interface Database {
           versao_atual: number;
           responsavel_id: string | null;
           enviado_em: string | null;
+          visivel_no_portal: boolean;
           created_at: string;
         };
         Insert: {
@@ -4056,6 +4057,7 @@ export interface Database {
           arquivo_nome?: string | null;
           responsavel_id?: string | null;
           subtask_id?: string | null;
+          visivel_no_portal?: boolean;
         };
         Relationships: [];
       };

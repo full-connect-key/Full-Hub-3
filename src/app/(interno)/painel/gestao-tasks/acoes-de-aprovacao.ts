@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { exigirEquipeNaAcao, exigirGestorNaAcao } from "@/lib/acoes/guardas";
+import {
+  exigirAtendimentoNaAcao,
+  exigirEquipeNaAcao,
+  exigirGestorNaAcao,
+} from "@/lib/acoes/guardas";
 import {
   aindaNaoTratado,
   colunasDoConteudo,
@@ -524,7 +528,8 @@ export async function enviarParaCliente(
   envio: unknown,
 ): Promise<Resultado> {
   return executarAcao("enviarParaCliente", async () => {
-    const sessao = await exigirGestorNaAcao();
+    // ATENDIMENTO OU GESTÃO (`is_atendimento()`), confirmado pelo usuário.
+    const sessao = await exigirAtendimentoNaAcao();
 
     const validacao = esquemaDeEnvio.safeParse(envio);
     if (!validacao.success) {

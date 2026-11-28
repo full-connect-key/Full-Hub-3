@@ -50,7 +50,7 @@ import type { EstruturaDeTemplate } from "@/lib/supabase/database.types";
 const COLUNAS_DA_CAMPANHA = "id, client_id, nome, descricao, data_inicio, data_fim, status, capa_url, task_id";
 
 // prettier-ignore
-const COLUNAS_DO_ENTREGAVEL = "id, campaign_id, parent_id, nome, descricao, ordem, status, prazo, arte_url, thumbnail_url, arquivo_nome, versao_atual, enviado_em";
+const COLUNAS_DO_ENTREGAVEL = "id, campaign_id, parent_id, nome, descricao, ordem, status, prazo, arte_url, thumbnail_url, arquivo_nome, versao_atual, enviado_em, visivel_no_portal";
 
 type LinhaDeCampanha = {
   id: string;
@@ -73,6 +73,7 @@ type LinhaDeEntregavel = {
   ordem: number;
   status: EntregavelDoPortal["status"];
   prazo: string | null;
+  visivel_no_portal?: boolean;
   arte_url: string | null;
   thumbnail_url: string | null;
   arquivo_nome: string | null;
@@ -147,6 +148,7 @@ function montarEntregavel(
     arquivoNome: linha.arquivo_nome,
     versaoAtual: linha.versao_atual,
     enviadoEm: linha.enviado_em,
+    visivelNoPortal: linha.visivel_no_portal ?? true,
     rodadaPendenteId: rodada?.status === "pendente" ? rodada.id : null,
     decididoPor: rodada?.decidido_por
       ? (nomes.get(rodada.decidido_por) ?? null)

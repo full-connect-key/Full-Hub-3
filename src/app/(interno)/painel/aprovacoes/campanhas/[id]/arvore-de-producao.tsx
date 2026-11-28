@@ -17,6 +17,7 @@ import { EnviarArquivos } from "@/components/shared/enviar-arquivos";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { chamarAcao } from "@/lib/acoes/cliente";
 import { EnvioAoCliente } from "@/components/shared/envio-ao-cliente";
@@ -43,6 +44,7 @@ import {
   enviarEntregavelAoCliente,
   pedirAnaliseDoEntregavel,
   gravarVersaoDoEntregavel,
+  mudarVisibilidadeDaPeca,
   salvarDefesaDaPeca,
 } from "../../acoes-de-campanha";
 
@@ -211,6 +213,7 @@ function Peca({
   const [notas, setNotas] = useState("");
   const [defesa, setDefesa] = useState(item.descricao ?? "");
   const [salvandoDefesa, iniciarDefesa] = useTransition();
+  const [mudandoVisibilidade, iniciarVisibilidade] = useTransition();
   const [enviandoAoCliente, setEnviandoAoCliente] = useState(false);
   const [enviando, enviar] = useTransition();
 
@@ -349,6 +352,28 @@ function Peca({
               nome dela, por `ehKV()`. O cliente lê este texto no portal, junto
               com a peça, e a frase embaixo do campo diz isso antes de alguém
               escrever. */}
+          {/* O CLIENTE VÊ ESTA PEÇA? (0162) Ligado por padrão; desligar a tira
+              do portal inteiro, mesmo depois de enviada. */}
+          <label className="flex items-center gap-2.5 text-sm">
+            <Switch
+              checked={item.visivelNoPortal !== false}
+              disabled={mudandoVisibilidade}
+              onCheckedChange={(visivel) =>
+                iniciarVisibilidade(async () => {
+                  const r = await chamarAcao(() =>
+                    mudarVisibilidadeDaPeca(item.id, visivel),
+                  );
+                  if (!r.ok) toast.error(r.error);
+                  else {
+                    toast.success(r.mensagem);
+                    router.refresh();
+                  }
+                })
+              }
+            />
+            Visível para o cliente no portal
+          </label>
+
           {ehKV(item.nome) ? (
             <div className="space-y-1.5">
               <Label htmlFor={`defesa-${item.id}`}>Defesa do KV</Label>

@@ -791,6 +791,39 @@ export async function salvarDefesaDaPeca(
 }
 
 /**
+ * O INTERRUPTOR "visível para o cliente" de uma peça (0162). Quem esconde é a
+ * policy: a peça desligada some do portal inteiro, mesmo já enviada.
+ */
+export async function mudarVisibilidadeDaPeca(
+  entregavelId: string,
+  visivel: boolean,
+): Promise<Resultado> {
+  return executarAcao("mudarVisibilidadeDaPeca", async () => {
+    await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase
+      .from("deliverables")
+      .update({ visivel_no_portal: visivel })
+      .eq("id", entregavelId)
+      .select("id");
+
+    if (error) return falha(error.message);
+    if (!data || data.length === 0) {
+      return falha("O banco recusou. Mexer na peça é da equipe interna.");
+    }
+
+    revalidatePath(ROTA, "layout");
+    revalidatePath("/portal", "layout");
+    return sucesso(
+      visivel
+        ? "O cliente volta a ver esta peça no portal."
+        : "Esta peça deixou de aparecer no portal do cliente.",
+    );
+  });
+}
+
+/**
  * Troca o status do entregável dentro da agência.
  *
  * **`aprovado` e `rejeitado` NÃO passam por aqui**, e a ausência é a regra:

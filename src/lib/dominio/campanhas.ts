@@ -43,6 +43,8 @@ export type EntregavelDoPortal = {
   arquivoNome: string | null;
   versaoAtual: number;
   enviadoEm: string | null;
+  /** Falso esconde a peça do portal do cliente (0162). Ausente = visível. */
+  visivelNoPortal?: boolean;
   /** A rodada de cliente aberta agora. Null quando não há decisão pendente. */
   rodadaPendenteId: string | null;
   /** Quem decidiu a última rodada fechada, e quando. */

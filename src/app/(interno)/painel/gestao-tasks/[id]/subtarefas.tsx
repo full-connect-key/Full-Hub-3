@@ -959,6 +959,7 @@ function Linha({
                 subtarefa={sub}
                 usuarioId={usuarioId}
                 souGestor={souGestor}
+                podeEnviarAoCliente={podeGerenciar}
                 rodadaPendenteId={
                   sub.rodadas.find((r) => r.status === "pendente")?.id ?? null
                 }

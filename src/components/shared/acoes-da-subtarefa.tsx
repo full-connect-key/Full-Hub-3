@@ -111,6 +111,7 @@ export function AcoesDaSubtarefa({
   usuarioId,
   souGestor,
   souDaEquipe,
+  podeEnviarAoCliente,
   rodadaPendenteId,
   tamanho = "sm",
   aoMudar,
@@ -118,6 +119,8 @@ export function AcoesDaSubtarefa({
   subtarefa: SubtarefaParaAcao;
   usuarioId: string;
   souGestor: boolean;
+  /** `is_atendimento()` perguntado ao banco pela tela (Atendimento ou gestão). */
+  podeEnviarAoCliente?: boolean;
   /**
    * Quem está olhando é da equipe, numa tela que mostra a pauta de OUTRA
    * pessoa (migration 0144, item 23)? Com `subtasks_update` em `is_staff()`,
@@ -162,6 +165,7 @@ export function AcoesDaSubtarefa({
     souOResponsavel: subtarefa.responsavel_id === usuarioId,
     souGestor,
     souDaEquipe,
+    podeEnviarAoCliente,
     dependenciasAbertas: subtarefa.dependenciasAbertas,
     rodadaPendente: subtarefa.rodadaPendente,
     avalInterno: subtarefa.avalInterno,
